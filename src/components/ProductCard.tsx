@@ -27,12 +27,19 @@ function ProductArt({ swatch }: { swatch: [string, string] }) {
 function ImageCarousel({ swatches }: { swatches: Product['swatches'] }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
+  const ticking = useRef(false)
 
   const onScroll = () => {
-    const el = scrollRef.current
-    if (!el) return
-    const index = Math.round(el.scrollLeft / el.clientWidth)
-    setActive(index)
+    if (ticking.current) return
+    ticking.current = true
+    requestAnimationFrame(() => {
+      const el = scrollRef.current
+      if (el) {
+        const index = Math.round(el.scrollLeft / el.clientWidth)
+        setActive(index)
+      }
+      ticking.current = false
+    })
   }
 
   const scrollTo = (index: number) => {

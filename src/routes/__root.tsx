@@ -35,6 +35,15 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'canonical', href: 'https://rustikevi.com' },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossOrigin: 'anonymous',
+      },
     ],
   }),
   shellComponent: RootDocument,
