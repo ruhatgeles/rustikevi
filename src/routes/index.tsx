@@ -7,6 +7,16 @@ import { buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/')({
+  head: () => ({
+    meta: [
+      { title: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
+      {
+        name: 'description',
+        content:
+          'Rustik Evi, doğal malzemelerle üretilen perde aksesuarları toptan satış. Jüt kordon, ahşap halka, saçak, braçöl. 23 ilde teslimat.',
+      },
+    ],
+  }),
   component: HomePage,
 })
 

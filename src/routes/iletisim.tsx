@@ -5,6 +5,16 @@ import { WhatsAppOrderForm } from '@/components/WhatsAppOrderForm'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/iletisim')({
+  head: () => ({
+    meta: [
+      { title: 'İletişim | Rustik Evi' },
+      {
+        name: 'description',
+        content:
+          'Rustik Evi ile iletişime geçin. WhatsApp üzerinden hızlı toptan sipariş formu, adres ve sosyal medya bilgileri.',
+      },
+    ],
+  }),
   component: ContactPage,
 })
 

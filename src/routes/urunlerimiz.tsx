@@ -6,6 +6,16 @@ import { ProductCard } from '@/components/ProductCard'
 import { CatalogQRCode } from '@/components/CatalogQRCode'
 
 export const Route = createFileRoute('/urunlerimiz')({
+  head: () => ({
+    meta: [
+      { title: 'Ürünlerimiz | Rustik Evi' },
+      {
+        name: 'description',
+        content:
+          'Rustik perde aksesuarları kataloğu. Jüt kordon, ahşap halka, saçak, başlık, sarkıt, braçöl. Kategoriye göre filtreleyin, toptan sipariş verin.',
+      },
+    ],
+  }),
   component: ProductsPage,
 })
 

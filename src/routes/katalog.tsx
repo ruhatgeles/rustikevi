@@ -6,6 +6,16 @@ import { siteConfig, buildWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/katalog')({
+  head: () => ({
+    meta: [
+      { title: 'Dijital Katalog | Rustik Evi' },
+      {
+        name: 'description',
+        content:
+          'Rustik Evi toptan kataloğu. Tüm perde aksesuarlarını inceleyin, WhatsApp ile fiyat sorun. Yazdırılabilir dijital katalog.',
+      },
+    ],
+  }),
   component: CatalogPage,
 })
 

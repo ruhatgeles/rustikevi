@@ -2,6 +2,16 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { Factory, Hammer, Users2, ArrowRight } from 'lucide-react'
 
 export const Route = createFileRoute('/hakkinda')({
+  head: () => ({
+    meta: [
+      { title: 'Hakkında | Rustik Evi' },
+      {
+        name: 'description',
+        content:
+          'Rustik Evi hikayesi. El yapımı, doğal malzemelerle üretilen perde aksesuarları. 23 ilde toptan satış ağı.',
+      },
+    ],
+  }),
   component: AboutPage,
 })
 

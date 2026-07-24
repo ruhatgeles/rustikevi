@@ -8,21 +8,33 @@ import '../styles.css'
 export const Route = createRootRoute({
   head: () => ({
     meta: [
-      {
-        charSet: 'utf-8',
-      },
-      {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
-      },
-      {
-        title: 'Rustik Evi | Perde Aksesuarı Toptan Satış',
-      },
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
       {
         name: 'description',
         content:
           'Rustik Evi, Türkiye genelindeki perde mağazaları ve dekorasyon noktaları için perde aksesuarı toptan tedarikçisidir. Dijital kataloğumuzu inceleyin, WhatsApp üzerinden hızlı sipariş oluşturun.',
       },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: 'Rustik Evi' },
+      { property: 'og:title', content: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
+      {
+        property: 'og:description',
+        content:
+          'Perde aksesuarları toptan satış. Jüt, ahşap, keten rustik perde ürünleri. WhatsApp ile hızlı sipariş.',
+      },
+      { property: 'og:image', content: '/logo.png' },
+      { name: 'twitter:card', content: 'summary' },
+      { name: 'twitter:title', content: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
+      {
+        name: 'twitter:description',
+        content:
+          'Perde aksesuarları toptan satış. WhatsApp ile hızlı sipariş.',
+      },
+    ],
+    links: [
+      { rel: 'canonical', href: 'https://rustikevi.com' },
     ],
   }),
   shellComponent: RootDocument,
