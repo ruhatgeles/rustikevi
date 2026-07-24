@@ -1,0 +1,25 @@
+{
+  "name": "Rustik Evi",
+  "short_name": "Rustik Evi",
+  "description": "Perde aksesuarı ve rustik perde toptan satış",
+  "start_url": "/",
+  "display": "standalone",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
