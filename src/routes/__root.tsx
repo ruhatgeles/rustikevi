@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Link, Scripts, createRootRoute } from '@tanstack/react-router'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { WhatsAppFloatingButton } from '@/components/WhatsAppFloatingButton'
@@ -56,6 +56,12 @@ function NotFound() {
       <p className="mt-2 text-[var(--color-ink)]/60">
         Bağlantı hatalı olabilir. Ana sayfaya dönerek ürünlerimize göz atabilirsiniz.
       </p>
+      <Link
+        to="/"
+        className="mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--color-wood-dark)] px-6 py-3 text-sm font-semibold text-[var(--color-linen)] transition-colors hover:bg-[var(--color-espresso)]"
+      >
+        Ana Sayfaya Dön
+      </Link>
     </div>
   )
 }
