@@ -47,13 +47,14 @@ export function WhatsAppOrderForm() {
     e.preventDefault()
     setSending(true)
     try {
-      await fetch('/order-form.html', {
+      const res = await fetch('/order-form.html', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: encode({ 'form-name': 'toptan-siparis', ...fields }),
       })
-    } catch {
-      // WhatsApp yönlendirmesi form kaydı başarısız olsa bile devam eder.
+      if (!res.ok) console.warn('Netlify Forms yanıt hatası:', res.status)
+    } catch (err) {
+      console.error('Netlify Forms gönderim hatası:', err)
     }
     setSending(false)
     setSent(true)
