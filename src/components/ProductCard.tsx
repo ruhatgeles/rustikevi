@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import type { Product } from '@/data/products'
 
@@ -98,8 +97,7 @@ function ImageCarousel({ swatches }: { swatches: Product['swatches'] }) {
 
 export function ProductCard({ product }: { product: Product }) {
   return (
-    <Link
-      to="/urunlerimiz"
+    <div
       className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--color-cream-deep)] bg-[var(--color-linen)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_-12px_rgba(58,42,28,0.25)]"
     >
       <ImageCarousel swatches={product.swatches} />
@@ -118,6 +116,6 @@ export function ProductCard({ product }: { product: Product }) {
           </span>
         </div>
       </div>
-    </Link>
+    </div>
   )
 }
