@@ -99,6 +99,11 @@ export function WhatsAppOrderForm() {
       ) : (
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="form-name" value="toptan-siparis" />
+          <p className="hidden">
+            <label>
+              Bu alanı boş bırakın: <input name="bot-field" />
+            </label>
+          </p>
 
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-[var(--color-ink)]/80">İşletme Adı</span>
@@ -130,6 +135,8 @@ export function WhatsAppOrderForm() {
               required
               name="telefon"
               type="tel"
+              pattern="[0-9]{10,11}"
+              maxLength={11}
               value={fields.telefon}
               onChange={handleChange}
               placeholder="05xx xxx xx xx"
@@ -169,6 +176,7 @@ export function WhatsAppOrderForm() {
           <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
             <span className="font-medium text-[var(--color-ink)]/80">Tahmini Adet / Metraj</span>
             <input
+              required
               name="adet"
               value={fields.adet}
               onChange={handleChange}
