@@ -50,7 +50,7 @@ const highlights = [
 ]
 
 function HomePage() {
-  const featured = products.slice(0, 3)
+  const featured = products.filter((p) => p.featured)
 
   return (
     <div className="overflow-hidden">

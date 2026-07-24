@@ -81,7 +81,3 @@ body {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--color-brass) 50%, transparent);
 }
-
-code {
-  font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-}
