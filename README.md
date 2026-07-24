@@ -1,34 +1,41 @@
 # Rustik Evi
 
-Rustik Evi için hazırlanmış, perde aksesuarları ve rustik perde ürünlerini tanıtan statik
-kurumsal/tanıtım web sitesi. Site, Türkiye genelindeki perde mağazalarına toptan satış
-ağını genişletmek amacıyla tasarlandı: dijital ürün kataloğu, QR kod ile hızlı erişim ve
-WhatsApp üzerinden anında sipariş oluşturma formu içerir.
+> Perde aksesuarları toptan satış tanıtım sitesi
+
+Rustik Evi için hazırlanmış kurumsal/tanıtım web sitesi. Türkiye genelindeki perde
+mağazalarına toptan satış ağını genişletmek amacıyla tasarlandı: dijital ürün kataloğu,
+QR kod ile hızlı erişim ve WhatsApp üzerinden anında sipariş oluşturma formu içerir.
 
 ## Sayfalar
 
-- **Ana Sayfa** (`/`) — marka tanıtımı, öne çıkan ürünler, dijital katalog CTA
-- **Ürünlerimiz** (`/urunlerimiz`) — kategoriye göre filtrelenebilir ürün kataloğu
-- **Dijital Katalog** (`/katalog`) — QR kod ve buton ile açılan, yazdırılabilir katalog sayfası
-- **Hakkında** (`/hakkinda`) — marka hikayesi ve değerler
-- **İletişim** (`/iletisim`) — WhatsApp hızlı sipariş formu, iletişim bilgileri, sosyal medya
+| Sayfa | Rota | Açıklama |
+|-------|------|----------|
+| Ana Sayfa | `/` | Marka tanıtımı, öne çıkan ürünler, katalog CTA |
+| Ürünlerimiz | `/urunlerimiz` | Kategoriye göre filtrelenebilir ürün kataloğu |
+| Dijital Katalog | `/katalog` | QR kod ile açılan, yazdırılabilir katalog |
+| Hakkında | `/hakkinda` | Marka hikayesi ve değerler |
+| İletişim | `/iletisim` | WhatsApp sipariş formu, iletişim bilgileri |
 
-## Teknolojiler
+## Teknoloji Yığını
 
-- [TanStack Start](https://tanstack.com/start) (React 19, dosya tabanlı yönlendirme)
-- Tailwind CSS 4
-- Netlify Forms (toptan sipariş formu kayıtları için)
-- Netlify (statik/SSR barındırma)
+| Katman | Teknoloji |
+|--------|-----------|
+| Framework | TanStack Start (React 19, dosya tabanlı yönlendirme) |
+| Build | Vite 7 |
+| Stil | Tailwind CSS 4 (CSS custom properties ile tema) |
+| İkonlar | lucide-react |
+| Form | Netlify Forms + WhatsApp wa.me |
+| Deploy | Netlify |
 
-## Yerel Geliştirme
+## Başlangıç
 
 ```bash
 pnpm install
-pnpm dev
+pnpm dev      # http://localhost:3000
+pnpm build    # prodüksiyon build
 ```
 
-Site `http://localhost:3000` adresinde açılır. Netlify özelliklerini (Forms dahil) yerel
-olarak test etmek için Netlify CLI kullanılabilir:
+Netlify özelliklerini yerel test için:
 
 ```bash
 netlify dev
@@ -36,14 +43,28 @@ netlify dev
 
 ## Yapılandırma
 
-İletişim bilgileri, WhatsApp numarası ve sosyal medya linkleri `src/lib/site-config.ts`
-dosyasında tek bir yerden yönetilir. Canlıya almadan önce `whatsappNumber` alanını gerçek
-işletme numarasıyla güncelleyin.
+İletişim bilgileri ve WhatsApp numarası `src/lib/site-config.ts` dosyasında yönetilir.
+Canlıya almadan önce `whatsappNumber` alanını güncelleyin.
+
+## Mimari
+
+```
+src/
+├── components/     # Paylaşılan bileşenler
+├── data/           # Ürün kataloğu verisi
+├── lib/            # Yardımcı fonksiyonlar
+├── routes/         # TanStack Router sayfaları
+└── styles.css      # Tema değişkenleri, font importları
+public/
+└── order-form.html # Netlify Forms build-time algılama iskeleti
+```
 
 ## Notlar
 
-- WhatsApp sipariş formu, mesajı hem `wa.me` linki olarak açar hem de Netlify Forms'a
-  yedek kayıt olarak gönderir (Netlify panelinden görüntülenebilir).
-- QR kod, `/katalog` sayfasının tam URL'sini kodlayarak çalışma zamanında oluşturulur.
-- Ürün görselleri yerine, marka renk paletiyle uyumlu doku efektli gradyanlar kullanılmıştır;
-  gerçek ürün fotoğrafları eklenene kadar bu görsel dil korunabilir.
+- Ürün görselleri yerine marka paletiyle uyumlu gradyanlar kullanılmıştır.
+- QR kod `api.qrserver.com` üzerinden çalışma zamanında üretilir.
+- WhatsApp formu hem `wa.me` linki açar hem de Netlify Forms'a yedek kayıt gönderir.
+
+## Lisans
+
+Tüm hakları saklıdır.
