@@ -66,7 +66,7 @@ const products: Array<Product> = [
     id: 6,
     name: 'Ahşap Perde Çubuğu',
     category: 'Rustik',
-    shortDescription: 'Doğal ahşap perde çubuğu, various çaplarında.',
+    shortDescription: 'Doğal ahşap perde çubuğu, çeşitli çaplarında.',
     description:
       'Doğal ahşaptan üretilen perde çubukları, rustik ve minimal dekorasyonlar için mükemmeldir. Farklı uzunluk ve çap seçenekleri mevcuttur.',
     moq: '100 adet',
@@ -138,7 +138,7 @@ const products: Array<Product> = [
     id: 13,
     name: 'Çift Katlı Saçak',
     category: 'Saçak',
-    shortDescription: 'Çift katlı密集 dokuma saçak.',
+    shortDescription: 'Çift katlı yoğun dokuma saçak.',
     description:
       'Çift katlı yoğun dokuma tekniğiyle üretilen saçaklarımız, premium görünüm ve yüksek dayanıklılık sunar. Toptan siparişlerde özel renk üretimi yapılabilir.',
     moq: '100 metre',
@@ -252,7 +252,7 @@ const products: Array<Product> = [
     id: 24,
     name: 'Metal Kordon Ucu',
     category: 'Dekorink',
-    shortDescription: 'Metal kordon ucu,Various desenlerde.',
+    shortDescription: 'Metal kordon ucu, çeşitli desenlerde.',
     description:
       'Paslanmaz çelik veya pirinç malzemeden üretilen kordon ucularımız, kordonlara şık bir bitiş kazandırır. Çeşitli desen ve boyutlarda mevcuttur.',
     moq: '300 adet',
