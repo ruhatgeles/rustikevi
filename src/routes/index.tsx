@@ -3,6 +3,7 @@ import { Truck, PackageCheck, Ruler, Handshake, ArrowRight, QrCode } from 'lucid
 import products from '@/data/products'
 import { ProductCard } from '@/components/ProductCard'
 import { CatalogQRCode } from '@/components/CatalogQRCode'
+import { StoryCircles } from '@/components/StoryCircles'
 import { buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
@@ -54,6 +55,9 @@ function HomePage() {
 
   return (
     <div className="overflow-hidden">
+      {/* STORIES */}
+      <StoryCircles />
+
       {/* HERO */}
       <section className="texture-grain relative bg-[var(--color-espresso-deep)] pb-24 pt-20 text-[var(--color-cream)] sm:pt-28">
         <div className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-[var(--color-brass)]/20 blur-3xl" />
