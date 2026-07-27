@@ -261,7 +261,7 @@ export default function Orders() {
       const randomPrice = () => Math.floor(Math.random() * 20000) + 5000 // 50-250 TL
 
       // Create customer first
-      const customerRes = await api.request<{ data: { id: string } }>('/api/customers', {
+      const customer = await api.request<{ id: string }>('/api/customers', {
         method: 'POST',
         body: {
           businessName: randomItem(businessNames),
@@ -282,7 +282,7 @@ export default function Orders() {
       await api.request('/api/orders', {
         method: 'POST',
         body: {
-          customerId: customerRes.data.id,
+          customerId: customer.id,
           items,
           source: randomItem(sources),
           notes: Math.random() > 0.5 ? 'Test sipariş notu' : undefined,
