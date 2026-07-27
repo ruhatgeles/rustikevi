@@ -12,10 +12,12 @@ import {
   Package,
   ShoppingCart,
   Bug,
+  BarChart3,
 } from 'lucide-react'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'viewer'] },
+  { to: '/status', label: 'Durum', icon: BarChart3, roles: ['admin', 'manager'] },
   { to: '/orders', label: 'Siparişler', icon: ShoppingCart, roles: ['admin', 'manager'] },
   { to: '/products', label: 'Ürünler', icon: Package, roles: ['admin', 'manager'] },
   { to: '/customers', label: 'Müşteriler', icon: Users, roles: ['admin', 'manager'] },

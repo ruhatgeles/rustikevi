@@ -150,7 +150,7 @@ export default function Orders() {
   const [error, setError] = useState('')
   const [newNote, setNewNote] = useState('')
   const [creatingTest, setCreatingTest] = useState(false)
-  const [uiMode, setUiMode] = useState<'classic' | 'ui2' | 'kanban'>('classic')
+  const [uiMode, setUiMode] = useState<'classic' | 'ui2'>('classic')
 
   // Load orders
   const loadOrders = async () => {
@@ -329,26 +329,26 @@ export default function Orders() {
                 {creatingTest ? <Loader2 size={14} className="animate-spin" /> : <Bug size={14} />}
                 Test Sipariş
               </button>
-              <div className="flex rounded-lg border border-[var(--color-cream-deep)] bg-white">
-                <button
-                  onClick={() => setUiMode('classic')}
-                  className={`px-3 py-2 text-xs font-medium ${uiMode === 'classic' ? 'bg-[var(--color-wood-dark)] text-white' : 'text-[var(--color-ink)]/60'}`}
-                >
-                  Klasik
-                </button>
-                <button
-                  onClick={() => setUiMode('ui2')}
-                  className={`px-3 py-2 text-xs font-medium ${uiMode === 'ui2' ? 'bg-[var(--color-wood-dark)] text-white' : 'text-[var(--color-ink)]/60'}`}
-                >
-                  UI-2
-                </button>
-                <button
-                  onClick={() => setUiMode('kanban')}
-                  className={`px-3 py-2 text-xs font-medium ${uiMode === 'kanban' ? 'bg-[var(--color-wood-dark)] text-white' : 'text-[var(--color-ink)]/60'}`}
-                >
-                  Kanban
-                </button>
-              </div>
+              {/* Classic/UI2 Toggle */}
+              <button
+                onClick={() => setUiMode(uiMode === 'classic' ? 'ui2' : 'classic')}
+                className={`relative flex h-8 w-14 items-center rounded-full transition-colors ${
+                  uiMode === 'ui2' ? 'bg-[var(--color-wood-dark)]' : 'bg-gray-300'
+                }`}
+                title={uiMode === 'classic' ? 'UI-2 moduna geç' : 'Klasik moda geç'}
+              >
+                <span className={`absolute left-1 text-[9px] font-bold ${uiMode === 'classic' ? 'text-gray-500' : 'text-transparent'}`}>
+                  KL
+                </span>
+                <span
+                  className={`inline-block h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                    uiMode === 'ui2' ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+                <span className={`absolute right-1 text-[9px] font-bold ${uiMode === 'ui2' ? 'text-white' : 'text-transparent'}`}>
+                  U2
+                </span>
+              </button>
             </>
           )}
         </div>
@@ -394,56 +394,10 @@ export default function Orders() {
         </button>
       </div>
 
-      {/* Kanban View */}
-      {uiMode === 'kanban' && debugMode ? (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {KANBAN_COLUMNS.map((status) => {
-            const config = ORDER_STATUS_CONFIG[status]
-            const Icon = config.icon
-            const statusOrders = orders.filter((o) => o.status === status)
-            return (
-              <div
-                key={status}
-                className="min-w-[280px] flex-1"
-                onDragOver={handleDragOver}
-                onDrop={() => handleDrop(status)}
-              >
-                <div className={`mb-3 flex items-center gap-2 rounded-lg ${config.bgColor} px-3 py-2`}>
-                  <Icon size={16} className={config.color} />
-                  <span className={`text-sm font-semibold ${config.color}`}>{config.label}</span>
-                  <span className="ml-auto text-xs text-[var(--color-ink)]/40">{statusOrders.length}</span>
-                </div>
-                <div className="space-y-2">
-                  {statusOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      draggable
-                      onDragStart={() => handleDragStart(order.id)}
-                      onClick={() => loadOrderDetail(order.id)}
-                      className="cursor-grab rounded-lg border border-[var(--color-cream-deep)] bg-white p-3 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-semibold text-[var(--color-wood-dark)]">
-                          {order.orderNumber}
-                        </span>
-                        <GripVertical size={12} className="text-[var(--color-ink)]/20" />
-                      </div>
-                      <div className="mt-1 text-sm font-medium">{order.customerName}</div>
-                      <div className="mt-1 text-xs text-[var(--color-ink)]/50">
-                        {order.customerCity} · {new Date(order.createdAt).toLocaleDateString('tr-TR')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        /* List + Detail View */
-        <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-          {/* Order List */}
-          <div className="space-y-2">
+      {/* List + Detail View */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+        {/* Order List */}
+        <div className="space-y-2">
             {loading ? (
               <div className="flex h-32 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
@@ -688,7 +642,7 @@ export default function Orders() {
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
