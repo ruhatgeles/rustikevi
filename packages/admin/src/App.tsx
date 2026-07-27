@@ -8,6 +8,7 @@ import Customers from './pages/Customers'
 import Content from './pages/Content'
 import InviteCodes from './pages/InviteCodes'
 import Products from './pages/Products'
+import Orders from './pages/Orders'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -71,6 +72,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Products />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <Orders />
             </ProtectedRoute>
           }
         />

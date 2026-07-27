@@ -1,13 +1,23 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { db } from '../db/index.js'
-import { customers } from '../db/schema.js'
-import { eq } from 'drizzle-orm'
+import {
+  listOrders,
+  getOrderById,
+  createOrder,
+  updateOrderStatus,
+  updateOrder,
+  addOrderItem,
+  removeOrderItem,
+  getOrderStats,
+} from '../services/order.service.js'
+import { requireAuth, requireManager, requireAdmin } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rate-limit.js'
 
-const orders = new Hono()
+const ordersRoutes = new Hono()
 
-const orderSchema = z.object({
+// ── Public: Sipariş talebi oluştur (form) ───────────────
+
+const publicOrderSchema = z.object({
   isletme: z.string().min(1),
   yetkili: z.string().min(1),
   telefon: z.string().min(10),
@@ -17,48 +27,201 @@ const orderSchema = z.object({
   mesaj: z.string().optional(),
 })
 
-// POST /api/orders — sipariş talebi (public, rate limited)
-orders.post('/', rateLimit(20, 60_000), async (c) => {
+ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
   const body = await c.req.json()
-  const input = orderSchema.parse(body)
+  const input = publicOrderSchema.parse(body)
 
-  // Müşteri olarak kaydet (veya mevcut güncelle)
+  // Find or create customer
+  const { db } = await import('../db/index.js')
+  const { customers: customersTable } = await import('../db/schema.js')
+  const { eq } = await import('drizzle-orm')
+
   const [existing] = await db
-    .select({ id: customers.id })
-    .from(customers)
-    .where(eq(customers.phone, input.telefon))
+    .select()
+    .from(customersTable)
+    .where(eq(customersTable.phone, input.telefon))
     .limit(1)
 
+  let customerId: string
+
   if (existing) {
+    // Update existing customer
     await db
-      .update(customers)
+      .update(customersTable)
       .set({
         businessName: input.isletme,
         contactName: input.yetkili,
-        city: input.sehir || null,
-        notes: input.mesaj || null,
+        city: input.sehir || existing.city,
         updatedAt: new Date(),
       })
-      .where(eq(customers.id, existing.id))
+      .where(eq(customersTable.id, existing.id))
+    customerId = existing.id
   } else {
-    await db.insert(customers).values({
-      businessName: input.isletme,
-      contactName: input.yetkili,
-      phone: input.telefon,
-      city: input.sehir || null,
-      notes: input.mesaj
-        ? `Ürün: ${input.urun}, Adet: ${input.adet || '-'}\n${input.mesaj}`
-        : `Ürün: ${input.urun}, Adet: ${input.adet || '-'}`,
-    })
+    // Create new customer
+    const [newCustomer] = await db
+      .insert(customersTable)
+      .values({
+        businessName: input.isletme,
+        contactName: input.yetkili,
+        phone: input.telefon,
+        city: input.sehir,
+      })
+      .returning()
+    customerId = newCustomer.id
   }
 
-  // wa.me linki frontend'de açılacak, burada sadece success dön
-  return c.json({
-    data: {
-      success: true,
-      message: 'Sipariş talebiniz kaydedildi',
+  // Create order
+  const order = await createOrder(
+    {
+      customerId,
+      items: [
+        {
+          productName: input.urun,
+          quantity: parseInt(input.adet || '1', 10) || 1,
+        },
+      ],
+      notes: input.mesaj,
+      source: 'whatsapp',
     },
-  })
+    null,
+  )
+
+  return c.json(
+    {
+      data: {
+        success: true,
+        message: 'Sipariş talebiniz kaydedildi',
+        orderNumber: order.orderNumber,
+      },
+    },
+    201,
+  )
 })
 
-export default orders
+// ── Protected routes ────────────────────────────────────
+
+ordersRoutes.use('*', requireAuth())
+
+// GET /api/orders — list orders
+ordersRoutes.get('/', async (c) => {
+  const page = Number(c.req.query('page') || 1)
+  const limit = Number(c.req.query('limit') || 20)
+  const status = c.req.query('status')
+  const customerId = c.req.query('customerId')
+  const search = c.req.query('search')
+
+  const result = await listOrders({ status, customerId, search, page, limit })
+  return c.json({ data: result })
+})
+
+// GET /api/orders/stats — dashboard stats
+ordersRoutes.get('/stats', async (c) => {
+  const stats = await getOrderStats()
+  return c.json({ data: stats })
+})
+
+// GET /api/orders/:id — single order with items and activities
+ordersRoutes.get('/:id', async (c) => {
+  const id = c.req.param('id')
+  const order = await getOrderById(id)
+  return c.json({ data: order })
+})
+
+// POST /api/orders — create order (manager+)
+ordersRoutes.post('/', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const createSchema = z.object({
+    customerId: z.string().uuid(),
+    items: z.array(
+      z.object({
+        productId: z.number().optional(),
+        productName: z.string().min(1),
+        quantity: z.number().min(1),
+        unitPrice: z.number().optional(),
+        specifications: z.string().optional(),
+      }),
+    ),
+    notes: z.string().optional(),
+    source: z.string().optional(),
+    assignedTo: z.string().uuid().optional(),
+  })
+
+  const input = createSchema.parse(body)
+  const order = await createOrder(input, user.sub)
+  return c.json({ data: order }, 201)
+})
+
+// PATCH /api/orders/:id/status — update status (manager+)
+ordersRoutes.patch('/:id/status', requireManager(), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const statusSchema = z.object({
+    status: z.enum([
+      'pending',
+      'quoted',
+      'confirmed',
+      'in_production',
+      'shipped',
+      'delivered',
+      'cancelled',
+    ]),
+    note: z.string().optional(),
+  })
+
+  const input = statusSchema.parse(body)
+  const order = await updateOrderStatus(id, input.status, user.sub, input.note)
+  return c.json({ data: order })
+})
+
+// PATCH /api/orders/:id — update order fields (manager+)
+ordersRoutes.patch('/:id', requireManager(), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const updateSchema = z.object({
+    notes: z.string().optional(),
+    internalNotes: z.string().optional(),
+    assignedTo: z.string().uuid().nullable().optional(),
+    totalAmount: z.number().nullable().optional(),
+  })
+
+  const input = updateSchema.parse(body)
+  const order = await updateOrder(id, input, user.sub)
+  return c.json({ data: order })
+})
+
+// POST /api/orders/:id/items — add item to order (manager+)
+ordersRoutes.post('/:id/items', requireManager(), async (c) => {
+  const orderId = c.req.param('id')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const itemSchema = z.object({
+    productId: z.number().optional(),
+    productName: z.string().min(1),
+    quantity: z.number().min(1),
+    unitPrice: z.number().optional(),
+    specifications: z.string().optional(),
+  })
+
+  const input = itemSchema.parse(body)
+  const order = await addOrderItem(orderId, input, user.sub)
+  return c.json({ data: order })
+})
+
+// DELETE /api/orders/:id/items/:itemId — remove item (manager+)
+ordersRoutes.delete('/:id/items/:itemId', requireManager(), async (c) => {
+  const orderId = c.req.param('id')
+  const itemId = c.req.param('itemId')
+  const user = c.get('user')
+
+  const order = await removeOrderItem(orderId, itemId, user.sub)
+  return c.json({ data: order })
+})
+
+export default ordersRoutes

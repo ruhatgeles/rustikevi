@@ -9,10 +9,12 @@ import {
   KeyRound,
   LogOut,
   Package,
+  ShoppingCart,
 } from 'lucide-react'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'viewer'] },
+  { to: '/orders', label: 'Siparişler', icon: ShoppingCart, roles: ['admin', 'manager'] },
   { to: '/products', label: 'Ürünler', icon: Package, roles: ['admin', 'manager'] },
   { to: '/customers', label: 'Müşteriler', icon: Users, roles: ['admin', 'manager'] },
   { to: '/content', label: 'İçerik', icon: FileText, roles: ['admin', 'manager'] },

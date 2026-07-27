@@ -1,26 +1,43 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Send } from 'lucide-react'
-import products from '@/data/products'
 import { buildWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-const initialState = {
-  isletme: '',
-  yetkili: '',
-  telefon: '',
-  sehir: '',
-  urun: products[0]?.name ?? '',
-  adet: '',
-  mesaj: '',
+interface ProductOption {
+  id: number
+  name: string
+  category: string
 }
 
 export function WhatsAppOrderForm() {
-  const [fields, setFields] = useState(initialState)
+  const [products, setProducts] = useState<ProductOption[]>([])
+  const [fields, setFields] = useState({
+    isletme: '',
+    yetkili: '',
+    telefon: '',
+    sehir: '',
+    urun: '',
+    adet: '',
+    mesaj: '',
+  })
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(false)
+  const [orderNumber, setOrderNumber] = useState('')
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/products`)
+      .then((r) => r.json())
+      .then((d) => {
+        setProducts(d.data || [])
+        if (d.data?.length > 0) {
+          setFields((prev) => ({ ...prev, urun: d.data[0].name }))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -37,6 +54,7 @@ export function WhatsAppOrderForm() {
       `Adet / Metraj: ${fields.adet || '-'}`,
     ]
     if (fields.mesaj) lines.push(`Not: ${fields.mesaj}`)
+    if (orderNumber) lines.push(`Sipariş No: ${orderNumber}`)
     return lines.join('\n')
   }
 
@@ -44,24 +62,22 @@ export function WhatsAppOrderForm() {
     e.preventDefault()
     setSending(true)
     setError(false)
-    let formOk = false
     try {
-      const res = await fetch(`${API_URL}/api/orders`, {
+      const res = await fetch(`${API_URL}/api/orders/inquiry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(fields),
       })
-      formOk = res.ok
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      setOrderNumber(data.data?.orderNumber || '')
+      setSent(true)
+      window.open(buildWhatsAppLink(buildMessage()), '_blank', 'noreferrer')
     } catch {
-      formOk = false
-    }
-    setSending(false)
-    if (!formOk) {
       setError(true)
-      return
+    } finally {
+      setSending(false)
     }
-    setSent(true)
-    window.open(buildWhatsAppLink(buildMessage()), '_blank', 'noreferrer')
   }
 
   return (
@@ -93,13 +109,27 @@ export function WhatsAppOrderForm() {
           <p className="font-display text-lg text-[var(--color-espresso)]">
             WhatsApp açıldı, teşekkürler!
           </p>
+          {orderNumber && (
+            <p className="mt-2 text-sm font-semibold text-[var(--color-wood-dark)]">
+              Sipariş No: {orderNumber}
+            </p>
+          )}
           <p className="mt-1 text-sm text-[var(--color-ink)]/65">
             Açılan sohbette mesajı gönderdiğinizde talebiniz çalışma saatlerimiz içinde
             değerlendirilir. Yeni bir talep için formu tekrar doldurabilirsiniz.
           </p>
           <button
             onClick={() => {
-              setFields(initialState)
+              setFields({
+                isletme: '',
+                yetkili: '',
+                telefon: '',
+                sehir: '',
+                urun: products[0]?.name || '',
+                adet: '',
+                mesaj: '',
+              })
+              setOrderNumber('')
               setSent(false)
             }}
             className="mt-4 rounded-full border border-[var(--color-wood-dark)] px-5 py-2 text-sm font-semibold text-[var(--color-wood-dark)] transition-colors hover:bg-[var(--color-wood-dark)] hover:text-[var(--color-linen)]"
@@ -170,7 +200,7 @@ export function WhatsAppOrderForm() {
             >
               {products.map((p) => (
                 <option key={p.id} value={p.name}>
-                  {p.name}
+                  {p.name} ({p.category})
                 </option>
               ))}
               <option value="Genel Katalog">Genel Katalog / Emin Değilim</option>

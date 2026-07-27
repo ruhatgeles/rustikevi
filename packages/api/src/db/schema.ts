@@ -16,6 +16,15 @@ import { relations } from 'drizzle-orm'
 
 export const userRoleEnum = pgEnum('user_role', ['admin', 'manager', 'viewer'])
 export const contentTypeEnum = pgEnum('content_type', ['text', 'json', 'image'])
+export const orderStatusEnum = pgEnum('order_status', [
+  'pending',
+  'quoted',
+  'confirmed',
+  'in_production',
+  'shipped',
+  'delivered',
+  'cancelled',
+])
 
 // ── Users ──────────────────────────────────────────────
 
@@ -106,6 +115,53 @@ export const products = pgTable('products', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
 
+// ── Orders ────────────────────────────────────────────
+
+export const orders = pgTable('orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orderNumber: varchar('order_number', { length: 20 }).notNull().unique(),
+  customerId: uuid('customer_id')
+    .notNull()
+    .references(() => customers.id),
+  status: orderStatusEnum('status').notNull().default('pending'),
+  totalAmount: integer('total_amount'), // kuruş cinsinden (100 = 1 TL)
+  currency: varchar('currency', { length: 3 }).notNull().default('TRY'),
+  notes: text('notes'),
+  internalNotes: text('internal_notes'), // sadece admin görür
+  assignedTo: uuid('assigned_to').references(() => users.id),
+  source: varchar('source', { length: 50 }).notNull().default('whatsapp'), // whatsapp, phone, website, walk-in
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const orderItems = pgTable('order_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orderId: uuid('order_id')
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  productId: integer('product_id')
+    .references(() => products.id),
+  productName: varchar('product_name', { length: 200 }).notNull(), // ürün silinse bile korunur
+  quantity: integer('quantity').notNull().default(1),
+  unitPrice: integer('unit_price'), // kuruş cinsinden
+  totalPrice: integer('total_price'), // kuruş cinsinden
+  specifications: text('specifications'), // özel notlar, renk, boyut vb.
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const orderActivities = pgTable('order_activities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orderId: uuid('order_id')
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .references(() => users.id),
+  type: varchar('type', { length: 50 }).notNull(), // status_change, note_added, item_added, etc.
+  description: text('description').notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
 // ── Relations ──────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -128,4 +184,21 @@ export const customersRelations = relations(customers, ({ one }) => ({
 
 export const contentBlocksRelations = relations(contentBlocks, ({ one }) => ({
   updater: one(users, { fields: [contentBlocks.updatedBy], references: [users.id] }),
+}))
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  customer: one(customers, { fields: [orders.customerId], references: [customers.id] }),
+  assignee: one(users, { fields: [orders.assignedTo], references: [users.id] }),
+  items: many(orderItems),
+  activities: many(orderActivities),
+}))
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
+  product: one(products, { fields: [orderItems.productId], references: [products.id] }),
+}))
+
+export const orderActivitiesRelations = relations(orderActivities, ({ one }) => ({
+  order: one(orders, { fields: [orderActivities.orderId], references: [orders.id] }),
+  user: one(users, { fields: [orderActivities.userId], references: [users.id] }),
 }))
