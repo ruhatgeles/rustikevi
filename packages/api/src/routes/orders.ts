@@ -6,9 +6,16 @@ import {
   createOrder,
   updateOrderStatus,
   updateOrder,
+  updateItemStatus,
   addOrderItem,
   removeOrderItem,
+  archiveOrder,
+  unarchiveOrder,
   getOrderStats,
+  VALID_ORDER_TRANSITIONS,
+  VALID_ITEM_TRANSITIONS,
+  STATUS_LABELS,
+  ITEM_STATUS_LABELS,
 } from '../services/order.service.js'
 import { requireAuth, requireManager, requireAdmin } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rate-limit.js'
@@ -31,7 +38,6 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
   const body = await c.req.json()
   const input = publicOrderSchema.parse(body)
 
-  // Find or create customer
   const { db } = await import('../db/index.js')
   const { customers: customersTable } = await import('../db/schema.js')
   const { eq } = await import('drizzle-orm')
@@ -45,7 +51,6 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
   let customerId: string
 
   if (existing) {
-    // Update existing customer
     await db
       .update(customersTable)
       .set({
@@ -57,7 +62,6 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
       .where(eq(customersTable.id, existing.id))
     customerId = existing.id
   } else {
-    // Create new customer
     const [newCustomer] = await db
       .insert(customersTable)
       .values({
@@ -70,7 +74,6 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
     customerId = newCustomer.id
   }
 
-  // Create order
   const order = await createOrder(
     {
       customerId,
@@ -109,8 +112,9 @@ ordersRoutes.get('/', async (c) => {
   const status = c.req.query('status')
   const customerId = c.req.query('customerId')
   const search = c.req.query('search')
+  const archived = c.req.query('archived') === 'true'
 
-  const result = await listOrders({ status, customerId, search, page, limit })
+  const result = await listOrders({ status, customerId, search, archived, page, limit })
   return c.json({ data: result })
 })
 
@@ -118,6 +122,18 @@ ordersRoutes.get('/', async (c) => {
 ordersRoutes.get('/stats', async (c) => {
   const stats = await getOrderStats()
   return c.json({ data: stats })
+})
+
+// GET /api/orders/meta — status transitions and labels
+ordersRoutes.get('/meta', async (c) => {
+  return c.json({
+    data: {
+      orderTransitions: VALID_ORDER_TRANSITIONS,
+      itemTransitions: VALID_ITEM_TRANSITIONS,
+      orderLabels: STATUS_LABELS,
+      itemLabels: ITEM_STATUS_LABELS,
+    },
+  })
 })
 
 // GET /api/orders/:id — single order with items and activities
@@ -168,12 +184,38 @@ ordersRoutes.patch('/:id/status', requireManager(), async (c) => {
       'shipped',
       'delivered',
       'cancelled',
+      'returned',
     ]),
     note: z.string().optional(),
   })
 
   const input = statusSchema.parse(body)
   const order = await updateOrderStatus(id, input.status, user.sub, input.note)
+  return c.json({ data: order })
+})
+
+// PATCH /api/orders/:id/items/:itemId/status — update item status (manager+)
+ordersRoutes.patch('/:id/items/:itemId/status', requireManager(), async (c) => {
+  const orderId = c.req.param('id')
+  const itemId = c.req.param('itemId')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const itemStatusSchema = z.object({
+    status: z.enum([
+      'pending',
+      'in_stock',
+      'out_of_stock',
+      'in_production',
+      'ready',
+      'shipped',
+      'delivered',
+      'returned',
+    ]),
+  })
+
+  const input = itemStatusSchema.parse(body)
+  const order = await updateItemStatus(orderId, itemId, input.status, user.sub)
   return c.json({ data: order })
 })
 
@@ -192,6 +234,22 @@ ordersRoutes.patch('/:id', requireManager(), async (c) => {
 
   const input = updateSchema.parse(body)
   const order = await updateOrder(id, input, user.sub)
+  return c.json({ data: order })
+})
+
+// POST /api/orders/:id/archive — archive order (manager+)
+ordersRoutes.post('/:id/archive', requireManager(), async (c) => {
+  const id = c.req.param('id')
+  const user = c.get('user')
+  const order = await archiveOrder(id, user.sub)
+  return c.json({ data: order })
+})
+
+// POST /api/orders/:id/unarchive — unarchive order (manager+)
+ordersRoutes.post('/:id/unarchive', requireManager(), async (c) => {
+  const id = c.req.param('id')
+  const user = c.get('user')
+  const order = await unarchiveOrder(id, user.sub)
   return c.json({ data: order })
 })
 

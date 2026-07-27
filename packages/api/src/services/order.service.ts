@@ -1,5 +1,5 @@
 import { db } from '../db/index.js'
-import { orders, orderItems, orderActivities, customers, products } from '../db/schema.js'
+import { orders, orderItems, orderActivities, customers, products, users } from '../db/schema.js'
 import { eq, and, sql, desc, asc, ilike } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
@@ -20,7 +20,6 @@ interface CreateOrderInput {
 }
 
 interface UpdateOrderInput {
-  status?: string
   notes?: string
   internalNotes?: string
   assignedTo?: string
@@ -53,6 +52,50 @@ async function addActivity(
   })
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Beklemede',
+  quoted: 'Teklif Verildi',
+  confirmed: 'Onaylandı',
+  in_production: 'Üretimde',
+  shipped: 'Kargoya Verildi',
+  delivered: 'Teslim Edildi',
+  cancelled: 'İptal Edildi',
+  returned: 'İade Edildi',
+}
+
+const ITEM_STATUS_LABELS: Record<string, string> = {
+  pending: 'Beklemede',
+  in_stock: 'Stokta',
+  out_of_stock: 'Stok Yok',
+  in_production: 'Üretimde',
+  ready: 'Hazır',
+  shipped: 'Kargoda',
+  delivered: 'Teslim Edildi',
+  returned: 'İade',
+}
+
+const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
+  pending: ['quoted', 'confirmed', 'cancelled'],
+  quoted: ['confirmed', 'cancelled'],
+  confirmed: ['in_production', 'cancelled'],
+  in_production: ['shipped', 'cancelled'],
+  shipped: ['delivered'],
+  delivered: ['returned'],
+  cancelled: [],
+  returned: [],
+}
+
+const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
+  pending: ['in_stock', 'out_of_stock', 'in_production', 'ready'],
+  in_stock: ['ready', 'shipped'],
+  out_of_stock: ['in_production', 'ready'],
+  in_production: ['ready', 'out_of_stock'],
+  ready: ['shipped'],
+  shipped: ['delivered'],
+  delivered: ['returned'],
+  returned: [],
+}
+
 // ── Service Functions ───────────────────────────────────
 
 export async function listOrders(filters?: {
@@ -60,6 +103,7 @@ export async function listOrders(filters?: {
   customerId?: string
   assignedTo?: string
   search?: string
+  archived?: boolean
   page?: number
   limit?: number
 }) {
@@ -68,6 +112,13 @@ export async function listOrders(filters?: {
   const offset = (page - 1) * limit
 
   const conditions = []
+
+  // Default: don't show archived
+  if (filters?.archived !== undefined) {
+    conditions.push(eq(orders.isArchived, filters.archived))
+  } else {
+    conditions.push(eq(orders.isArchived, false))
+  }
 
   if (filters?.status) {
     conditions.push(eq(orders.status, filters.status as any))
@@ -98,6 +149,7 @@ export async function listOrders(filters?: {
       currency: orders.currency,
       notes: orders.notes,
       source: orders.source,
+      isArchived: orders.isArchived,
       createdAt: orders.createdAt,
       updatedAt: orders.updatedAt,
       customerName: customers.businessName,
@@ -222,17 +274,7 @@ export async function updateOrderStatus(
   }
 
   // Validate status transition
-  const validTransitions: Record<string, string[]> = {
-    pending: ['quoted', 'confirmed', 'cancelled'],
-    quoted: ['confirmed', 'cancelled'],
-    confirmed: ['in_production', 'cancelled'],
-    in_production: ['shipped', 'cancelled'],
-    shipped: ['delivered'],
-    delivered: [],
-    cancelled: [],
-  }
-
-  if (!validTransitions[oldStatus]?.includes(newStatus)) {
+  if (!VALID_ORDER_TRANSITIONS[oldStatus]?.includes(newStatus)) {
     throw new AppError(
       400,
       `Geçersiz durum geçişi: ${oldStatus} → ${newStatus}`,
@@ -244,26 +286,18 @@ export async function updateOrderStatus(
     .set({ status: newStatus as any, updatedAt: new Date() })
     .where(eq(orders.id, id))
 
-  const statusLabels: Record<string, string> = {
-    pending: 'Beklemede',
-    quoted: 'Teklif Verildi',
-    confirmed: 'Onaylandı',
-    in_production: 'Üretimde',
-    shipped: 'Kargoya Verildi',
-    delivered: 'Teslim Edildi',
-    cancelled: 'İptal Edildi',
-  }
-
+  // Add status change activity
   await addActivity(
     id,
     userId,
     'status_change',
-    `Durum değişti: ${statusLabels[oldStatus]} → ${statusLabels[newStatus]}`,
+    `Durum: ${STATUS_LABELS[oldStatus]} → ${STATUS_LABELS[newStatus]}`,
     { oldStatus, newStatus },
   )
 
-  if (note) {
-    await addActivity(id, userId, 'note_added', note)
+  // Add note as separate activity if provided
+  if (note?.trim()) {
+    await addActivity(id, userId, 'note_added', note.trim())
   }
 
   return getOrderById(id)
@@ -280,11 +314,89 @@ export async function updateOrder(id: string, input: UpdateOrderInput, userId: s
     throw new AppError(404, 'Order not found')
   }
 
-  if (input.notes) {
-    await addActivity(id, userId, 'note_added', 'Not güncellendi')
+  if (input.internalNotes) {
+    await addActivity(id, userId, 'note_added', input.internalNotes)
   }
 
   return getOrderById(id)
+}
+
+export async function archiveOrder(id: string, userId: string) {
+  const [order] = await db
+    .update(orders)
+    .set({ isArchived: true, updatedAt: new Date() })
+    .where(eq(orders.id, id))
+    .returning()
+
+  if (!order) {
+    throw new AppError(404, 'Order not found')
+  }
+
+  await addActivity(id, userId, 'archived', 'Sipariş arşive kaldırıldı')
+
+  return getOrderById(id)
+}
+
+export async function unarchiveOrder(id: string, userId: string) {
+  const [order] = await db
+    .update(orders)
+    .set({ isArchived: false, updatedAt: new Date() })
+    .where(eq(orders.id, id))
+    .returning()
+
+  if (!order) {
+    throw new AppError(404, 'Order not found')
+  }
+
+  await addActivity(id, userId, 'unarchived', 'Sipariş arşivden çıkarıldı')
+
+  return getOrderById(id)
+}
+
+export async function updateItemStatus(
+  orderId: string,
+  itemId: string,
+  newStatus: string,
+  userId: string,
+) {
+  const [item] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, orderId)))
+    .limit(1)
+
+  if (!item) {
+    throw new AppError(404, 'Order item not found')
+  }
+
+  const oldStatus = item.itemStatus
+
+  if (oldStatus === newStatus) {
+    return getOrderById(orderId)
+  }
+
+  // Validate item status transition
+  if (!VALID_ITEM_TRANSITIONS[oldStatus]?.includes(newStatus)) {
+    throw new AppError(
+      400,
+      `Geçersiz ürün durum geçişi: ${oldStatus} → ${newStatus}`,
+    )
+  }
+
+  await db
+    .update(orderItems)
+    .set({ itemStatus: newStatus as any })
+    .where(eq(orderItems.id, itemId))
+
+  await addActivity(
+    orderId,
+    userId,
+    'item_status_change',
+    `${item.productName}: ${ITEM_STATUS_LABELS[oldStatus]} → ${ITEM_STATUS_LABELS[newStatus]}`,
+    { itemId, oldStatus, newStatus, productName: item.productName },
+  )
+
+  return getOrderById(orderId)
 }
 
 export async function addOrderItem(
@@ -365,7 +477,10 @@ export async function removeOrderItem(orderId: string, itemId: string, userId: s
 }
 
 export async function getOrderStats() {
-  const [total] = await db.select({ count: sql<number>`count(*)` }).from(orders)
+  const [total] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(orders)
+    .where(eq(orders.isArchived, false))
 
   const byStatus = await db
     .select({
@@ -373,6 +488,7 @@ export async function getOrderStats() {
       count: sql<number>`count(*)`,
     })
     .from(orders)
+    .where(eq(orders.isArchived, false))
     .groupBy(orders.status)
 
   const recentOrders = await db
@@ -386,6 +502,7 @@ export async function getOrderStats() {
     })
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
+    .where(eq(orders.isArchived, false))
     .orderBy(desc(orders.createdAt))
     .limit(5)
 
@@ -399,5 +516,4 @@ export async function getOrderStats() {
   }
 }
 
-// Re-export for use in getOrderById
-import { users } from '../db/schema.js'
+export { STATUS_LABELS, ITEM_STATUS_LABELS, VALID_ORDER_TRANSITIONS, VALID_ITEM_TRANSITIONS }

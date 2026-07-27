@@ -24,6 +24,17 @@ export const orderStatusEnum = pgEnum('order_status', [
   'shipped',
   'delivered',
   'cancelled',
+  'returned',
+])
+export const itemStatusEnum = pgEnum('item_status', [
+  'pending',
+  'in_stock',
+  'out_of_stock',
+  'in_production',
+  'ready',
+  'shipped',
+  'delivered',
+  'returned',
 ])
 
 // ── Users ──────────────────────────────────────────────
@@ -130,6 +141,7 @@ export const orders = pgTable('orders', {
   internalNotes: text('internal_notes'), // sadece admin görür
   assignedTo: uuid('assigned_to').references(() => users.id),
   source: varchar('source', { length: 50 }).notNull().default('whatsapp'), // whatsapp, phone, website, walk-in
+  isArchived: boolean('is_archived').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
@@ -145,6 +157,7 @@ export const orderItems = pgTable('order_items', {
   quantity: integer('quantity').notNull().default(1),
   unitPrice: integer('unit_price'), // kuruş cinsinden
   totalPrice: integer('total_price'), // kuruş cinsinden
+  itemStatus: itemStatusEnum('item_status').notNull().default('pending'),
   specifications: text('specifications'), // özel notlar, renk, boyut vb.
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
