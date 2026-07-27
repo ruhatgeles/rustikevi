@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
+import { DebugProvider } from './lib/debug'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -39,6 +40,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
+      <DebugProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -102,6 +104,7 @@ export default function App() {
           }
         />
       </Routes>
+      </DebugProvider>
     </AuthProvider>
   )
 }

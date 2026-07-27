@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import { useDebug } from '../lib/debug'
 import {
   Plus,
   Search,
@@ -13,6 +14,8 @@ import {
   XCircle,
   AlertCircle,
   MessageSquare,
+  Bug,
+  Loader2,
 } from 'lucide-react'
 
 interface OrderItem {
@@ -146,6 +149,7 @@ function formatPrice(amount: number | null, currency: string = 'TRY') {
 }
 
 export default function Orders() {
+  const { debugMode } = useDebug()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -156,6 +160,7 @@ export default function Orders() {
   const [newNote, setNewNote] = useState('')
   const [newStatus, setNewStatus] = useState('')
   const [statusNote, setStatusNote] = useState('')
+  const [creatingTest, setCreatingTest] = useState(false)
 
   const loadOrders = async () => {
     try {
@@ -224,13 +229,97 @@ export default function Orders() {
     setStatusNote('')
   }
 
+  // Debug: Create test order with random data
+  const createTestOrder = async () => {
+    setCreatingTest(true)
+    setError('')
+    try {
+      const businessNames = [
+        'Perde Dünyası', 'Ev Tekstil', 'Modern Perde', 'Zarif Ev',
+        'Lüks Perde', 'Royal Home', 'Ege Tekstil', 'Akdeniz Perde',
+        'Marmara Ev', 'Karadeniz Tekstil', 'İç Anadolu Perde', 'Güneydoğu Ev',
+      ]
+      const contactNames = [
+        'Ahmet Yılmaz', 'Mehmet Kaya', 'Ali Demir', 'Hasan Çelik',
+        'Mustafa Aydın', 'Fatma Şahin', 'Ayşe Öztürk', 'Zeynep Arslan',
+        'Elif Doğan', 'Emine Koç', 'Hatice Yıldız', 'Merve Aksoy',
+      ]
+      const cities = [
+        'İstanbul', 'Ankara', 'İzmir', 'Gaziantep', 'Bursa', 'Antalya',
+        'Adana', 'Konya', 'Şanlıurfa', 'Diyarbakır', 'Mersin', 'Kayseri',
+      ]
+      const sources = ['whatsapp', 'phone', 'website', 'walk-in']
+      const productNames = [
+        'Jüt Kordon', 'Ahşap Halka', 'Keten Bağcık', 'Rustik Perde Kancası',
+        'Jüt Saçak', 'Pamuklu Saçak', 'Kristal Sarkıt', 'Ahşap Braçol',
+        'Metal Başlık Braketi', 'Dekoratif Jüt Kordon',
+      ]
+
+      const randomItem = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
+      const randomPhone = () => '05' + String(Math.floor(Math.random() * 100000000)).padStart(8, '0')
+      const randomQty = () => Math.floor(Math.random() * 500) + 50
+      const randomPrice = () => Math.floor(Math.random() * 20000) + 5000 // 50-250 TL
+
+      // Create customer first
+      const customerRes = await api.request<{ data: { id: string } }>('/api/customers', {
+        method: 'POST',
+        body: {
+          businessName: randomItem(businessNames),
+          contactName: randomItem(contactNames),
+          phone: randomPhone(),
+          city: randomItem(cities),
+        },
+      })
+
+      // Create order with 1-3 random items
+      const itemCount = Math.floor(Math.random() * 3) + 1
+      const items = Array.from({ length: itemCount }, () => ({
+        productName: randomItem(productNames),
+        quantity: randomQty(),
+        unitPrice: randomPrice(),
+      }))
+
+      await api.request('/api/orders', {
+        method: 'POST',
+        body: {
+          customerId: customerRes.data.id,
+          items,
+          source: randomItem(sources),
+          notes: Math.random() > 0.5 ? 'Test sipariş notu' : undefined,
+        },
+      })
+
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setCreatingTest(false)
+    }
+  }
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Siparişler</h1>
-        <p className="mt-1 text-sm text-[var(--color-ink)]/50">
-          Sipariş taleplerini yönetin, durum güncelleyin.
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Siparişler</h1>
+          <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+            Sipariş taleplerini yönetin, durum güncelleyin.
+          </p>
+        </div>
+        {debugMode && (
+          <button
+            onClick={createTestOrder}
+            disabled={creatingTest}
+            className="flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
+          >
+            {creatingTest ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Bug size={16} />
+            )}
+            {creatingTest ? 'Oluşturuluyor...' : 'Test Sipariş Oluştur'}
+          </button>
+        )}
       </div>
 
       {error && (

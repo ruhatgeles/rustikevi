@@ -102,16 +102,18 @@ rustikevi-web/
 │           ├── pages/
 │           │   ├── Login.tsx
 │           │   ├── Dashboard.tsx
+│           │   ├── Orders.tsx      # Sipariş yönetimi (manager+)
 │           │   ├── Products.tsx    # Ürün yönetimi (manager+)
 │           │   ├── Users.tsx       # Kullanıcı yönetimi (admin)
 │           │   ├── Customers.tsx   # Müşteri yönetimi (manager+)
 │           │   ├── Content.tsx     # İçerik yönetimi (manager+)
 │           │   └── InviteCodes.tsx # Davet kodu yönetimi (admin)
 │           ├── components/
-│           │   └── Layout.tsx      # Sidebar + header layout
+│           │   └── Layout.tsx      # Sidebar + header + debug toggle
 │           └── lib/
 │               ├── api.ts         # Fetch wrapper (JWT auto-refresh)
-│               └── auth.tsx       # Auth context + provider
+│               ├── auth.tsx       # Auth context + provider
+│               └── debug.tsx      # Debug modu context (localStorage)
 ├── docker-compose.yml             # 5 servis: web, api, admin, postgres, redis
 ├── server.mjs                     # Frontend SSR server (statik dosya + SSR)
 ├── .env.example                   # Ortam değişkenleri şablonu
@@ -150,6 +152,15 @@ rustikevi-web/
   değişkenlerle tutarlı kalmalı.
 - **Yazı tipleri**: Başlıklarda `Fraunces` (serif, `font-display` sınıfı), gövde metninde
   `Manrope` kullanılır — Google Fonts üzerinden `styles.css` içinde import edilir.
+
+## Debug Modu
+
+Admin panelinde sol alttaki "Debug Modu" switch'i ile açılıp kapanır. Durumu
+`localStorage`'da saklanır (`debugMode` key). Debug modunda:
+
+- **Siparişler sayfası**: "Test Sipariş Oluştur" butonu görünür. Rastgele
+  müşteri + ürün + adet ile test siparişi oluşturur.
+- Gelecekte debug moduna özel araçlar eklenebilir.
 
 ## Backend Genişletme Notları (İleriye Dönük)
 
