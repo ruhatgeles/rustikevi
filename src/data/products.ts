@@ -7,6 +7,10 @@ export interface Product {
   moq: string
   swatches: Array<[string, string]>
   featured?: boolean
+  isActive?: boolean
+  sortOrder?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export const categories = ['Tümü', 'Rustik', 'Saçak', 'Başlık', 'Dekorink', 'Sarkıt', 'Braçöl'] as const

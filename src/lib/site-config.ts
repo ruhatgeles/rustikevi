@@ -1,3 +1,4 @@
+// Default site config — API'den gelen veri ile override edilir
 export const siteConfig = {
   name: 'Rustik Evi',
   legalName: 'RustikEvi Perde Sistemleri Tic. Ltd. Şti. | Şahinbey, Gaziantep',
@@ -19,3 +20,10 @@ export function buildWhatsAppLink(message: string) {
 
 export const defaultWhatsAppMessage =
   'Merhaba Rustik Evi, toptan ürün kataloğu ve fiyat listesi hakkında bilgi almak istiyorum.'
+
+// Helper: merge API config with defaults
+export function mergeSiteConfig(
+  apiConfig: Record<string, unknown>,
+): typeof siteConfig {
+  return { ...siteConfig, ...apiConfig } as typeof siteConfig
+}

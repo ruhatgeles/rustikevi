@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { Truck, PackageCheck, Ruler, Handshake, ArrowRight, QrCode } from 'lucide-react'
-import products from '@/data/products'
+import { getFeaturedProducts } from '@/lib/products'
 import { ProductCard } from '@/components/ProductCard'
 import { CatalogQRCode } from '@/components/CatalogQRCode'
 import { StoryCircles } from '@/components/StoryCircles'
@@ -18,6 +18,7 @@ export const Route = createFileRoute('/')({
       },
     ],
   }),
+  loader: async () => await getFeaturedProducts(),
   component: HomePage,
 })
 
@@ -51,7 +52,7 @@ const highlights = [
 ]
 
 function HomePage() {
-  const featured = products.filter((p) => p.featured)
+  const featured = Route.useLoaderData()
 
   return (
     <div className="overflow-hidden">

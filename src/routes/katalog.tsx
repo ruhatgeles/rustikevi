@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Printer, ArrowLeft } from 'lucide-react'
-import products, { categories } from '@/data/products'
+import { getProducts } from '@/lib/products'
+import { categories } from '@/data/products'
 import { siteConfig, buildWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
@@ -16,18 +17,20 @@ export const Route = createFileRoute('/katalog')({
       },
     ],
   }),
+  loader: async () => await getProducts(),
   component: CatalogPage,
 })
 
 function CatalogPage() {
+  const allProducts = Route.useLoaderData()
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>('Tümü')
 
   const filtered = useMemo(
     () =>
       activeCategory === 'Tümü'
-        ? products
-        : products.filter((p) => p.category === activeCategory),
-    [activeCategory],
+        ? allProducts
+        : allProducts.filter((p) => p.category === activeCategory),
+    [activeCategory, allProducts],
   )
 
   return (

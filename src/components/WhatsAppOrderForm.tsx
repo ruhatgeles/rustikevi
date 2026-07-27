@@ -4,11 +4,7 @@ import products from '@/data/products'
 import { buildWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
-function encode(data: Record<string, string>) {
-  return Object.entries(data)
-    .map(([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
-    .join('&')
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const initialState = {
   isletme: '',
@@ -24,6 +20,7 @@ export function WhatsAppOrderForm() {
   const [fields, setFields] = useState(initialState)
   const [sent, setSent] = useState(false)
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState(false)
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -46,17 +43,23 @@ export function WhatsAppOrderForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSending(true)
+    setError(false)
+    let formOk = false
     try {
-      const res = await fetch('/order-form.html', {
+      const res = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: encode({ 'form-name': 'toptan-siparis', ...fields }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields),
       })
-      if (!res.ok) console.warn('Netlify Forms yanıt hatası:', res.status)
-    } catch (err) {
-      console.error('Netlify Forms gönderim hatası:', err)
+      formOk = res.ok
+    } catch {
+      formOk = false
     }
     setSending(false)
+    if (!formOk) {
+      setError(true)
+      return
+    }
     setSent(true)
     window.open(buildWhatsAppLink(buildMessage()), '_blank', 'noreferrer')
   }
@@ -76,6 +79,14 @@ export function WhatsAppOrderForm() {
           </p>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-center">
+          <p className="text-sm font-medium text-red-700">
+            Form gönderilemedi. Lütfen tekrar deneyin veya doğrudan WhatsApp'tan yazın.
+          </p>
+        </div>
+      )}
 
       {sent ? (
         <div className="rounded-2xl border border-[#25D366]/30 bg-[#25D366]/10 p-6 text-center">
@@ -98,13 +109,6 @@ export function WhatsAppOrderForm() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
-          <input type="hidden" name="form-name" value="toptan-siparis" />
-          <p className="hidden">
-            <label>
-              Bu alanı boş bırakın: <input name="bot-field" />
-            </label>
-          </p>
-
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-[var(--color-ink)]/80">İşletme Adı</span>
             <input
