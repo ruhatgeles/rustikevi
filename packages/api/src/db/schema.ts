@@ -114,8 +114,10 @@ export const contentBlocks = pgTable('content_blocks', {
 
 export const products = pgTable('products', {
   id: serial('id').primaryKey(),
+  productCode: varchar('product_code', { length: 5 }).unique(),
   name: varchar('name', { length: 200 }).notNull(),
   category: varchar('category', { length: 100 }).notNull(),
+  color: varchar('color', { length: 50 }),
   description: text('description').notNull().default(''),
   shortDescription: text('short_description').notNull().default(''),
   moq: varchar('moq', { length: 50 }).notNull().default(''),

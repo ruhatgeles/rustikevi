@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
+import ProductSearch from '../components/ProductSearch'
 import {
   Plus,
   Search,
@@ -123,7 +124,7 @@ export default function Customers() {
   // Order creation
   const [showOrderForm, setShowOrderForm] = useState(false)
   const [orderItems, setOrderItems] = useState([
-    { productName: '', quantity: 1, unitPrice: '', specifications: '' },
+    { productCode: '', productName: '', quantity: 1, unitPrice: '', specifications: '' },
   ])
   const [orderNotes, setOrderNotes] = useState('')
   const [orderSource, setOrderSource] = useState('phone')
@@ -363,7 +364,7 @@ export default function Customers() {
 
   // Order creation
   const addOrderItemRow = () => {
-    setOrderItems([...orderItems, { productName: '', quantity: 1, unitPrice: '', specifications: '' }])
+    setOrderItems([...orderItems, { productCode: '', productName: '', quantity: 1, unitPrice: '', specifications: '' }])
   }
 
   const removeOrderItemRow = (index: number) => {
@@ -374,6 +375,16 @@ export default function Customers() {
   const updateOrderItem = (index: number, field: string, value: string | number) => {
     const updated = [...orderItems]
     updated[index] = { ...updated[index], [field]: value }
+    setOrderItems(updated)
+  }
+
+  const handleProductSelect = (index: number, product: { productCode: string | null; name: string }) => {
+    const updated = [...orderItems]
+    updated[index] = {
+      ...updated[index],
+      productCode: product.productCode || '',
+      productName: product.name,
+    }
     setOrderItems(updated)
   }
 
@@ -407,7 +418,7 @@ export default function Customers() {
 
       // Reset form
       setShowOrderForm(false)
-      setOrderItems([{ productName: '', quantity: 1, unitPrice: '', specifications: '' }])
+      setOrderItems([{ productCode: '', productName: '', quantity: 1, unitPrice: '', specifications: '' }])
       setOrderNotes('')
       setOrderSource('phone')
 
@@ -617,12 +628,28 @@ export default function Customers() {
               <div className="mb-3 space-y-2">
                 {orderItems.map((item, index) => (
                   <div key={index} className="grid grid-cols-[1fr_80px_100px_1fr_32px] gap-2">
-                    <input
-                      placeholder="Ürün adı"
-                      value={item.productName}
-                      onChange={(e) => updateOrderItem(index, 'productName', e.target.value)}
-                      className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
-                    />
+                    <div>
+                      {item.productName ? (
+                        <div className="flex items-center gap-1 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-cream)]/30 px-2.5 py-1.5 text-sm">
+                          {item.productCode && (
+                            <span className="font-mono text-xs font-semibold text-[var(--color-wood-dark)]">{item.productCode}</span>
+                          )}
+                          <span className="flex-1 truncate">{item.productName}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateOrderItem(index, 'productName', '')}
+                            className="text-[var(--color-ink)]/30 hover:text-red-500"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <ProductSearch
+                          onSelect={(p) => handleProductSelect(index, p)}
+                          placeholder="Ürün ara..."
+                        />
+                      )}
+                    </div>
                     <input
                       type="number"
                       placeholder="Adet"
