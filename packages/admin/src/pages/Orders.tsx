@@ -15,6 +15,8 @@ import {
   Loader2,
   Archive,
   ArchiveRestore,
+  CheckSquare,
+  Trash2,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
@@ -146,6 +148,8 @@ export default function Orders() {
   const [newNote, setNewNote] = useState('')
   const [creatingTest, setCreatingTest] = useState(false)
   const [uiMode, setUiMode] = useState<'classic' | 'ui2'>('classic')
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   // Load orders
   const loadOrders = async () => {
@@ -165,6 +169,7 @@ export default function Orders() {
 
   useEffect(() => {
     loadOrders()
+    setSelectedOrders(new Set())
   }, [filterStatus, showArchived])
 
   // Load order detail
@@ -278,6 +283,91 @@ export default function Orders() {
     }
   }
 
+  // Selection handlers
+  const toggleOrderSelection = (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedOrders((prev) => {
+      const next = new Set(prev)
+      if (next.has(orderId)) {
+        next.delete(orderId)
+      } else {
+        next.add(orderId)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedOrders.size === orders.length) {
+      setSelectedOrders(new Set())
+    } else {
+      setSelectedOrders(new Set(orders.map((o) => o.id)))
+    }
+  }
+
+  // Bulk actions
+  const handleBulkArchive = async () => {
+    if (selectedOrders.size === 0) return
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/orders/bulk/archive', {
+        method: 'POST',
+        body: { ids: Array.from(selectedOrders) },
+      })
+      setSelectedOrders(new Set())
+      setSelectedOrder(null)
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkUnarchive = async () => {
+    if (selectedOrders.size === 0) return
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/orders/bulk/unarchive', {
+        method: 'POST',
+        body: { ids: Array.from(selectedOrders) },
+      })
+      setSelectedOrders(new Set())
+      setSelectedOrder(null)
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedOrders.size === 0) return
+    const confirmed = window.confirm(
+      `${selectedOrders.size} sipariş kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?`,
+    )
+    if (!confirmed) return
+
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/orders/bulk/delete', {
+        method: 'POST',
+        body: { ids: Array.from(selectedOrders) },
+      })
+      setSelectedOrders(new Set())
+      setSelectedOrder(null)
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
   const closeDetail = () => {
     setSelectedOrder(null)
     setNewNote('')
@@ -369,7 +459,66 @@ export default function Orders() {
           <Archive size={14} />
           Arşiv
         </button>
+        {debugMode && (
+          <button
+            onClick={toggleSelectAll}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectedOrders.size === orders.length && orders.length > 0
+                ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+            }`}
+            title={selectedOrders.size === orders.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
+          >
+            <CheckSquare size={14} />
+            {selectedOrders.size === orders.length ? 'Bırak' : 'Tümü'}
+          </button>
+        )}
       </div>
+
+      {/* Bulk Actions Bar */}
+      {debugMode && selectedOrders.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-4 py-2.5">
+          <span className="text-sm font-medium text-[var(--color-wood-dark)]">
+            {selectedOrders.size} sipariş seçildi
+          </span>
+          <div className="flex-1" />
+          {!showArchived ? (
+            <button
+              onClick={handleBulkArchive}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--color-wood)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-wood-dark)] disabled:opacity-50"
+            >
+              {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />}
+              Arşivle
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleBulkUnarchive}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--color-wood)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-wood-dark)] disabled:opacity-50"
+              >
+                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <ArchiveRestore size={14} />}
+                Geri Al
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Sil
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setSelectedOrders(new Set())}
+            className="rounded p-1 text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* List + Detail View */}
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
@@ -388,6 +537,7 @@ export default function Orders() {
                 const config = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.pending
                 const Icon = config.icon
                 const isSelected = selectedOrder?.id === order.id
+                const isChecked = selectedOrders.has(order.id)
                 return (
                   <button
                     key={order.id}
@@ -395,11 +545,25 @@ export default function Orders() {
                     className={`w-full rounded-xl border p-4 text-left transition-colors ${
                       isSelected
                         ? 'border-[var(--color-brass)] bg-white shadow-sm'
-                        : 'border-[var(--color-cream-deep)] bg-white hover:border-[var(--color-brass)]/50'
+                        : isChecked
+                          ? 'border-[var(--color-brass)]/50 bg-[var(--color-brass)]/5'
+                          : 'border-[var(--color-cream-deep)] bg-white hover:border-[var(--color-brass)]/50'
                     } ${order.isArchived ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
+                        {debugMode && (
+                          <div
+                            onClick={(e) => toggleOrderSelection(order.id, e)}
+                            className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                              isChecked
+                                ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                                : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                            }`}
+                          >
+                            {isChecked && <CheckSquare size={12} />}
+                          </div>
+                        )}
                         <span className="font-mono text-sm font-semibold text-[var(--color-wood-dark)]">
                           {order.orderNumber}
                         </span>

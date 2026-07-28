@@ -1,6 +1,6 @@
 import { db } from '../db/index.js'
 import { orders, orderItems, orderActivities, customers, products, users } from '../db/schema.js'
-import { eq, and, sql, desc, asc, ilike } from 'drizzle-orm'
+import { eq, and, sql, desc, asc, ilike, inArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
 // ── Types ───────────────────────────────────────────────
@@ -514,6 +514,71 @@ export async function getOrderStats() {
     ),
     recentOrders,
   }
+}
+
+// ── Bulk Operations ──────────────────────────────────────
+
+export async function bulkArchiveOrders(ids: string[], userId: string) {
+  await db
+    .update(orders)
+    .set({ isArchived: true, updatedAt: new Date() })
+    .where(inArray(orders.id, ids))
+
+  for (const id of ids) {
+    await addActivity(id, userId, 'archived', 'Sipariş toplu olarak arşive kaldırıldı')
+  }
+
+  return { success: true, count: ids.length }
+}
+
+export async function bulkUnarchiveOrders(ids: string[], userId: string) {
+  await db
+    .update(orders)
+    .set({ isArchived: false, updatedAt: new Date() })
+    .where(inArray(orders.id, ids))
+
+  for (const id of ids) {
+    await addActivity(id, userId, 'unarchived', 'Sipariş toplu olarak arşivden çıkarıldı')
+  }
+
+  return { success: true, count: ids.length }
+}
+
+export async function deleteOrder(id: string, userId: string) {
+  const order = await getOrderById(id)
+
+  // Arşivlenmiş siparişler silinebilir
+  if (!order.isArchived) {
+    throw new AppError(400, 'Sadece arşivlenmiş siparişler silinebilir')
+  }
+
+  // İlişkili kayıtları sil
+  await db.delete(orderActivities).where(eq(orderActivities.orderId, id))
+  await db.delete(orderItems).where(eq(orderItems.orderId, id))
+  await db.delete(orders).where(eq(orders.id, id))
+
+  return { success: true }
+}
+
+export async function bulkDeleteOrders(ids: string[], userId: string) {
+  // Sadece arşivlenmiş siparişler silinebilir
+  const ordersToDelete = await db
+    .select({ id: orders.id, isArchived: orders.isArchived })
+    .from(orders)
+    .where(inArray(orders.id, ids))
+
+  const archivedIds = ordersToDelete.filter((o) => o.isArchived).map((o) => o.id)
+
+  if (archivedIds.length === 0) {
+    throw new AppError(400, 'Silinecek arşivlenmiş sipariş bulunamadı')
+  }
+
+  // İlişkili kayıtları sil
+  await db.delete(orderActivities).where(inArray(orderActivities.orderId, archivedIds))
+  await db.delete(orderItems).where(inArray(orderItems.orderId, archivedIds))
+  await db.delete(orders).where(inArray(orders.id, archivedIds))
+
+  return { success: true, count: archivedIds.length }
 }
 
 export { STATUS_LABELS, ITEM_STATUS_LABELS, VALID_ORDER_TRANSITIONS, VALID_ITEM_TRANSITIONS }
