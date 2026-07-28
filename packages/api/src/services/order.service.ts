@@ -29,11 +29,12 @@ interface UpdateOrderInput {
 // ── Helpers ─────────────────────────────────────────────
 
 async function generateOrderNumber(): Promise<string> {
-  const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
+  // MAX kullan — count+1 yerine. Daha güvenli.
+  const [result] = await db
+    .select({ maxNum: sql<string>`COALESCE(MAX(CAST(SUBSTRING(order_number FROM 5) AS INTEGER)), 0)` })
     .from(orders)
-  const count = countResult.count + 1
-  return `RVE-${String(count).padStart(5, '0')}`
+  const nextNum = (parseInt(result.maxNum, 10) || 0) + 1
+  return `RVE-${String(nextNum).padStart(5, '0')}`
 }
 
 async function addActivity(

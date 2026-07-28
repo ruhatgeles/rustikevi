@@ -140,6 +140,52 @@ ordersRoutes.get('/meta', async (c) => {
   })
 })
 
+// ── Bulk routes (MUST be before :id routes) ────────────
+
+// POST /api/orders/bulk/archive — bulk archive (manager+)
+ordersRoutes.post('/bulk/archive', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const bulkSchema = z.object({
+    ids: z.array(z.string().uuid()).min(1),
+  })
+
+  const input = bulkSchema.parse(body)
+  const result = await bulkArchiveOrders(input.ids, user.sub)
+  return c.json({ data: result })
+})
+
+// POST /api/orders/bulk/unarchive — bulk unarchive (manager+)
+ordersRoutes.post('/bulk/unarchive', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const bulkSchema = z.object({
+    ids: z.array(z.string().uuid()).min(1),
+  })
+
+  const input = bulkSchema.parse(body)
+  const result = await bulkUnarchiveOrders(input.ids, user.sub)
+  return c.json({ data: result })
+})
+
+// POST /api/orders/bulk/delete — bulk delete archived orders (admin)
+ordersRoutes.post('/bulk/delete', requireAdmin(), async (c) => {
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const bulkSchema = z.object({
+    ids: z.array(z.string().uuid()).min(1),
+  })
+
+  const input = bulkSchema.parse(body)
+  const result = await bulkDeleteOrders(input.ids, user.sub)
+  return c.json({ data: result })
+})
+
+// ── Single order routes (AFTER bulk routes) ─────────────
+
 // GET /api/orders/:id — single order with items and activities
 ordersRoutes.get('/:id', async (c) => {
   const id = c.req.param('id')
@@ -291,48 +337,6 @@ ordersRoutes.delete('/:id', requireAdmin(), async (c) => {
   const id = c.req.param('id')
   const user = c.get('user')
   const result = await deleteOrder(id, user.sub)
-  return c.json({ data: result })
-})
-
-// POST /api/orders/bulk/archive — bulk archive (manager+)
-ordersRoutes.post('/bulk/archive', requireManager(), async (c) => {
-  const body = await c.req.json()
-  const user = c.get('user')
-
-  const bulkSchema = z.object({
-    ids: z.array(z.string().uuid()).min(1),
-  })
-
-  const input = bulkSchema.parse(body)
-  const result = await bulkArchiveOrders(input.ids, user.sub)
-  return c.json({ data: result })
-})
-
-// POST /api/orders/bulk/unarchive — bulk unarchive (manager+)
-ordersRoutes.post('/bulk/unarchive', requireManager(), async (c) => {
-  const body = await c.req.json()
-  const user = c.get('user')
-
-  const bulkSchema = z.object({
-    ids: z.array(z.string().uuid()).min(1),
-  })
-
-  const input = bulkSchema.parse(body)
-  const result = await bulkUnarchiveOrders(input.ids, user.sub)
-  return c.json({ data: result })
-})
-
-// POST /api/orders/bulk/delete — bulk delete archived orders (admin)
-ordersRoutes.post('/bulk/delete', requireAdmin(), async (c) => {
-  const body = await c.req.json()
-  const user = c.get('user')
-
-  const bulkSchema = z.object({
-    ids: z.array(z.string().uuid()).min(1),
-  })
-
-  const input = bulkSchema.parse(body)
-  const result = await bulkDeleteOrders(input.ids, user.sub)
   return c.json({ data: result })
 })
 
