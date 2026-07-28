@@ -1,124 +1,171 @@
-import { ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../lib/auth'
-import { useDebug } from '../lib/debug'
+import { useState, useEffect } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
-  Users,
-  UserPlus,
-  FileText,
-  KeyRound,
-  LogOut,
   Package,
   ShoppingCart,
+  Users,
+  FileText,
+  LogOut,
+  UserCircle,
+  Key,
   Bug,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
+import { useAuth } from '../lib/auth'
+import { useDebug } from '../lib/debug'
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'viewer'] },
-  { to: '/status', label: 'Durum', icon: BarChart3, roles: ['admin', 'manager'] },
-  { to: '/orders', label: 'Siparişler', icon: ShoppingCart, roles: ['admin', 'manager'] },
-  { to: '/products', label: 'Ürünler', icon: Package, roles: ['admin', 'manager'] },
-  { to: '/customers', label: 'Müşteriler', icon: Users, roles: ['admin', 'manager'] },
-  { to: '/content', label: 'İçerik', icon: FileText, roles: ['admin', 'manager'] },
-  { to: '/users', label: 'Kullanıcılar', icon: UserPlus, roles: ['admin'] },
-  { to: '/invite-codes', label: 'Davet Kodları', icon: KeyRound, roles: ['admin'] },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/durum', icon: BarChart3, label: 'Durum' },
+  { to: '/siparisler', icon: ShoppingCart, label: 'Siparişler' },
+  { to: '/urunler', icon: Package, label: 'Ürünler' },
+  { to: '/musteriler', icon: Users, label: 'Müşteriler' },
+  { to: '/icerik', icon: FileText, label: 'İçerik' },
+  { to: '/kullanicilar', icon: UserCircle, label: 'Kullanıcılar' },
+  { to: '/davet-kodlari', icon: Key, label: 'Davet Kodları' },
 ]
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default function Layout() {
   const { user, logout } = useAuth()
   const { debugMode, toggleDebug } = useDebug()
-  const location = useLocation()
+  const navigate = useNavigate()
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true'
+  })
 
-  const filteredNav = navItems.filter((item) =>
-    item.roles.includes(user?.role || '')
-  )
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(collapsed))
+  }, [collapsed])
+
+  const handleLogout = () => {
+    logout()
+    navigate('/giris')
+  }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-[var(--color-cream)]">
       {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r border-[var(--color-cream-deep)] bg-white">
-        <div className="flex items-center gap-3 border-b border-[var(--color-cream-deep)] px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-wood)] text-sm font-bold text-white">
-            RE
-          </div>
-          <div>
-            <p className="font-semibold text-[var(--color-espresso)]">Rustik Evi</p>
-            <p className="text-xs text-[var(--color-ink)]/50">Admin Panel</p>
-          </div>
+      <aside
+        className={`flex flex-col border-r border-[var(--color-cream-deep)] bg-white transition-all duration-200 ${
+          collapsed ? 'w-16' : 'w-64'
+        }`}
+      >
+        {/* Logo + Toggle */}
+        <div className={`flex h-16 items-center border-b border-[var(--color-cream-deep)] ${collapsed ? 'justify-center' : 'justify-between px-4'}`}>
+          {!collapsed && (
+            <div>
+              <h1 className="font-display text-lg font-bold text-[var(--color-espresso)]">Rustik Evi</h1>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--color-brass)]">Admin Panel</p>
+            </div>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="rounded p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+            title={collapsed ? 'Genişlet' : 'Daralt'}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
 
-        <nav className="flex-1 px-3 py-4">
-          {filteredNav.map((item) => {
-            const Icon = item.icon
-            const isActive = location.pathname === item.to
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-[var(--color-wood)]/10 text-[var(--color-wood-dark)]'
-                    : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]'
-                }`}
-              >
-                <Icon size={18} />
-                {item.label}
-              </Link>
-            )
-          })}
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-2">
+          <ul className="space-y-0.5">
+            {navItems.map((item) => (
+              <li key={item.to}>
+                <NavLink
+                  to={item.to}
+                  end={item.to === '/'}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-[var(--color-cream)] text-[var(--color-wood-dark)]'
+                        : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)]/50 hover:text-[var(--color-ink)]'
+                    } ${collapsed ? 'justify-center' : ''}`
+                  }
+                  title={collapsed ? item.label : undefined}
+                >
+                  <item.icon size={18} />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
         </nav>
 
-        <div className="border-t border-[var(--color-cream-deep)] p-4">
-          {/* Debug Toggle */}
-          <button
-            onClick={toggleDebug}
-            className={`mb-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-              debugMode
-                ? 'bg-orange-50 text-orange-700'
-                : 'text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)]'
-            }`}
+        {/* User Info + Debug Toggle */}
+        <div className="border-t border-[var(--color-cream-deep)] p-2">
+          {/* Debug Mode Toggle */}
+          <div
+            className={`mb-2 flex items-center rounded-lg px-3 py-2 ${
+              debugMode ? 'bg-orange-50' : ''
+            } ${collapsed ? 'justify-center' : 'gap-2'}`}
+            title={collapsed ? `Debug Modu: ${debugMode ? 'Açık' : 'Kapalı'}` : undefined}
           >
-            <span className="flex items-center gap-2">
-              <Bug size={16} />
-              Debug Modu
-            </span>
-            <span
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                debugMode ? 'bg-orange-500' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                  debugMode ? 'translate-x-4.5' : 'translate-x-1'
-                }`}
+            <Bug size={16} className={debugMode ? 'text-orange-600' : 'text-[var(--color-ink)]/30'} />
+            {!collapsed && (
+              <>
+                <span className={`flex-1 text-xs font-medium ${debugMode ? 'text-orange-700' : 'text-[var(--color-ink)]/40'}`}>
+                  Debug Modu
+                </span>
+                <button
+                  onClick={toggleDebug}
+                  className={`relative h-5 w-9 rounded-full transition-colors ${
+                    debugMode ? 'bg-orange-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      debugMode ? 'left-[18px]' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </>
+            )}
+            {collapsed && (
+              <button
+                onClick={toggleDebug}
+                className="absolute inset-0"
+                aria-label="Toggle debug"
               />
-            </span>
-          </button>
-
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-cream-deep)] text-xs font-bold text-[var(--color-wood-dark)]">
-              {user?.name?.charAt(0)?.toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{user?.name}</p>
-              <p className="truncate text-xs text-[var(--color-ink)]/50">{user?.role}</p>
-            </div>
+            )}
           </div>
+
+          {/* User */}
+          <div className={`mb-2 ${collapsed ? 'px-0' : 'px-3'}`}>
+            {!collapsed ? (
+              <div className="truncate text-xs text-[var(--color-ink)]/50">
+                {user?.name || user?.email}
+                <span className="ml-1 rounded bg-[var(--color-cream-deep)] px-1 py-0.5 text-[10px] uppercase">
+                  {user?.role}
+                </span>
+              </div>
+            ) : (
+              <div className="flex justify-center" title={user?.name || user?.email}>
+                <UserCircle size={16} className="text-[var(--color-ink)]/40" />
+              </div>
+            )}
+          </div>
+
+          {/* Logout */}
           <button
-            onClick={logout}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50"
+            onClick={handleLogout}
+            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? 'Çıkış' : undefined}
           >
             <LogOut size={16} />
-            Çıkış
+            {!collapsed && <span>Çıkış</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto bg-[var(--color-linen)] p-8">
-        {children}
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-7xl p-6">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

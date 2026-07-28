@@ -11,6 +11,9 @@ import {
   removeOrderItem,
   archiveOrder,
   unarchiveOrder,
+  bulkArchiveOrders,
+  bulkUnarchiveOrders,
+  bulkDeleteOrders,
   getOrderStats,
   VALID_ORDER_TRANSITIONS,
   VALID_ITEM_TRANSITIONS,
@@ -134,6 +137,35 @@ ordersRoutes.get('/meta', async (c) => {
       itemLabels: ITEM_STATUS_LABELS,
     },
   })
+})
+
+// POST /api/orders/bulk/archive — bulk archive (manager+)
+ordersRoutes.post('/bulk/archive', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const user = c.get('user')
+  const schema = z.object({ ids: z.array(z.string().uuid()).min(1).max(100) })
+  const { ids } = schema.parse(body)
+  const result = await bulkArchiveOrders(ids, user.sub)
+  return c.json({ data: result })
+})
+
+// POST /api/orders/bulk/unarchive — bulk unarchive (manager+)
+ordersRoutes.post('/bulk/unarchive', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const user = c.get('user')
+  const schema = z.object({ ids: z.array(z.string().uuid()).min(1).max(100) })
+  const { ids } = schema.parse(body)
+  const result = await bulkUnarchiveOrders(ids, user.sub)
+  return c.json({ data: result })
+})
+
+// POST /api/orders/bulk/delete — bulk delete archived (admin only)
+ordersRoutes.post('/bulk/delete', requireAdmin(), async (c) => {
+  const body = await c.req.json()
+  const schema = z.object({ ids: z.array(z.string().uuid()).min(1).max(100) })
+  const { ids } = schema.parse(body)
+  const result = await bulkDeleteOrders(ids)
+  return c.json({ data: result })
 })
 
 // GET /api/orders/:id — single order with items and activities
