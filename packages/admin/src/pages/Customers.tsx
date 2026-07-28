@@ -120,6 +120,15 @@ export default function Customers() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  // Order creation
+  const [showOrderForm, setShowOrderForm] = useState(false)
+  const [orderItems, setOrderItems] = useState([
+    { productName: '', quantity: 1, unitPrice: '', specifications: '' },
+  ])
+  const [orderNotes, setOrderNotes] = useState('')
+  const [orderSource, setOrderSource] = useState('phone')
+  const [orderCreating, setOrderCreating] = useState(false)
+
   const loadCustomers = async (query?: string) => {
     try {
       const params = new URLSearchParams({
@@ -352,6 +361,65 @@ export default function Customers() {
     }
   }
 
+  // Order creation
+  const addOrderItemRow = () => {
+    setOrderItems([...orderItems, { productName: '', quantity: 1, unitPrice: '', specifications: '' }])
+  }
+
+  const removeOrderItemRow = (index: number) => {
+    if (orderItems.length <= 1) return
+    setOrderItems(orderItems.filter((_, i) => i !== index))
+  }
+
+  const updateOrderItem = (index: number, field: string, value: string | number) => {
+    const updated = [...orderItems]
+    updated[index] = { ...updated[index], [field]: value }
+    setOrderItems(updated)
+  }
+
+  const handleCreateOrder = async () => {
+    if (!selectedCustomer) return
+    const validItems = orderItems.filter((item) => item.productName.trim())
+    if (validItems.length === 0) {
+      setError('En az bir ürün adı girin')
+      return
+    }
+
+    setOrderCreating(true)
+    setError('')
+    try {
+      const items = validItems.map((item) => ({
+        productName: item.productName.trim(),
+        quantity: Number(item.quantity) || 1,
+        unitPrice: item.unitPrice ? Math.round(Number(item.unitPrice) * 100) : undefined,
+        specifications: item.specifications.trim() || undefined,
+      }))
+
+      const order = await api.request<{ id: string; orderNumber: string }>('/api/orders', {
+        method: 'POST',
+        body: {
+          customerId: selectedCustomer.id,
+          items,
+          notes: orderNotes.trim() || undefined,
+          source: orderSource,
+        },
+      })
+
+      // Reset form
+      setShowOrderForm(false)
+      setOrderItems([{ productName: '', quantity: 1, unitPrice: '', specifications: '' }])
+      setOrderNotes('')
+      setOrderSource('phone')
+
+      // Reload orders
+      loadCustomerOrders(selectedCustomer.id)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setOrderCreating(false)
+    }
+  }
+
   // Navigate to order
   const goToOrder = (orderId: string) => {
     navigate('/orders', { state: { orderId } })
@@ -516,17 +584,125 @@ export default function Customers() {
             <h2 className="text-lg font-semibold text-[var(--color-espresso)]">
               Siparişler ({customerOrders.length})
             </h2>
-            <select
-              value={orderFilter}
-              onChange={(e) => setOrderFilter(e.target.value)}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
-            >
-              <option value="">Tüm Durumlar</option>
-              {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowOrderForm(!showOrderForm)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  showOrderForm
+                    ? 'bg-gray-100 text-gray-600'
+                    : 'bg-[var(--color-wood-dark)] text-white hover:bg-[var(--color-espresso)]'
+                }`}
+              >
+                {showForm ? 'İptal' : 'Sipariş Oluştur'}
+              </button>
+              <select
+                value={orderFilter}
+                onChange={(e) => setOrderFilter(e.target.value)}
+                className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+              >
+                <option value="">Tüm Durumlar</option>
+                {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {/* Order Creation Form */}
+          {showOrderForm && (
+            <div className="mb-4 rounded-lg border border-[var(--color-brass)]/30 bg-[var(--color-cream)]/30 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-[var(--color-wood-dark)]">Yeni Sipariş</h3>
+
+              {/* Items */}
+              <div className="mb-3 space-y-2">
+                {orderItems.map((item, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_80px_100px_1fr_32px] gap-2">
+                    <input
+                      placeholder="Ürün adı"
+                      value={item.productName}
+                      onChange={(e) => updateOrderItem(index, 'productName', e.target.value)}
+                      className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Adet"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateOrderItem(index, 'quantity', e.target.value)}
+                      className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Birim ₺"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => updateOrderItem(index, 'unitPrice', e.target.value)}
+                      className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                    />
+                    <input
+                      placeholder="Not (opsiyonel)"
+                      value={item.specifications}
+                      onChange={(e) => updateOrderItem(index, 'specifications', e.target.value)}
+                      className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeOrderItemRow(index)}
+                      disabled={orderItems.length <= 1}
+                      className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addOrderItemRow}
+                className="mb-3 text-xs font-medium text-[var(--color-wood-dark)] hover:underline"
+              >
+                + Ürün Ekle
+              </button>
+
+              {/* Notes & Source */}
+              <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_120px]">
+                <textarea
+                  placeholder="Sipariş notu (opsiyonel)"
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  rows={2}
+                  className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                />
+                <select
+                  value={orderSource}
+                  onChange={(e) => setOrderSource(e.target.value)}
+                  className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                >
+                  <option value="phone">Telefon</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="website">Web Sitesi</option>
+                  <option value="walk-in">Mağaza</option>
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateOrder}
+                  disabled={orderCreating}
+                  className="rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-espresso)] disabled:opacity-50"
+                >
+                  {orderCreating ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
+                </button>
+                <button
+                  onClick={() => setShowOrderForm(false)}
+                  className="rounded-lg border border-[var(--color-cream-deep)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-cream)]"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          )}
 
           {loadingOrders ? (
             <div className="flex h-32 items-center justify-center">

@@ -34,7 +34,7 @@ async function generateOrderNumber(): Promise<string> {
     .select({ maxNum: sql<string>`COALESCE(MAX(CAST(SUBSTRING(order_number FROM 5) AS INTEGER)), 0)` })
     .from(orders)
   const nextNum = (parseInt(result.maxNum, 10) || 0) + 1
-  return `RVE-${String(nextNum).padStart(5, '0')}`
+  return `RVE-${String(nextNum).padStart(7, '0')}`
 }
 
 async function addActivity(
