@@ -1,6 +1,6 @@
 import { db } from '../db/index.js'
-import { customers } from '../db/schema.js'
-import { eq, and, ilike, sql, desc, or } from 'drizzle-orm'
+import { customers, orders } from '../db/schema.js'
+import { eq, and, ilike, sql, desc, asc, or } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 import { PaginatedResponse } from '../types/index.js'
 
@@ -17,13 +17,17 @@ interface CreateCustomerInput {
 
 interface UpdateCustomerInput extends Partial<CreateCustomerInput> {}
 
+const VALID_SORT_FIELDS = ['businessName', 'contactName', 'phone', 'city', 'createdAt', 'orderCount'] as const
+
 export async function listCustomers(
   page = 1,
   limit = 20,
   search?: string,
   city?: string,
-  tag?: string
-): Promise<PaginatedResponse<typeof customers.$inferSelect>> {
+  tag?: string,
+  sortBy: string = 'createdAt',
+  sortOrder: 'asc' | 'desc' = 'desc',
+): Promise<PaginatedResponse<typeof customers.$inferSelect & { orderCount: number }>> {
   const offset = (page - 1) * limit
 
   const conditions = []
@@ -33,8 +37,8 @@ export async function listCustomers(
       or(
         ilike(customers.businessName, `%${search}%`),
         ilike(customers.contactName, `%${search}%`),
-        ilike(customers.phone, `%${search}%`)
-      )
+        ilike(customers.phone, `%${search}%`),
+      ),
     )
   }
 
@@ -49,11 +53,55 @@ export async function listCustomers(
     .from(customers)
     .where(where)
 
+  // Sipariş sayısı subquery
+  const orderCountSubquery = db
+    .select({
+      customerId: orders.customerId,
+      count: sql<number>`count(*)::int`.as('order_count'),
+    })
+    .from(orders)
+    .groupBy(orders.customerId)
+    .as('order_counts')
+
+  // Sıralama alanı belirle
+  const sortField = VALID_SORT_FIELDS.includes(sortBy as any) ? sortBy : 'createdAt'
+  const sortDir = sortOrder === 'asc' ? asc : desc
+
+  let orderClause
+  if (sortField === 'orderCount') {
+    orderClause = sortDir(sql`COALESCE(order_counts.order_count, 0)`)
+  } else if (sortField === 'businessName') {
+    orderClause = sortDir(customers.businessName)
+  } else if (sortField === 'contactName') {
+    orderClause = sortDir(customers.contactName)
+  } else if (sortField === 'phone') {
+    orderClause = sortDir(customers.phone)
+  } else if (sortField === 'city') {
+    orderClause = sortDir(customers.city)
+  } else {
+    orderClause = sortDir(customers.createdAt)
+  }
+
   const data = await db
-    .select()
+    .select({
+      id: customers.id,
+      businessName: customers.businessName,
+      contactName: customers.contactName,
+      phone: customers.phone,
+      email: customers.email,
+      city: customers.city,
+      address: customers.address,
+      notes: customers.notes,
+      tags: customers.tags,
+      createdBy: customers.createdBy,
+      createdAt: customers.createdAt,
+      updatedAt: customers.updatedAt,
+      orderCount: sql<number>`COALESCE(order_counts.order_count, 0)::int`,
+    })
     .from(customers)
+    .leftJoin(orderCountSubquery, eq(customers.id, orderCountSubquery.customerId))
     .where(where)
-    .orderBy(desc(customers.createdAt))
+    .orderBy(orderClause)
     .limit(limit)
     .offset(offset)
 
@@ -107,6 +155,16 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput) {
 }
 
 export async function deleteCustomer(id: string) {
+  // Sipariş varsa silmeyi engelle
+  const [orderCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(orders)
+    .where(eq(orders.customerId, id))
+
+  if (orderCount.count > 0) {
+    throw new AppError(400, `Bu müşteriye ait ${orderCount.count} sipariş bulunduğu için silinemez. Önce siparişleri silin.`)
+  }
+
   const [customer] = await db
     .delete(customers)
     .where(eq(customers.id, id))

@@ -34,8 +34,10 @@ customers.get('/', async (c) => {
   const search = c.req.query('search')
   const city = c.req.query('city')
   const tag = c.req.query('tag')
+  const sortBy = c.req.query('sortBy') || 'createdAt'
+  const sortOrder = (c.req.query('sortOrder') || 'desc') as 'asc' | 'desc'
 
-  const result = await listCustomers(page, limit, search, city, tag)
+  const result = await listCustomers(page, limit, search, city, tag, sortBy, sortOrder)
   return c.json({ data: result })
 })
 

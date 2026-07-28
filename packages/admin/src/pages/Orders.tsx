@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import {
@@ -137,6 +138,7 @@ function formatPrice(amount: number | null) {
 
 export default function Orders() {
   const { debugMode } = useDebug()
+  const location = useLocation()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -150,6 +152,16 @@ export default function Orders() {
   const [uiMode, setUiMode] = useState<'classic' | 'ui2'>('classic')
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
+
+  // Navigate from customer detail → auto-select order
+  useEffect(() => {
+    const orderId = (location.state as any)?.orderId
+    if (orderId) {
+      loadOrderDetail(orderId)
+      // Clear state to prevent re-select on refresh
+      window.history.replaceState({}, '')
+    }
+  }, [])
 
   // Load orders
   const loadOrders = async () => {
