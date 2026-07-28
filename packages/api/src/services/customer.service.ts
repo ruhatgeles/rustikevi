@@ -1,6 +1,6 @@
 import { db } from '../db/index.js'
 import { customers, orders } from '../db/schema.js'
-import { eq, and, ilike, sql, desc, asc, or } from 'drizzle-orm'
+import { eq, and, ilike, sql, desc, asc, or, inArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 import { PaginatedResponse } from '../types/index.js'
 
@@ -27,10 +27,14 @@ export async function listCustomers(
   tag?: string,
   sortBy: string = 'createdAt',
   sortOrder: 'asc' | 'desc' = 'desc',
+  archived: boolean = false,
 ): Promise<PaginatedResponse<typeof customers.$inferSelect & { orderCount: number }>> {
   const offset = (page - 1) * limit
 
   const conditions = []
+
+  // Arşiv filtresi
+  conditions.push(eq(customers.isArchived, archived))
 
   if (search) {
     conditions.push(
@@ -175,4 +179,74 @@ export async function deleteCustomer(id: string) {
   }
 
   return customer
+}
+
+// ── Archive / Unarchive ─────────────────────────────────
+
+export async function archiveCustomer(id: string) {
+  const [customer] = await db
+    .update(customers)
+    .set({ isArchived: true, updatedAt: new Date() })
+    .where(eq(customers.id, id))
+    .returning()
+
+  if (!customer) {
+    throw new AppError(404, 'Customer not found')
+  }
+
+  return customer
+}
+
+export async function unarchiveCustomer(id: string) {
+  const [customer] = await db
+    .update(customers)
+    .set({ isArchived: false, updatedAt: new Date() })
+    .where(eq(customers.id, id))
+    .returning()
+
+  if (!customer) {
+    throw new AppError(404, 'Customer not found')
+  }
+
+  return customer
+}
+
+// ── Bulk Operations ──────────────────────────────────────
+
+export async function bulkArchiveCustomers(ids: string[]) {
+  await db
+    .update(customers)
+    .set({ isArchived: true, updatedAt: new Date() })
+    .where(inArray(customers.id, ids))
+
+  return { success: true, count: ids.length }
+}
+
+export async function bulkUnarchiveCustomers(ids: string[]) {
+  await db
+    .update(customers)
+    .set({ isArchived: false, updatedAt: new Date() })
+    .where(inArray(customers.id, ids))
+
+  return { success: true, count: ids.length }
+}
+
+export async function bulkDeleteCustomers(ids: string[]) {
+  // Sipariş kontrolü
+  const customersWithOrders = await db
+    .select({
+      customerId: orders.customerId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(orders)
+    .where(inArray(orders.customerId, ids))
+    .groupBy(orders.customerId)
+
+  if (customersWithOrders.length > 0) {
+    throw new AppError(400, `${customersWithOrders.length} müşterinin siparişleri var, silinemez`)
+  }
+
+  await db.delete(customers).where(inArray(customers.id, ids))
+
+  return { success: true, count: ids.length }
 }

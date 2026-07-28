@@ -90,6 +90,7 @@ export const customers = pgTable('customers', {
   address: text('address'),
   notes: text('notes'),
   tags: jsonb('tags').$type<string[]>().default([]),
+  isArchived: boolean('is_archived').notNull().default(false),
   createdBy: uuid('created_by')
     .references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),

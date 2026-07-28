@@ -6,6 +6,11 @@ import {
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  archiveCustomer,
+  unarchiveCustomer,
+  bulkArchiveCustomers,
+  bulkUnarchiveCustomers,
+  bulkDeleteCustomers,
 } from '../services/customer.service.js'
 import { requireManager, requireAdmin } from '../middleware/auth.js'
 
@@ -36,10 +41,42 @@ customers.get('/', async (c) => {
   const tag = c.req.query('tag')
   const sortBy = c.req.query('sortBy') || 'createdAt'
   const sortOrder = (c.req.query('sortOrder') || 'desc') as 'asc' | 'desc'
+  const archived = c.req.query('archived') === 'true'
 
-  const result = await listCustomers(page, limit, search, city, tag, sortBy, sortOrder)
+  const result = await listCustomers(page, limit, search, city, tag, sortBy, sortOrder, archived)
   return c.json({ data: result })
 })
+
+// ── Bulk routes (MUST be before :id routes) ────────────
+
+// POST /api/customers/bulk/archive
+customers.post('/bulk/archive', async (c) => {
+  const body = await c.req.json()
+  const bulkSchema = z.object({ ids: z.array(z.string().uuid()).min(1) })
+  const input = bulkSchema.parse(body)
+  const result = await bulkArchiveCustomers(input.ids)
+  return c.json({ data: result })
+})
+
+// POST /api/customers/bulk/unarchive
+customers.post('/bulk/unarchive', async (c) => {
+  const body = await c.req.json()
+  const bulkSchema = z.object({ ids: z.array(z.string().uuid()).min(1) })
+  const input = bulkSchema.parse(body)
+  const result = await bulkUnarchiveCustomers(input.ids)
+  return c.json({ data: result })
+})
+
+// POST /api/customers/bulk/delete (admin only)
+customers.post('/bulk/delete', requireAdmin(), async (c) => {
+  const body = await c.req.json()
+  const bulkSchema = z.object({ ids: z.array(z.string().uuid()).min(1) })
+  const input = bulkSchema.parse(body)
+  const result = await bulkDeleteCustomers(input.ids)
+  return c.json({ data: result })
+})
+
+// ── Single customer routes ──────────────────────────────
 
 // GET /api/customers/:id
 customers.get('/:id', async (c) => {
@@ -70,6 +107,20 @@ customers.patch('/:id', async (c) => {
 customers.delete('/:id', requireAdmin(), async (c) => {
   const id = c.req.param('id')
   const customer = await deleteCustomer(id)
+  return c.json({ data: customer })
+})
+
+// POST /api/customers/:id/archive
+customers.post('/:id/archive', async (c) => {
+  const id = c.req.param('id')
+  const customer = await archiveCustomer(id)
+  return c.json({ data: customer })
+})
+
+// POST /api/customers/:id/unarchive
+customers.post('/:id/unarchive', async (c) => {
+  const id = c.req.param('id')
+  const customer = await unarchiveCustomer(id)
   return c.json({ data: customer })
 })
 

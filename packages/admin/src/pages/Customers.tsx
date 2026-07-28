@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
 import {
   Plus,
@@ -17,6 +18,10 @@ import {
   ArrowUp,
   ArrowDown,
   Package,
+  Archive,
+  ArchiveRestore,
+  CheckSquare,
+  Loader2,
 } from 'lucide-react'
 
 interface Customer {
@@ -29,6 +34,7 @@ interface Customer {
   address: string | null
   notes: string | null
   tags: string[]
+  isArchived: boolean
   createdAt: string
   orderCount?: number
 }
@@ -65,6 +71,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function Customers() {
+  const { debugMode } = useDebug()
   const navigate = useNavigate()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,6 +91,11 @@ export default function Customers() {
   // Sorting
   const [sortBy, setSortBy] = useState<string>('createdAt')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  // Archive & selection
+  const [showArchived, setShowArchived] = useState(false)
+  const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   // Detail view
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -116,6 +128,7 @@ export default function Customers() {
         sortOrder,
       })
       if (query) params.set('search', query)
+      if (showArchived) params.set('archived', 'true')
       const result = await api.request<{ data: Customer[] }>(`/api/customers?${params}`)
       setCustomers(result.data)
     } catch (err: any) {
@@ -127,7 +140,8 @@ export default function Customers() {
 
   useEffect(() => {
     loadCustomers(search || undefined)
-  }, [sortBy, sortOrder])
+    setSelectedCustomers(new Set())
+  }, [sortBy, sortOrder, showArchived])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -181,6 +195,105 @@ export default function Customers() {
     setCustomerOrders([])
     setOrderFilter('')
     setEditing(false)
+  }
+
+  // Selection
+  const toggleCustomerSelection = (customerId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedCustomers((prev) => {
+      const next = new Set(prev)
+      if (next.has(customerId)) {
+        next.delete(customerId)
+      } else {
+        next.add(customerId)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedCustomers.size === customers.length) {
+      setSelectedCustomers(new Set())
+    } else {
+      setSelectedCustomers(new Set(customers.map((c) => c.id)))
+    }
+  }
+
+  // Bulk actions
+  const handleBulkArchive = async () => {
+    if (selectedCustomers.size === 0) return
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/customers/bulk/archive', {
+        method: 'POST',
+        body: { ids: Array.from(selectedCustomers) },
+      })
+      setSelectedCustomers(new Set())
+      setSelectedCustomer(null)
+      loadCustomers(search || undefined)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkUnarchive = async () => {
+    if (selectedCustomers.size === 0) return
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/customers/bulk/unarchive', {
+        method: 'POST',
+        body: { ids: Array.from(selectedCustomers) },
+      })
+      setSelectedCustomers(new Set())
+      setSelectedCustomer(null)
+      loadCustomers(search || undefined)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkDeleteClick = () => {
+    if (selectedCustomers.size === 0) return
+    setShowDeleteModal(true)
+  }
+
+  const handleBulkDeleteConfirm = async () => {
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/customers/bulk/delete', {
+        method: 'POST',
+        body: { ids: Array.from(selectedCustomers) },
+      })
+      setShowDeleteModal(false)
+      setSelectedCustomers(new Set())
+      setSelectedCustomer(null)
+      loadCustomers(search || undefined)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  // Single archive
+  const handleArchive = async (customerId: string, archive: boolean) => {
+    setError('')
+    try {
+      await api.request(`/api/customers/${customerId}/${archive ? 'archive' : 'unarchive'}`, {
+        method: 'POST',
+      })
+      closeDetail()
+      loadCustomers(search || undefined)
+    } catch (err: any) {
+      setError(err.message)
+    }
   }
 
   // Edit
@@ -274,7 +387,6 @@ export default function Customers() {
         {/* Customer Info Card */}
         <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
           {editing ? (
-            /* Edit Form */
             <form onSubmit={handleEdit}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-semibold">Müşteri Düzenle</h2>
@@ -317,13 +429,17 @@ export default function Customers() {
               </div>
             </form>
           ) : (
-            /* Display Mode */
             <>
               <div className="flex items-start justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold text-[var(--color-espresso)]">
-                    {selectedCustomer.businessName}
-                  </h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-[var(--color-espresso)]">
+                      {selectedCustomer.businessName}
+                    </h1>
+                    {selectedCustomer.isArchived && (
+                      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">Arşiv</span>
+                    )}
+                  </div>
                   <p className="mt-1 text-sm text-[var(--color-ink)]/60">
                     {selectedCustomer.contactName}
                   </p>
@@ -339,6 +455,13 @@ export default function Customers() {
                       ))}
                     </div>
                   )}
+                  <button
+                    onClick={() => handleArchive(selectedCustomer.id, !selectedCustomer.isArchived)}
+                    className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                    title={selectedCustomer.isArchived ? 'Arşivden çıkar' : 'Arşivle'}
+                  >
+                    {selectedCustomer.isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                  </button>
                   <button
                     onClick={startEdit}
                     className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
@@ -469,7 +592,12 @@ export default function Customers() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Müşteriler</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Müşteriler</h1>
+          <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+            {showArchived ? 'Arşivlenmiş müşteriler' : 'Müşteri listesi'}
+          </p>
+        </div>
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
@@ -483,9 +611,9 @@ export default function Customers() {
         <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
       )}
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="mb-4 flex gap-2">
-        <div className="relative flex-1">
+      {/* Search + Filters */}
+      <form onSubmit={handleSearch} className="mb-4 flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
           <input
             type="text"
@@ -501,7 +629,79 @@ export default function Customers() {
         >
           Ara
         </button>
+        <button
+          type="button"
+          onClick={() => setShowArchived(!showArchived)}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            showArchived
+              ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+              : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+          }`}
+        >
+          <Archive size={14} />
+          Arşiv
+        </button>
+        {debugMode && (
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectedCustomers.size === customers.length && customers.length > 0
+                ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+            }`}
+            title={selectedCustomers.size === customers.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
+          >
+            <CheckSquare size={14} />
+            {selectedCustomers.size === customers.length ? 'Bırak' : 'Tümü'}
+          </button>
+        )}
       </form>
+
+      {/* Bulk Actions Bar */}
+      {debugMode && selectedCustomers.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-4 py-2.5">
+          <span className="text-sm font-medium text-[var(--color-wood-dark)]">
+            {selectedCustomers.size} müşteri seçildi
+          </span>
+          <div className="flex-1" />
+          {!showArchived ? (
+            <button
+              onClick={handleBulkArchive}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--color-wood)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-wood-dark)] disabled:opacity-50"
+            >
+              {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />}
+              Arşivle
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleBulkUnarchive}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--color-wood)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-wood-dark)] disabled:opacity-50"
+              >
+                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <ArchiveRestore size={14} />}
+                Geri Al
+              </button>
+              <button
+                onClick={handleBulkDeleteClick}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Sil
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setSelectedCustomers(new Set())}
+            className="rounded p-1 text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Create Form */}
       {showForm && (
@@ -547,6 +747,7 @@ export default function Customers() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
             <tr>
+              {debugMode && <th className="w-10 px-4 py-3"></th>}
               <th onClick={() => toggleSort('businessName')} className="cursor-pointer px-4 py-3 font-medium select-none hover:text-[var(--color-wood-dark)]">
                 <span className="inline-flex items-center gap-1">İşletme <SortIcon field="businessName" /></span>
               </th>
@@ -571,48 +772,87 @@ export default function Customers() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={debugMode ? 8 : 7} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Yükleniyor...
                 </td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={debugMode ? 8 : 7} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Müşteri bulunamadı
                 </td>
               </tr>
             ) : (
-              customers.map((c) => (
-                <tr
-                  key={c.id}
-                  onClick={() => openCustomerDetail(c)}
-                  className="cursor-pointer border-b border-[var(--color-cream-deep)] last:border-0 hover:bg-[var(--color-cream)]/30"
-                >
-                  <td className="px-4 py-3 font-medium">{c.businessName}</td>
-                  <td className="px-4 py-3">{c.contactName}</td>
-                  <td className="px-4 py-3 text-[var(--color-ink)]/60">{c.phone}</td>
-                  <td className="px-4 py-3 text-[var(--color-ink)]/60">{c.city || '-'}</td>
-                  <td className="px-4 py-3 text-[var(--color-ink)]/50">
-                    {new Date(c.createdAt).toLocaleDateString('tr-TR')}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      (c.orderCount || 0) > 0
-                        ? 'bg-[var(--color-cream-deep)] text-[var(--color-wood-dark)]'
-                        : 'bg-gray-50 text-gray-400'
-                    }`}>
-                      {c.orderCount || 0}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <ChevronRight size={16} className="text-[var(--color-ink)]/30" />
-                  </td>
-                </tr>
-              ))
+              customers.map((c) => {
+                const isChecked = selectedCustomers.has(c.id)
+                return (
+                  <tr
+                    key={c.id}
+                    onClick={() => openCustomerDetail(c)}
+                    className={`cursor-pointer border-b border-[var(--color-cream-deep)] last:border-0 hover:bg-[var(--color-cream)]/30 ${
+                      isChecked ? 'bg-[var(--color-brass)]/5' : ''
+                    } ${c.isArchived ? 'opacity-60' : ''}`}
+                  >
+                    {debugMode && (
+                      <td className="px-4 py-3">
+                        <div
+                          onClick={(e) => toggleCustomerSelection(c.id, e)}
+                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                            isChecked
+                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                          }`}
+                        >
+                          {isChecked && <CheckSquare size={12} />}
+                        </div>
+                      </td>
+                    )}
+                    <td className="px-4 py-3 font-medium">
+                      <span className="flex items-center gap-2">
+                        {c.businessName}
+                        {c.isArchived && (
+                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{c.contactName}</td>
+                    <td className="px-4 py-3 text-[var(--color-ink)]/60">{c.phone}</td>
+                    <td className="px-4 py-3 text-[var(--color-ink)]/60">{c.city || '-'}</td>
+                    <td className="px-4 py-3 text-[var(--color-ink)]/50">
+                      {new Date(c.createdAt).toLocaleDateString('tr-TR')}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        (c.orderCount || 0) > 0
+                          ? 'bg-[var(--color-cream-deep)] text-[var(--color-wood-dark)]'
+                          : 'bg-gray-50 text-gray-400'
+                      }`}>
+                        {c.orderCount || 0}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <ChevronRight size={16} className="text-[var(--color-ink)]/30" />
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmModal
+        open={showDeleteModal}
+        title="Müşterileri Sil"
+        message={`${selectedCustomers.size} müşteriyi kalıcı olarak silmek istediğinize emin misiniz? Siparişleri olan müşteriler silinemez.`}
+        confirmText="Evet, Sil"
+        cancelText="Vazgeç"
+        variant="danger"
+        onConfirm={handleBulkDeleteConfirm}
+        onCancel={() => setShowDeleteModal(false)}
+        loading={bulkLoading}
+      />
     </div>
   )
 }
