@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import ConfirmModal from '../components/ConfirmModal'
 import {
   Plus,
   Search,
@@ -102,6 +103,10 @@ export default function Customers() {
     notes: '',
   })
   const [editLoading, setEditLoading] = useState(false)
+
+  // Delete confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const loadCustomers = async (query?: string) => {
     try {
@@ -214,20 +219,23 @@ export default function Customers() {
   }
 
   // Delete
-  const handleDelete = async () => {
-    if (!selectedCustomer) return
-    const confirmed = window.confirm(
-      `"${selectedCustomer.businessName}" müşterisini silmek istediğinize emin misiniz?`,
-    )
-    if (!confirmed) return
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true)
+  }
 
+  const handleDeleteConfirm = async () => {
+    if (!selectedCustomer) return
+    setDeleteLoading(true)
     setError('')
     try {
       await api.request(`/api/customers/${selectedCustomer.id}`, { method: 'DELETE' })
+      setShowDeleteModal(false)
       closeDetail()
       loadCustomers(search || undefined)
     } catch (err: any) {
       setError(err.message)
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -339,7 +347,7 @@ export default function Customers() {
                     <Pencil size={16} />
                   </button>
                   <button
-                    onClick={handleDelete}
+                    onClick={handleDeleteClick}
                     className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-red-50 hover:text-red-600"
                     title="Sil"
                   >
@@ -439,6 +447,19 @@ export default function Customers() {
             </div>
           )}
         </div>
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmModal
+          open={showDeleteModal}
+          title="Müşteriyi Sil"
+          message={`"${selectedCustomer?.businessName}" müşterisini kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+          confirmText="Evet, Sil"
+          cancelText="Vazgeç"
+          variant="danger"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShowDeleteModal(false)}
+          loading={deleteLoading}
+        />
       </div>
     )
   }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
+import ConfirmModal from '../components/ConfirmModal'
 import {
   Search,
   X,
@@ -152,6 +153,7 @@ export default function Orders() {
   const [uiMode, setUiMode] = useState<'classic' | 'ui2'>('classic')
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   // Navigate from customer detail → auto-select order
   useEffect(() => {
@@ -356,13 +358,12 @@ export default function Orders() {
     }
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDeleteClick = () => {
     if (selectedOrders.size === 0) return
-    const confirmed = window.confirm(
-      `${selectedOrders.size} sipariş kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?`,
-    )
-    if (!confirmed) return
+    setShowDeleteModal(true)
+  }
 
+  const handleBulkDeleteConfirm = async () => {
     setBulkLoading(true)
     setError('')
     try {
@@ -370,6 +371,7 @@ export default function Orders() {
         method: 'POST',
         body: { ids: Array.from(selectedOrders) },
       })
+      setShowDeleteModal(false)
       setSelectedOrders(new Set())
       setSelectedOrder(null)
       loadOrders()
@@ -514,7 +516,7 @@ export default function Orders() {
                 Geri Al
               </button>
               <button
-                onClick={handleBulkDelete}
+                onClick={handleBulkDeleteClick}
                 disabled={bulkLoading}
                 className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
               >
@@ -795,6 +797,19 @@ export default function Orders() {
             )}
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmModal
+          open={showDeleteModal}
+          title="Siparişleri Sil"
+          message={`${selectedOrders.size} sipariş kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?`}
+          confirmText="Evet, Sil"
+          cancelText="Vazgeç"
+          variant="danger"
+          onConfirm={handleBulkDeleteConfirm}
+          onCancel={() => setShowDeleteModal(false)}
+          loading={bulkLoading}
+        />
       </div>
   )
 }
