@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import {
-  Plus,
   Search,
   X,
   ChevronRight,
@@ -16,8 +15,6 @@ import {
   Loader2,
   Archive,
   ArchiveRestore,
-  GripVertical,
-  ArrowRight,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
@@ -128,8 +125,6 @@ const SOURCE_LABELS: Record<string, string> = {
   website: 'Web Sitesi',
   'walk-in': 'Mağaza',
 }
-
-const KANBAN_COLUMNS = ['pending', 'quoted', 'confirmed', 'in_production', 'shipped', 'delivered']
 
 function formatPrice(amount: number | null) {
   if (!amount) return '-'
@@ -286,24 +281,6 @@ export default function Orders() {
   const closeDetail = () => {
     setSelectedOrder(null)
     setNewNote('')
-  }
-
-  // ── Kanban Drag & Drop ─────────────────────────────────
-
-  const dragItem = useRef<string | null>(null)
-
-  const handleDragStart = (orderId: string) => {
-    dragItem.current = orderId
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = async (newStatus: string) => {
-    if (!dragItem.current) return
-    await handleStatusChange(dragItem.current, newStatus)
-    dragItem.current = null
   }
 
   // ── Render ──────────────────────────────────────────────
@@ -643,6 +620,5 @@ export default function Orders() {
           </div>
         </div>
       </div>
-    </div>
   )
 }
