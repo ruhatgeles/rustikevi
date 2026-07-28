@@ -8,6 +8,7 @@ interface Product {
   name: string
   category: string
   color: string | null
+  price: number | null
 }
 
 interface ProductSearchProps {
@@ -117,6 +118,11 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
               {product.color && (
                 <span className="shrink-0 text-xs text-[var(--color-ink)]/40">
                   {product.color}
+                </span>
+              )}
+              {product.price && (
+                <span className="shrink-0 text-xs font-medium text-[var(--color-wood-dark)]">
+                  {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(product.price / 100)}
                 </span>
               )}
             </button>

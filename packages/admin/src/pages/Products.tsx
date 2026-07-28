@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { Plus, Search, X, Pencil, Trash2, Eye, EyeOff, GripVertical } from 'lucide-react'
+import { Plus, Search, X, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
 
 interface Product {
   id: number
+  productCode: string | null
   name: string
   category: string
+  color: string | null
   description: string
   shortDescription: string
   moq: string
+  price: number | null
   swatches: Array<[string, string]>
   featured: boolean
   isActive: boolean
@@ -18,13 +21,17 @@ interface Product {
 }
 
 const CATEGORIES = ['Rustik', 'Saçak', 'Başlık', 'Dekorink', 'Sarkıt', 'Braçöl']
+const COLORS = ['Beyaz', 'Krem', 'Kahverengi', 'Siyah', 'Altın', 'Gümüş', 'Gri', 'Ahşap', 'Doğal', 'Özel']
 
 const emptyForm = {
+  productCode: '',
   name: '',
   category: 'Rustik',
+  color: '',
   description: '',
   shortDescription: '',
   moq: '',
+  price: '',
   swatches: [['#c9a876', '#8a6d43']] as Array<[string, string]>,
   featured: false,
   isActive: true,
@@ -57,11 +64,21 @@ export default function Products() {
     loadProducts()
   }, [])
 
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 250)
+    return () => clearTimeout(timer)
+  }, [search])
+
   const filtered = products.filter((p) => {
+    const s = debouncedSearch.toLowerCase()
     const matchesSearch =
-      !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase())
+      !s ||
+      (p.productCode || '').toLowerCase().includes(s) ||
+      p.name.toLowerCase().includes(s) ||
+      p.category.toLowerCase().includes(s) ||
+      (p.color || '').toLowerCase().includes(s)
     const matchesCategory = !filterCategory || p.category === filterCategory
     return matchesSearch && matchesCategory
   })
@@ -81,11 +98,14 @@ export default function Products() {
   const openEdit = (product: Product) => {
     setEditingId(product.id)
     setForm({
+      productCode: product.productCode || '',
       name: product.name,
       category: product.category,
+      color: product.color || '',
       description: product.description,
       shortDescription: product.shortDescription,
       moq: product.moq,
+      price: product.price ? String(product.price / 100) : '',
       swatches: product.swatches.length > 0 ? product.swatches : [['#c9a876', '#8a6d43']],
       featured: product.featured,
       isActive: product.isActive,
@@ -100,10 +120,15 @@ export default function Products() {
     setSaving(true)
 
     try {
+      const body: any = {
+        ...form,
+        price: form.price ? Math.round(Number(form.price) * 100) : undefined,
+      }
+
       if (editingId) {
-        await api.request(`/api/products/${editingId}`, { method: 'PATCH', body: form })
+        await api.request(`/api/products/${editingId}`, { method: 'PATCH', body })
       } else {
-        await api.request('/api/products', { method: 'POST', body: form })
+        await api.request('/api/products', { method: 'POST', body })
       }
       resetForm()
       loadProducts()
@@ -140,6 +165,11 @@ export default function Products() {
     setForm({ ...form, swatches: updated })
   }
 
+  const formatPrice = (kurus: number | null) => {
+    if (!kurus) return '-'
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(kurus / 100)
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -166,7 +196,7 @@ export default function Products() {
           />
           <input
             type="text"
-            placeholder="Ürün adı veya kategori ara..."
+            placeholder="Kod, ürün adı, kategori veya renk ara..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 outline-none focus:border-[var(--color-brass)]"
@@ -214,6 +244,26 @@ export default function Products() {
                 </option>
               ))}
             </select>
+            <select
+              value={form.color}
+              onChange={(e) => setForm({ ...form, color: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
+            >
+              <option value="">Renk Seçin</option>
+              {COLORS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="Fiyat (₺)"
+                step="0.01"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                className="w-full rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
+              />
+            </div>
             <input
               placeholder="Kısa Açıklama"
               value={form.shortDescription}
@@ -231,13 +281,6 @@ export default function Products() {
               placeholder="Min. Sipariş (örn: 200 adet)"
               value={form.moq}
               onChange={(e) => setForm({ ...form, moq: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-            />
-            <input
-              type="number"
-              placeholder="Sıralama"
-              value={form.sortOrder}
-              onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
             />
 
@@ -334,13 +377,13 @@ export default function Products() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
             <tr>
-              <th className="w-10 px-4 py-3 font-medium"></th>
+              <th className="px-4 py-3 font-medium">Kod</th>
               <th className="px-4 py-3 font-medium">Ürün</th>
               <th className="px-4 py-3 font-medium">Kategori</th>
-              <th className="px-4 py-3 font-medium">Min. Sipariş</th>
               <th className="px-4 py-3 font-medium">Renk</th>
+              <th className="px-4 py-3 font-medium">Fiyat</th>
+              <th className="px-4 py-3 font-medium">Renkler</th>
               <th className="px-4 py-3 font-medium">Durum</th>
-              <th className="px-4 py-3 font-medium">Sıra</th>
               <th className="px-4 py-3 text-right font-medium">İşlem</th>
             </tr>
           </thead>
@@ -366,7 +409,13 @@ export default function Products() {
                   }`}
                 >
                   <td className="px-4 py-3">
-                    <GripVertical size={14} className="text-[var(--color-ink)]/20" />
+                    {product.productCode ? (
+                      <span className="rounded bg-[var(--color-cream-deep)] px-1.5 py-0.5 font-mono text-xs font-semibold text-[var(--color-wood-dark)]">
+                        {product.productCode}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium">{product.name}</div>
@@ -379,7 +428,8 @@ export default function Products() {
                       {product.category}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-[var(--color-ink)]/60">{product.moq}</td>
+                  <td className="px-4 py-3 text-[var(--color-ink)]/60">{product.color || '-'}</td>
+                  <td className="px-4 py-3 font-medium">{formatPrice(product.price)}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
                       {product.swatches.slice(0, 3).map((swatch, i) => (
@@ -413,7 +463,6 @@ export default function Products() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[var(--color-ink)]/50">{product.sortOrder}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       <button

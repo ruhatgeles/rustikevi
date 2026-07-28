@@ -121,6 +121,7 @@ export const products = pgTable('products', {
   description: text('description').notNull().default(''),
   shortDescription: text('short_description').notNull().default(''),
   moq: varchar('moq', { length: 50 }).notNull().default(''),
+  price: integer('price'), // kuruş cinsinden (100 = 1 TL)
   swatches: jsonb('swatches').$type<Array<[string, string]>>().default([]),
   featured: boolean('featured').notNull().default(false),
   isActive: boolean('is_active').notNull().default(true),

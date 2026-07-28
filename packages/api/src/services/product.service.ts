@@ -11,6 +11,7 @@ interface CreateProductInput {
   description?: string
   shortDescription?: string
   moq?: string
+  price?: number
   swatches?: Array<[string, string]>
   featured?: boolean
   isActive?: boolean
@@ -166,6 +167,7 @@ export async function createProduct(input: CreateProductInput) {
       description: input.description || '',
       shortDescription: input.shortDescription || '',
       moq: input.moq || '',
+      price: input.price,
       swatches: input.swatches || [],
       featured: input.featured || false,
       isActive: input.isActive !== false,

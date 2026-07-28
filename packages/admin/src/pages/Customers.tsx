@@ -148,15 +148,14 @@ export default function Customers() {
     }
   }
 
+  // Debounced search
   useEffect(() => {
-    loadCustomers(search || undefined)
-    setSelectedCustomers(new Set())
-  }, [sortBy, sortOrder, showArchived])
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    loadCustomers(search)
-  }
+    const timer = setTimeout(() => {
+      loadCustomers(search || undefined)
+      setSelectedCustomers(new Set())
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [search, sortBy, sortOrder, showArchived])
 
   const toggleSort = (field: string) => {
     if (sortBy === field) {
@@ -378,12 +377,13 @@ export default function Customers() {
     setOrderItems(updated)
   }
 
-  const handleProductSelect = (index: number, product: { productCode: string | null; name: string }) => {
+  const handleProductSelect = (index: number, product: { productCode: string | null; name: string; price: number | null }) => {
     const updated = [...orderItems]
     updated[index] = {
       ...updated[index],
       productCode: product.productCode || '',
       productName: product.name,
+      unitPrice: product.price ? String(product.price / 100) : updated[index].unitPrice,
     }
     setOrderItems(updated)
   }
@@ -815,7 +815,7 @@ export default function Customers() {
       )}
 
       {/* Search + Filters */}
-      <form onSubmit={handleSearch} className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
           <input
@@ -827,13 +827,6 @@ export default function Customers() {
           />
         </div>
         <button
-          type="submit"
-          className="rounded-lg bg-[var(--color-cream-deep)] px-4 text-sm font-medium hover:bg-[var(--color-brass)]/20"
-        >
-          Ara
-        </button>
-        <button
-          type="button"
           onClick={() => setShowArchived(!showArchived)}
           className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
             showArchived
@@ -859,7 +852,7 @@ export default function Customers() {
             {selectedCustomers.size === customers.length ? 'Bırak' : 'Tümü'}
           </button>
         )}
-      </form>
+      </div>
 
       {/* Bulk Actions Bar */}
       {debugMode && selectedCustomers.size > 0 && (

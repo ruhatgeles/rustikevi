@@ -88,6 +88,7 @@ const createProductSchema = z.object({
   description: z.string().optional(),
   shortDescription: z.string().optional(),
   moq: z.string().optional(),
+  price: z.number().optional(),
   swatches: z.array(z.tuple([z.string(), z.string()])).optional(),
   featured: z.boolean().optional(),
   isActive: z.boolean().optional(),

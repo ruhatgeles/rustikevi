@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
+import ProductSearch from '../components/ProductSearch'
 import {
   Search,
   X,
@@ -155,6 +156,18 @@ export default function Orders() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
+  // Order creation
+  const [showOrderForm, setShowOrderForm] = useState(false)
+  const [orderCustomerSearch, setOrderCustomerSearch] = useState('')
+  const [orderCustomerResults, setOrderCustomerResults] = useState<any[]>([])
+  const [orderCustomer, setOrderCustomer] = useState<any | null>(null)
+  const [orderItems, setOrderItems] = useState([
+    { productCode: '', productName: '', quantity: 1, unitPrice: '', specifications: '' },
+  ])
+  const [orderNotes, setOrderNotes] = useState('')
+  const [orderSource, setOrderSource] = useState('phone')
+  const [orderCreating, setOrderCreating] = useState(false)
+
   // Navigate from customer detail → auto-select order
   useEffect(() => {
     const orderId = (location.state as any)?.orderId
@@ -181,10 +194,14 @@ export default function Orders() {
     }
   }
 
+  // Debounced search
   useEffect(() => {
-    loadOrders()
-    setSelectedOrders(new Set())
-  }, [filterStatus, showArchived])
+    const timer = setTimeout(() => {
+      loadOrders()
+      setSelectedOrders(new Set())
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [search, filterStatus, showArchived])
 
   // Load order detail
   const loadOrderDetail = async (id: string) => {
@@ -387,6 +404,92 @@ export default function Orders() {
     setNewNote('')
   }
 
+  // Order creation
+  const searchCustomers = async (query: string) => {
+    if (query.length < 2) { setOrderCustomerResults([]); return }
+    try {
+      const result = await api.request<{ data: any[] }>(`/api/customers?search=${encodeURIComponent(query)}&limit=5`)
+      setOrderCustomerResults(result.data)
+    } catch { setOrderCustomerResults([]) }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (orderCustomerSearch && !orderCustomer) searchCustomers(orderCustomerSearch)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [orderCustomerSearch])
+
+  const addOrderItemRow = () => {
+    setOrderItems([...orderItems, { productCode: '', productName: '', quantity: 1, unitPrice: '', specifications: '' }])
+  }
+
+  const removeOrderItemRow = (index: number) => {
+    if (orderItems.length <= 1) return
+    setOrderItems(orderItems.filter((_, i) => i !== index))
+  }
+
+  const updateOrderItem = (index: number, field: string, value: string | number) => {
+    const updated = [...orderItems]
+    updated[index] = { ...updated[index], [field]: value }
+    setOrderItems(updated)
+  }
+
+  const handleProductSelect = (index: number, product: { productCode: string | null; name: string; price: number | null }) => {
+    const updated = [...orderItems]
+    updated[index] = {
+      ...updated[index],
+      productCode: product.productCode || '',
+      productName: product.name,
+      unitPrice: product.price ? String(product.price / 100) : updated[index].unitPrice,
+    }
+    setOrderItems(updated)
+  }
+
+  const resetOrderForm = () => {
+    setShowOrderForm(false)
+    setOrderCustomer(null)
+    setOrderCustomerSearch('')
+    setOrderCustomerResults([])
+    setOrderItems([{ productCode: '', productName: '', quantity: 1, unitPrice: '', specifications: '' }])
+    setOrderNotes('')
+    setOrderSource('phone')
+  }
+
+  const handleCreateOrder = async () => {
+    if (!orderCustomer) return
+    const validItems = orderItems.filter((item) => item.productName.trim())
+    if (validItems.length === 0) return
+
+    setOrderCreating(true)
+    setError('')
+    try {
+      const items = validItems.map((item) => ({
+        productName: item.productName.trim(),
+        quantity: Number(item.quantity) || 1,
+        unitPrice: item.unitPrice ? Math.round(Number(item.unitPrice) * 100) : undefined,
+        specifications: item.specifications.trim() || undefined,
+      }))
+
+      await api.request('/api/orders', {
+        method: 'POST',
+        body: {
+          customerId: orderCustomer.id,
+          items,
+          notes: orderNotes.trim() || undefined,
+          source: orderSource,
+        },
+      })
+
+      resetOrderForm()
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setOrderCreating(false)
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────
 
   return (
@@ -400,6 +503,16 @@ export default function Orders() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowOrderForm(!showOrderForm)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              showOrderForm
+                ? 'bg-gray-100 text-gray-600'
+                : 'bg-[var(--color-wood-dark)] text-white hover:bg-[var(--color-espresso)]'
+            }`}
+          >
+            {showOrderForm ? 'İptal' : 'Sipariş Oluştur'}
+          </button>
           {debugMode && (
             <>
               <button
@@ -439,6 +552,116 @@ export default function Orders() {
         <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
       )}
 
+      {/* Order Creation Form */}
+      {showOrderForm && (
+        <div className="mb-4 rounded-xl border border-[var(--color-brass)]/30 bg-[var(--color-cream)]/30 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-[var(--color-wood-dark)]">Yeni Sipariş</h3>
+
+          {/* Customer Selection */}
+          <div className="mb-3">
+            <label className="mb-1 block text-xs font-medium text-[var(--color-ink)]/60">Müşteri</label>
+            {orderCustomer ? (
+              <div className="flex items-center gap-2 rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm">
+                <span className="font-medium">{orderCustomer.businessName}</span>
+                <span className="text-xs text-[var(--color-ink)]/40">{orderCustomer.contactName}</span>
+                <button onClick={() => setOrderCustomer(null)} className="ml-auto text-[var(--color-ink)]/30 hover:text-red-500">
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={orderCustomerSearch}
+                  onChange={(e) => { setOrderCustomerSearch(e.target.value); setOrderCustomer(null) }}
+                  placeholder="Müşteri ara..."
+                  className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)]"
+                />
+                {orderCustomerResults.length > 0 && !orderCustomer && (
+                  <div className="absolute z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-[var(--color-cream-deep)] bg-white shadow-lg">
+                    {orderCustomerResults.map((c: any) => (
+                      <button
+                        key={c.id}
+                        onClick={() => { setOrderCustomer(c); setOrderCustomerSearch(''); setOrderCustomerResults([]) }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-cream)]/50"
+                      >
+                        <span className="font-medium">{c.businessName}</span>
+                        <span className="text-xs text-[var(--color-ink)]/40">{c.contactName} · {c.phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Items */}
+          <div className="mb-3 space-y-2">
+            {orderItems.map((item, index) => (
+              <div key={index} className="grid grid-cols-[1fr_80px_100px_1fr_32px] gap-2">
+                <div>
+                  {item.productName ? (
+                    <div className="flex items-center gap-1 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-cream)]/30 px-2.5 py-1.5 text-sm">
+                      {item.productCode && (
+                        <span className="font-mono text-xs font-semibold text-[var(--color-wood-dark)]">{item.productCode}</span>
+                      )}
+                      <span className="flex-1 truncate">{item.productName}</span>
+                      <button type="button" onClick={() => updateOrderItem(index, 'productName', '')} className="text-[var(--color-ink)]/30 hover:text-red-500">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <ProductSearch onSelect={(p) => handleProductSelect(index, p)} placeholder="Ürün ara..." />
+                  )}
+                </div>
+                <input type="number" placeholder="Adet" min="1" value={item.quantity}
+                  onChange={(e) => updateOrderItem(index, 'quantity', e.target.value)}
+                  className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
+                <input type="number" placeholder="Birim ₺" step="0.01" value={item.unitPrice}
+                  onChange={(e) => updateOrderItem(index, 'unitPrice', e.target.value)}
+                  className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
+                <input placeholder="Not (opsiyonel)" value={item.specifications}
+                  onChange={(e) => updateOrderItem(index, 'specifications', e.target.value)}
+                  className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
+                <button type="button" onClick={() => removeOrderItemRow(index)} disabled={orderItems.length <= 1}
+                  className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30">
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={addOrderItemRow} className="mb-3 text-xs font-medium text-[var(--color-wood-dark)] hover:underline">
+            + Ürün Ekle
+          </button>
+
+          {/* Notes & Source */}
+          <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_120px]">
+            <textarea placeholder="Sipariş notu (opsiyonel)" value={orderNotes}
+              onChange={(e) => setOrderNotes(e.target.value)} rows={2}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
+            <select value={orderSource} onChange={(e) => setOrderSource(e.target.value)}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]">
+              <option value="phone">Telefon</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="website">Web Sitesi</option>
+              <option value="walk-in">Mağaza</option>
+            </select>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button onClick={handleCreateOrder} disabled={orderCreating || !orderCustomer}
+              className="rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-espresso)] disabled:opacity-50">
+              {orderCreating ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
+            </button>
+            <button onClick={resetOrderForm}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-cream)]">
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
@@ -448,7 +671,6 @@ export default function Orders() {
             placeholder="Sipariş no, müşteri adı..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadOrders()}
             className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 outline-none focus:border-[var(--color-brass)]"
           />
         </div>
