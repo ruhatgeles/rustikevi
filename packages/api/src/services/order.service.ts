@@ -476,53 +476,6 @@ export async function removeOrderItem(orderId: string, itemId: string, userId: s
   return getOrderById(orderId)
 }
 
-export async function bulkArchiveOrders(ids: string[], userId: string) {
-  let count = 0
-  for (const id of ids) {
-    const [order] = await db
-      .update(orders)
-      .set({ isArchived: true, updatedAt: new Date() })
-      .where(and(eq(orders.id, id), eq(orders.isArchived, false)))
-      .returning()
-    if (order) {
-      await addActivity(id, userId, 'archived', 'Sipariş arşive kaldırıldı')
-      count++
-    }
-  }
-  return { count }
-}
-
-export async function bulkUnarchiveOrders(ids: string[], userId: string) {
-  let count = 0
-  for (const id of ids) {
-    const [order] = await db
-      .update(orders)
-      .set({ isArchived: false, updatedAt: new Date() })
-      .where(and(eq(orders.id, id), eq(orders.isArchived, true)))
-      .returning()
-    if (order) {
-      await addActivity(id, userId, 'unarchived', 'Sipariş arşivden çıkarıldı')
-      count++
-    }
-  }
-  return { count }
-}
-
-export async function bulkDeleteOrders(ids: string[]) {
-  let count = 0
-  for (const id of ids) {
-    // Only delete archived orders
-    const [order] = await db.select().from(orders).where(and(eq(orders.id, id), eq(orders.isArchived, true))).limit(1)
-    if (order) {
-      await db.delete(orderActivities).where(eq(orderActivities.orderId, id))
-      await db.delete(orderItems).where(eq(orderItems.orderId, id))
-      await db.delete(orders).where(eq(orders.id, id))
-      count++
-    }
-  }
-  return { count }
-}
-
 export async function getOrderStats() {
   const [total] = await db
     .select({ count: sql<number>`count(*)` })

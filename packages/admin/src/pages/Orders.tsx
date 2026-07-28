@@ -15,9 +15,6 @@ import {
   Loader2,
   Archive,
   ArchiveRestore,
-  CheckSquare,
-  Square,
-  Trash2,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
@@ -149,8 +146,6 @@ export default function Orders() {
   const [newNote, setNewNote] = useState('')
   const [creatingTest, setCreatingTest] = useState(false)
   const [uiMode, setUiMode] = useState<'classic' | 'ui2'>('classic')
-  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
-  const [bulkLoading, setBulkLoading] = useState(false)
 
   // Load orders
   const loadOrders = async () => {
@@ -170,7 +165,6 @@ export default function Orders() {
 
   useEffect(() => {
     loadOrders()
-    setSelectedOrders(new Set())
   }, [filterStatus, showArchived])
 
   // Load order detail
@@ -238,83 +232,6 @@ export default function Orders() {
       loadOrders()
     } catch (err: any) {
       setError(err.message)
-    }
-  }
-
-  // Toggle single order selection
-  const toggleSelect = (orderId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setSelectedOrders((prev) => {
-      const next = new Set(prev)
-      if (next.has(orderId)) next.delete(orderId)
-      else next.add(orderId)
-      return next
-    })
-  }
-
-  // Select all visible orders
-  const selectAll = () => {
-    setSelectedOrders(new Set(orders.map((o) => o.id)))
-  }
-
-  // Clear selection
-  const clearSelection = () => setSelectedOrders(new Set())
-
-  // Bulk archive
-  const handleBulkArchive = async () => {
-    if (selectedOrders.size === 0) return
-    setBulkLoading(true)
-    try {
-      await api.request('/api/orders/bulk/archive', {
-        method: 'POST',
-        body: { ids: Array.from(selectedOrders) },
-      })
-      setSelectedOrders(new Set())
-      setSelectedOrder(null)
-      loadOrders()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setBulkLoading(false)
-    }
-  }
-
-  // Bulk unarchive
-  const handleBulkUnarchive = async () => {
-    if (selectedOrders.size === 0) return
-    setBulkLoading(true)
-    try {
-      await api.request('/api/orders/bulk/unarchive', {
-        method: 'POST',
-        body: { ids: Array.from(selectedOrders) },
-      })
-      setSelectedOrders(new Set())
-      setSelectedOrder(null)
-      loadOrders()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setBulkLoading(false)
-    }
-  }
-
-  // Bulk delete
-  const handleBulkDelete = async () => {
-    if (selectedOrders.size === 0) return
-    if (!confirm(`${selectedOrders.size} sipariş kalıcı olarak silinecek. Emin misiniz?`)) return
-    setBulkLoading(true)
-    try {
-      await api.request('/api/orders/bulk/delete', {
-        method: 'POST',
-        body: { ids: Array.from(selectedOrders) },
-      })
-      setSelectedOrders(new Set())
-      setSelectedOrder(null)
-      loadOrders()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setBulkLoading(false)
     }
   }
 
@@ -452,63 +369,7 @@ export default function Orders() {
           <Archive size={14} />
           Arşiv
         </button>
-        {/* Select All button (debug mode) */}
-        {debugMode && (
-          <button
-            onClick={selectedOrders.size === orders.length ? clearSelection : selectAll}
-            className="flex items-center gap-1 rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-2 text-sm text-[var(--color-ink)]/60 transition-colors hover:border-[var(--color-brass)] hover:text-[var(--color-wood-dark)]"
-            title={selectedOrders.size === orders.length ? 'Seçimi kaldır' : 'Tümünü seç'}
-          >
-            {selectedOrders.size === orders.length ? <CheckSquare size={14} /> : <Square size={14} />}
-          </button>
-        )}
       </div>
-
-      {/* Bulk Action Bar (debug mode) */}
-      {debugMode && selectedOrders.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-4 py-2">
-          <span className="text-sm font-medium text-[var(--color-wood-dark)]">
-            {selectedOrders.size} seçili
-          </span>
-          <div className="flex gap-2">
-            {showArchived ? (
-              <>
-                <button
-                  onClick={handleBulkUnarchive}
-                  disabled={bulkLoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-green-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-600 disabled:opacity-50"
-                >
-                  {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <ArchiveRestore size={12} />}
-                  Geri Al
-                </button>
-                <button
-                  onClick={handleBulkDelete}
-                  disabled={bulkLoading}
-                  className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
-                >
-                  {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                  Sil
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleBulkArchive}
-                disabled={bulkLoading}
-                className="flex items-center gap-1.5 rounded-lg bg-[var(--color-wood-dark)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-espresso)] disabled:opacity-50"
-              >
-                {bulkLoading ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} />}
-                Arşivle
-              </button>
-            )}
-          </div>
-          <button
-            onClick={clearSelection}
-            className="ml-auto text-xs text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
-          >
-            Seçimi kaldır
-          </button>
-        </div>
-      )}
 
       {/* List + Detail View */}
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
@@ -527,7 +388,6 @@ export default function Orders() {
                 const config = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.pending
                 const Icon = config.icon
                 const isSelected = selectedOrder?.id === order.id
-                const isChecked = selectedOrders.has(order.id)
                 return (
                   <button
                     key={order.id}
@@ -540,19 +400,6 @@ export default function Orders() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        {/* Checkbox (debug mode) */}
-                        {debugMode && (
-                          <span
-                            onClick={(e) => toggleSelect(order.id, e)}
-                            className="flex-shrink-0"
-                          >
-                            {isChecked ? (
-                              <CheckSquare size={16} className="text-[var(--color-brass)]" />
-                            ) : (
-                              <Square size={16} className="text-[var(--color-ink)]/20" />
-                            )}
-                          </span>
-                        )}
                         <span className="font-mono text-sm font-semibold text-[var(--color-wood-dark)]">
                           {order.orderNumber}
                         </span>
