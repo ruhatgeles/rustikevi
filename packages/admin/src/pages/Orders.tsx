@@ -117,10 +117,10 @@ const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
 }
 
 const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
-  pending: ['confirmed', 'in_production', 'atelier'],
-  confirmed: ['in_production', 'atelier'],
-  in_production: ['ready', 'atelier'],
-  atelier: ['ready'],
+  pending: ['confirmed', 'atelier', 'in_production'],
+  confirmed: ['atelier', 'in_production'],
+  atelier: ['in_production', 'ready'],
+  in_production: ['ready'],
   ready: ['shipped', 'delivered'],
   shipped: ['delivered'],
   delivered: ['returned', 'exchanged'],

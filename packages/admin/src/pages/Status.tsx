@@ -329,22 +329,28 @@ export default function Status() {
                         </div>
                         {/* Kalem durumları */}
                         {order.items && order.items.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {order.items.slice(0, 3).map((item) => (
-                              <span
+                          <div className="mt-2 space-y-1">
+                            {order.items.slice(0, 4).map((item) => (
+                              <div
                                 key={item.id}
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                  ITEM_STATUS_COLORS[item.itemStatus] || 'bg-gray-100 text-gray-700'
-                                }`}
+                                className="flex items-center justify-between rounded bg-gray-50 px-2 py-1"
                               >
-                                {item.productName.substring(0, 12)}
-                                {item.productName.length > 12 ? '...' : ''}
-                              </span>
+                                <span className="text-[11px] font-medium text-[var(--color-ink)] truncate max-w-[120px]">
+                                  {item.productName}
+                                </span>
+                                <span
+                                  className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                                    ITEM_STATUS_COLORS[item.itemStatus] || 'bg-gray-100 text-gray-700'
+                                  }`}
+                                >
+                                  {ITEM_STATUS_LABELS[item.itemStatus] || item.itemStatus}
+                                </span>
+                              </div>
                             ))}
-                            {order.items.length > 3 && (
-                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700">
-                                +{order.items.length - 3}
-                              </span>
+                            {order.items.length > 4 && (
+                              <div className="text-center text-[10px] text-[var(--color-ink)]/40">
+                                +{order.items.length - 4} ürün daha
+                              </div>
                             )}
                           </div>
                         )}

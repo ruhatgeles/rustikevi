@@ -88,10 +88,10 @@ const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
 }
 
 const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
-  pending: ['confirmed', 'in_production', 'atelier'],
-  confirmed: ['in_production', 'atelier'],
-  in_production: ['ready', 'atelier'],
-  atelier: ['ready'],
+  pending: ['confirmed', 'atelier', 'in_production'],
+  confirmed: ['atelier', 'in_production'],
+  atelier: ['in_production', 'ready'],
+  in_production: ['ready'],
   ready: ['shipped', 'delivered'],
   shipped: ['delivered'],
   delivered: ['returned', 'exchanged'],
@@ -688,13 +688,13 @@ export async function bulkDeleteOrders(ids: string[], userId: string) {
 const ITEM_STATUS_PROGRESS: Record<string, number> = {
   pending: 0,
   confirmed: 1,
-  in_production: 2,
-  atelier: 3,
+  atelier: 2,       // atölye (stokta yok, hammaddeden üretiliyor)
+  in_production: 3, // üretimde
   ready: 4,
   shipped: 5,
   delivered: 6,
   returned: 6,    // iade = teslim seviyesinde
-  exchanged: 2,   // değişim = üretim seviyesinde
+  exchanged: 2,   // değişim = atölye seviyesinde
 }
 
 // Kalem durumunu sipariş durumuna çevir
