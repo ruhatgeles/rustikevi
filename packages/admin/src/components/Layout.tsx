@@ -28,7 +28,7 @@ const navItems = [
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
-  const { debugMode, toggleDebug } = useDebug()
+  const { debugMode, toggleDebug, isAdmin } = useDebug()
   const location = useLocation()
 
   const filteredNav = navItems.filter((item) =>
@@ -71,31 +71,33 @@ export default function Layout({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="border-t border-[var(--color-cream-deep)] p-4">
-          {/* Debug Toggle */}
-          <button
-            onClick={toggleDebug}
-            className={`mb-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-              debugMode
-                ? 'bg-orange-50 text-orange-700'
-                : 'text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)]'
-            }`}
-          >
-            <span className="flex items-center gap-2">
-              <Bug size={16} />
-              Debug Modu
-            </span>
-            <span
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                debugMode ? 'bg-orange-500' : 'bg-gray-300'
+          {/* Debug Toggle - Sadece admin kullanıcılar görebilir */}
+          {isAdmin && (
+            <button
+              onClick={toggleDebug}
+              className={`mb-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                debugMode
+                  ? 'bg-orange-50 text-orange-700'
+                  : 'text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)]'
               }`}
             >
+              <span className="flex items-center gap-2">
+                <Bug size={16} />
+                Debug Modu
+              </span>
               <span
-                className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
-                  debugMode ? 'translate-x-4.5' : 'translate-x-1'
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  debugMode ? 'bg-orange-500' : 'bg-gray-300'
                 }`}
-              />
-            </span>
-          </button>
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                    debugMode ? 'translate-x-4.5' : 'translate-x-1'
+                  }`}
+                />
+              </span>
+            </button>
+          )}
 
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-cream-deep)] text-xs font-bold text-[var(--color-wood-dark)]">

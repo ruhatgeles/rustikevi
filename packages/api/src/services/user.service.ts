@@ -15,6 +15,8 @@ interface CreateUserInput {
 
 interface UpdateUserInput {
   name?: string
+  email?: string
+  password?: string
   role?: string
   isActive?: boolean
 }
@@ -126,9 +128,30 @@ export async function createUser(input: CreateUserInput, createdById?: string) {
 }
 
 export async function updateUser(id: string, input: UpdateUserInput) {
+  const updateData: any = { ...input, updatedAt: new Date() }
+
+  // Şifre değiştiriliyorsa hashle
+  if (input.password) {
+    updateData.passwordHash = hashPassword(input.password)
+    delete updateData.password
+  }
+
+  // E-posta değiştiriliyorsa mükerrer kontrolü yap
+  if (input.email) {
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.email, input.email), sql`${users.id} != ${id}`))
+      .limit(1)
+
+    if (existing) {
+      throw new AppError(409, 'Bu e-posta adresi zaten kullanılıyor')
+    }
+  }
+
   const [user] = await db
     .update(users)
-    .set({ ...input, updatedAt: new Date() })
+    .set(updateData)
     .where(eq(users.id, id))
     .returning({
       id: users.id,
@@ -140,7 +163,7 @@ export async function updateUser(id: string, input: UpdateUserInput) {
     })
 
   if (!user) {
-    throw new AppError(404, 'User not found')
+    throw new AppError(404, 'Kullanıcı bulunamadı')
   }
 
   return user
