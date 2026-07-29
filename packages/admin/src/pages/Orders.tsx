@@ -122,8 +122,8 @@ const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
   atelier: ['confirmed', 'in_production', 'ready'],
   in_production: ['confirmed', 'atelier', 'ready'],
   ready: ['atelier', 'in_production', 'shipped', 'delivered'],
-  shipped: ['delivered'],
-  delivered: ['returned', 'exchanged'],
+  shipped: ['ready', 'delivered'],
+  delivered: ['ready', 'shipped', 'returned', 'exchanged'],
   returned: [],
   exchanged: [],
 }
