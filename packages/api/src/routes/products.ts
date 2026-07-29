@@ -7,6 +7,11 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  archiveProduct,
+  unarchiveProduct,
+  bulkArchiveProducts,
+  bulkUnarchiveProducts,
+  bulkDeleteProducts,
   generateProductCode,
   COLOR_CODES,
   COLOR_NAMES,
@@ -23,11 +28,13 @@ products.get('/', async (c) => {
   const category = c.req.query('category')
   const featured = c.req.query('featured')
   const search = c.req.query('search')
+  const archived = c.req.query('archived') === 'true'
 
-  const filters: { category?: string; featured?: boolean; search?: string } = {}
+  const filters: { category?: string; featured?: boolean; search?: string; archived?: boolean } = {}
   if (category) filters.category = category
   if (featured === 'true') filters.featured = true
   if (search) filters.search = search
+  if (archived) filters.archived = true
 
   const data = await listProducts(filters)
   return c.json({ data })
@@ -55,6 +62,35 @@ products.get('/generate-code', requireManager(), async (c) => {
 
   const code = await generateProductCode(category, color)
   return c.json({ data: { code } })
+})
+
+// ── Bulk routes (MUST be before :id routes) ────────────
+
+// POST /api/products/bulk/archive
+products.post('/bulk/archive', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const bulkSchema = z.object({ ids: z.array(z.number()).min(1) })
+  const input = bulkSchema.parse(body)
+  const result = await bulkArchiveProducts(input.ids)
+  return c.json({ data: result })
+})
+
+// POST /api/products/bulk/unarchive
+products.post('/bulk/unarchive', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const bulkSchema = z.object({ ids: z.array(z.number()).min(1) })
+  const input = bulkSchema.parse(body)
+  const result = await bulkUnarchiveProducts(input.ids)
+  return c.json({ data: result })
+})
+
+// POST /api/products/bulk/delete (admin only)
+products.post('/bulk/delete', requireAdmin(), async (c) => {
+  const body = await c.req.json()
+  const bulkSchema = z.object({ ids: z.array(z.number()).min(1) })
+  const input = bulkSchema.parse(body)
+  const result = await bulkDeleteProducts(input.ids)
+  return c.json({ data: result })
 })
 
 // GET /api/products/all — all products including inactive (manager+)
@@ -114,10 +150,24 @@ products.patch('/:id', requireManager(), async (c) => {
   return c.json({ data: product })
 })
 
-// DELETE /api/products/:id — soft delete (admin only)
+// DELETE /api/products/:id — hard delete (admin only)
 products.delete('/:id', requireAdmin(), async (c) => {
   const id = Number(c.req.param('id'))
   const product = await deleteProduct(id)
+  return c.json({ data: product })
+})
+
+// POST /api/products/:id/archive
+products.post('/:id/archive', requireManager(), async (c) => {
+  const id = Number(c.req.param('id'))
+  const product = await archiveProduct(id)
+  return c.json({ data: product })
+})
+
+// POST /api/products/:id/unarchive
+products.post('/:id/unarchive', requireManager(), async (c) => {
+  const id = Number(c.req.param('id'))
+  const product = await unarchiveProduct(id)
   return c.json({ data: product })
 })
 

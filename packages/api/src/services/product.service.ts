@@ -1,6 +1,6 @@
 import { db } from '../db/index.js'
 import { products } from '../db/schema.js'
-import { eq, and, sql, desc, asc, ilike, or } from 'drizzle-orm'
+import { eq, and, sql, desc, asc, ilike, or, inArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
 interface CreateProductInput {
@@ -90,8 +90,12 @@ export async function listProducts(filters?: {
   featured?: boolean
   activeOnly?: boolean
   search?: string
+  archived?: boolean
 }) {
   const conditions = []
+
+  // Arşiv filtresi
+  conditions.push(eq(products.isArchived, filters?.archived || false))
 
   if (filters?.activeOnly !== false) {
     conditions.push(eq(products.isActive, true))
@@ -193,21 +197,6 @@ export async function updateProduct(id: number, input: UpdateProductInput) {
 }
 
 export async function deleteProduct(id: number) {
-  // Soft delete — set isActive to false
-  const [product] = await db
-    .update(products)
-    .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(products.id, id))
-    .returning({ id: products.id })
-
-  if (!product) {
-    throw new AppError(404, 'Product not found')
-  }
-
-  return product
-}
-
-export async function hardDeleteProduct(id: number) {
   const [product] = await db
     .delete(products)
     .where(eq(products.id, id))
@@ -218,4 +207,57 @@ export async function hardDeleteProduct(id: number) {
   }
 
   return product
+}
+
+// ── Archive / Unarchive ─────────────────────────────────
+
+export async function archiveProduct(id: number) {
+  const [product] = await db
+    .update(products)
+    .set({ isArchived: true, updatedAt: new Date() })
+    .where(eq(products.id, id))
+    .returning()
+
+  if (!product) {
+    throw new AppError(404, 'Product not found')
+  }
+
+  return product
+}
+
+export async function unarchiveProduct(id: number) {
+  const [product] = await db
+    .update(products)
+    .set({ isArchived: false, updatedAt: new Date() })
+    .where(eq(products.id, id))
+    .returning()
+
+  if (!product) {
+    throw new AppError(404, 'Product not found')
+  }
+
+  return product
+}
+
+export async function bulkArchiveProducts(ids: number[]) {
+  await db
+    .update(products)
+    .set({ isArchived: true, updatedAt: new Date() })
+    .where(inArray(products.id, ids))
+
+  return { success: true, count: ids.length }
+}
+
+export async function bulkUnarchiveProducts(ids: number[]) {
+  await db
+    .update(products)
+    .set({ isArchived: false, updatedAt: new Date() })
+    .where(inArray(products.id, ids))
+
+  return { success: true, count: ids.length }
+}
+
+export async function bulkDeleteProducts(ids: number[]) {
+  await db.delete(products).where(inArray(products.id, ids))
+  return { success: true, count: ids.length }
 }

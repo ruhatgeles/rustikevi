@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { Plus, Search, X, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
+import { useDebug } from '../lib/debug'
+import ConfirmModal from '../components/ConfirmModal'
+import {
+  Plus, Search, X, Pencil, Trash2, Eye, EyeOff,
+  Archive, ArchiveRestore, CheckSquare, Loader2,
+} from 'lucide-react'
 
 interface Product {
   id: number
@@ -15,6 +20,7 @@ interface Product {
   swatches: Array<[string, string]>
   featured: boolean
   isActive: boolean
+  isArchived: boolean
   sortOrder: number
   createdAt: string
   updatedAt: string
@@ -39,6 +45,7 @@ const emptyForm = {
 }
 
 export default function Products() {
+  const { debugMode } = useDebug()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -49,9 +56,21 @@ export default function Products() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // Archive & selection
+  const [showArchived, setShowArchived] = useState(false)
+  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
+
+  // Delete confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const loadProducts = async () => {
     try {
-      const data = await api.request<Product[]>('/api/products/all')
+      const params = new URLSearchParams()
+      if (showArchived) params.set('archived', 'true')
+      const data = await api.request<Product[]>(`/api/products/all?${params}`)
       setProducts(data)
     } catch (err: any) {
       setError(err.message)
@@ -62,7 +81,8 @@ export default function Products() {
 
   useEffect(() => {
     loadProducts()
-  }, [])
+    setSelectedProducts(new Set())
+  }, [showArchived])
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -82,6 +102,119 @@ export default function Products() {
     const matchesCategory = !filterCategory || p.category === filterCategory
     return matchesSearch && matchesCategory
   })
+
+  // Selection
+  const toggleProductSelection = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedProducts((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.size === filtered.length) {
+      setSelectedProducts(new Set())
+    } else {
+      setSelectedProducts(new Set(filtered.map((p) => p.id)))
+    }
+  }
+
+  // Bulk actions
+  const handleBulkArchive = async () => {
+    if (selectedProducts.size === 0) return
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/products/bulk/archive', {
+        method: 'POST',
+        body: { ids: Array.from(selectedProducts) },
+      })
+      setSelectedProducts(new Set())
+      loadProducts()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkUnarchive = async () => {
+    if (selectedProducts.size === 0) return
+    setBulkLoading(true)
+    setError('')
+    try {
+      await api.request('/api/products/bulk/unarchive', {
+        method: 'POST',
+        body: { ids: Array.from(selectedProducts) },
+      })
+      setSelectedProducts(new Set())
+      loadProducts()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkDeleteClick = () => {
+    if (selectedProducts.size === 0) return
+    setDeleteTarget(null)
+    setShowDeleteModal(true)
+  }
+
+  const handleBulkDeleteConfirm = async () => {
+    setDeleteLoading(true)
+    setError('')
+    try {
+      await api.request('/api/products/bulk/delete', {
+        method: 'POST',
+        body: { ids: Array.from(selectedProducts) },
+      })
+      setShowDeleteModal(false)
+      setSelectedProducts(new Set())
+      loadProducts()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  // Single archive
+  const handleArchive = async (id: number, archive: boolean) => {
+    setError('')
+    try {
+      await api.request(`/api/products/${id}/${archive ? 'archive' : 'unarchive'}`, { method: 'POST' })
+      loadProducts()
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
+  // Single delete
+  const handleDeleteClick = (id: number) => {
+    setDeleteTarget(id)
+    setShowDeleteModal(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setDeleteLoading(true)
+    setError('')
+    try {
+      await api.request(`/api/products/${deleteTarget}`, { method: 'DELETE' })
+      setShowDeleteModal(false)
+      setDeleteTarget(null)
+      loadProducts()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   const resetForm = () => {
     setForm(emptyForm)
@@ -141,16 +274,6 @@ export default function Products() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bu ürünü pasif yapmak istediğinize emin misiniz?')) return
-    try {
-      await api.request(`/api/products/${id}`, { method: 'DELETE' })
-      loadProducts()
-    } catch (err: any) {
-      setError(err.message)
-    }
-  }
-
   const addSwatch = () => {
     setForm({ ...form, swatches: [...form.swatches, ['#c9a876', '#8a6d43']] })
   }
@@ -172,10 +295,20 @@ export default function Products() {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(kurus / 100)
   }
 
+  const deleteModalTitle = deleteTarget ? 'Ürünü Sil' : 'Ürünleri Sil'
+  const deleteModalMessage = deleteTarget
+    ? 'Bu ürünü kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.'
+    : `${selectedProducts.size} ürünü kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Ürünler</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Ürünler</h1>
+          <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+            {showArchived ? 'Arşivlenmiş ürünler' : 'Ürün listesi'}
+          </p>
+        </div>
         <button
           onClick={openCreate}
           className="flex items-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
@@ -192,10 +325,7 @@ export default function Products() {
       {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40"
-          />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
           <input
             type="text"
             placeholder="Kod, ürün adı, kategori veya renk ara..."
@@ -211,135 +341,127 @@ export default function Products() {
         >
           <option value="">Tüm Kategoriler</option>
           {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
+            <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
+        <button
+          onClick={() => setShowArchived(!showArchived)}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            showArchived
+              ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+              : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+          }`}
+        >
+          <Archive size={14} />
+          Arşiv
+        </button>
+        {debugMode && (
+          <button
+            onClick={toggleSelectAll}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectedProducts.size === filtered.length && filtered.length > 0
+                ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+            }`}
+          >
+            <CheckSquare size={14} />
+            {selectedProducts.size === filtered.length ? 'Bırak' : 'Tümü'}
+          </button>
+        )}
       </div>
+
+      {/* Bulk Actions Bar */}
+      {debugMode && selectedProducts.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-4 py-2.5">
+          <span className="text-sm font-medium text-[var(--color-wood-dark)]">
+            {selectedProducts.size} ürün seçildi
+          </span>
+          <div className="flex-1" />
+          {!showArchived ? (
+            <button onClick={handleBulkArchive} disabled={bulkLoading}
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--color-wood)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-wood-dark)] disabled:opacity-50">
+              {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />}
+              Arşivle
+            </button>
+          ) : (
+            <>
+              <button onClick={handleBulkUnarchive} disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--color-wood)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-wood-dark)] disabled:opacity-50">
+                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <ArchiveRestore size={14} />}
+                Geri Al
+              </button>
+              <button onClick={handleBulkDeleteClick} disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Sil
+              </button>
+            </>
+          )}
+          <button onClick={() => setSelectedProducts(new Set())}
+            className="rounded p-1 text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Form */}
       {showForm && (
         <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold">{editingId ? 'Ürün Düzenle' : 'Yeni Ürün'}</h2>
-            <button onClick={resetForm}>
-              <X size={18} />
-            </button>
+            <button onClick={resetForm}><X size={18} /></button>
           </div>
           <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2">
-            <input
-              required
-              placeholder="Ürün Adı"
-              value={form.name}
+            <input required placeholder="Ürün Adı" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-            />
-            <input
-              placeholder="Ürün Kodu (5 hane, opsiyonel)"
-              value={form.productCode}
-              maxLength={5}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
+            <input placeholder="Ürün Kodu (5 hane, opsiyonel)" value={form.productCode} maxLength={5}
               onChange={(e) => setForm({ ...form, productCode: e.target.value.replace(/[^0-9]/g, '') })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 font-mono outline-none focus:border-[var(--color-brass)]"
-            />
-            <select
-              value={form.category}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 font-mono outline-none focus:border-[var(--color-brass)]" />
+            <select value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
+              {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
-            <select
-              value={form.color}
+            <select value={form.color}
               onChange={(e) => setForm({ ...form, color: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-            >
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
               <option value="">Renk Seçin</option>
-              {COLORS.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <div className="relative">
-              <input
-                type="number"
-                placeholder="Fiyat (₺)"
-                step="0.01"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                className="w-full rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-              />
-            </div>
-            <input
-              placeholder="Kısa Açıklama"
-              value={form.shortDescription}
+            <input type="number" placeholder="Fiyat (₺)" step="0.01" value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
+            <input placeholder="Kısa Açıklama" value={form.shortDescription}
               onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)] sm:col-span-2"
-            />
-            <textarea
-              placeholder="Detaylı Açıklama"
-              value={form.description}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)] sm:col-span-2" />
+            <textarea placeholder="Detaylı Açıklama" value={form.description} rows={3}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)] sm:col-span-2"
-              rows={3}
-            />
-            <input
-              placeholder="Min. Sipariş (örn: 200 adet)"
-              value={form.moq}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)] sm:col-span-2" />
+            <input placeholder="Min. Sipariş (örn: 200 adet)" value={form.moq}
               onChange={(e) => setForm({ ...form, moq: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-            />
-
-            {/* Swatches */}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
             <div className="sm:col-span-2">
               <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-[var(--color-ink)]/70">
-                  Renk Kartları
-                </label>
-                <button
-                  type="button"
-                  onClick={addSwatch}
-                  className="flex items-center gap-1 text-xs font-medium text-[var(--color-wood-dark)] hover:underline"
-                >
-                  <Plus size={12} />
-                  Renk Ekle
+                <label className="text-sm font-medium text-[var(--color-ink)]/70">Renk Kartları</label>
+                <button type="button" onClick={addSwatch}
+                  className="flex items-center gap-1 text-xs font-medium text-[var(--color-wood-dark)] hover:underline">
+                  <Plus size={12} /> Renk Ekle
                 </button>
               </div>
               <div className="flex flex-wrap gap-3">
                 {form.swatches.map((swatch, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 rounded-lg border border-[var(--color-cream-deep)] p-2"
-                  >
-                    <div
-                      className="h-8 w-8 rounded border border-gray-200"
-                      style={{
-                        background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})`,
-                      }}
-                    />
-                    <input
-                      type="color"
-                      value={swatch[0]}
+                  <div key={i} className="flex items-center gap-2 rounded-lg border border-[var(--color-cream-deep)] p-2">
+                    <div className="h-8 w-8 rounded border border-gray-200"
+                      style={{ background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})` }} />
+                    <input type="color" value={swatch[0]}
                       onChange={(e) => updateSwatch(i, 0, e.target.value)}
-                      className="h-7 w-7 cursor-pointer rounded border-0 p-0"
-                      title="Başlangıç rengi"
-                    />
-                    <input
-                      type="color"
-                      value={swatch[1]}
+                      className="h-7 w-7 cursor-pointer rounded border-0 p-0" title="Başlangıç rengi" />
+                    <input type="color" value={swatch[1]}
                       onChange={(e) => updateSwatch(i, 1, e.target.value)}
-                      className="h-7 w-7 cursor-pointer rounded border-0 p-0"
-                      title="Bitiş rengi"
-                    />
+                      className="h-7 w-7 cursor-pointer rounded border-0 p-0" title="Bitiş rengi" />
                     {form.swatches.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSwatch(i)}
-                        className="text-red-400 hover:text-red-600"
-                      >
+                      <button type="button" onClick={() => removeSwatch(i)} className="text-red-400 hover:text-red-600">
                         <X size={14} />
                       </button>
                     )}
@@ -347,34 +469,22 @@ export default function Products() {
                 ))}
               </div>
             </div>
-
-            {/* Checkboxes */}
             <div className="flex items-center gap-4 sm:col-span-2">
               <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.featured}
+                <input type="checkbox" checked={form.featured}
                   onChange={(e) => setForm({ ...form, featured: e.target.checked })}
-                  className="rounded border-[var(--color-cream-deep)]"
-                />
+                  className="rounded border-[var(--color-cream-deep)]" />
                 Öne Çıkan
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
+                <input type="checkbox" checked={form.isActive}
                   onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                  className="rounded border-[var(--color-cream-deep)]"
-                />
+                  className="rounded border-[var(--color-cream-deep)]" />
                 Aktif
               </label>
             </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-[var(--color-wood-dark)] py-2 text-sm font-semibold text-white hover:bg-[var(--color-espresso)] disabled:opacity-50 sm:col-span-2"
-            >
+            <button type="submit" disabled={saving}
+              className="rounded-lg bg-[var(--color-wood-dark)] py-2 text-sm font-semibold text-white hover:bg-[var(--color-espresso)] disabled:opacity-50 sm:col-span-2">
               {saving ? 'Kaydediliyor...' : editingId ? 'Güncelle' : 'Oluştur'}
             </button>
           </form>
@@ -386,6 +496,7 @@ export default function Products() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
             <tr>
+              {debugMode && <th className="w-10 px-4 py-3"></th>}
               <th className="px-4 py-3 font-medium">Kod</th>
               <th className="px-4 py-3 font-medium">Ürün</th>
               <th className="px-4 py-3 font-medium">Kategori</th>
@@ -399,101 +510,111 @@ export default function Products() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={debugMode ? 9 : 8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Yükleniyor...
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={debugMode ? 9 : 8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Ürün bulunamadı
                 </td>
               </tr>
             ) : (
-              filtered.map((product) => (
-                <tr
-                  key={product.id}
-                  className={`border-b border-[var(--color-cream-deep)] last:border-0 ${
-                    !product.isActive ? 'opacity-50' : ''
-                  }`}
-                >
-                  <td className="px-4 py-3">
-                    {product.productCode ? (
-                      <span className="rounded bg-[var(--color-cream-deep)] px-1.5 py-0.5 font-mono text-xs font-semibold text-[var(--color-wood-dark)]">
-                        {product.productCode}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">-</span>
+              filtered.map((product) => {
+                const isChecked = selectedProducts.has(product.id)
+                return (
+                  <tr key={product.id}
+                    className={`border-b border-[var(--color-cream-deep)] last:border-0 ${
+                      !product.isActive ? 'opacity-50' : ''
+                    } ${product.isArchived ? 'opacity-60' : ''} ${isChecked ? 'bg-[var(--color-brass)]/5' : ''}`}>
+                    {debugMode && (
+                      <td className="px-4 py-3">
+                        <div onClick={(e) => toggleProductSelection(product.id, e)}
+                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                            isChecked
+                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                          }`}>
+                          {isChecked && <CheckSquare size={12} />}
+                        </div>
+                      </td>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{product.name}</div>
-                    <div className="mt-0.5 max-w-xs truncate text-xs text-[var(--color-ink)]/50">
-                      {product.shortDescription}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-[var(--color-cream-deep)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-wood-dark)]">
-                      {product.category}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--color-ink)]/60">{product.color || '-'}</td>
-                  <td className="px-4 py-3 font-medium">{formatPrice(product.price)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1">
-                      {product.swatches.slice(0, 3).map((swatch, i) => (
-                        <div
-                          key={i}
-                          className="h-5 w-5 rounded-full border border-gray-200"
-                          style={{
-                            background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})`,
-                          }}
-                          title={`${swatch[0]} → ${swatch[1]}`}
-                        />
-                      ))}
-                      {product.swatches.length > 3 && (
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] text-gray-500">
-                          +{product.swatches.length - 3}
+                    <td className="px-4 py-3">
+                      {product.productCode ? (
+                        <span className="rounded bg-[var(--color-cream-deep)] px-1.5 py-0.5 font-mono text-xs font-semibold text-[var(--color-wood-dark)]">
+                          {product.productCode}
                         </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {product.isActive ? (
-                        <Eye size={14} className="text-green-600" />
                       ) : (
-                        <EyeOff size={14} className="text-gray-400" />
+                        <span className="text-xs text-gray-400">-</span>
                       )}
-                      {product.featured && (
-                        <span className="rounded bg-[var(--color-brass)]/20 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-wood-dark)]">
-                          ★
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1">
-                      <button
-                        onClick={() => openEdit(product)}
-                        className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
-                        title="Düzenle"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      {product.isActive && (
-                        <button
-                          onClick={() => handleDelete(product.id)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{product.name}</span>
+                        {product.isArchived && (
+                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 max-w-xs truncate text-xs text-[var(--color-ink)]/50">
+                        {product.shortDescription}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-[var(--color-cream-deep)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-wood-dark)]">
+                        {product.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[var(--color-ink)]/60">{product.color || '-'}</td>
+                    <td className="px-4 py-3 font-medium">{formatPrice(product.price)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        {product.swatches.slice(0, 3).map((swatch, i) => (
+                          <div key={i} className="h-5 w-5 rounded-full border border-gray-200"
+                            style={{ background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})` }}
+                            title={`${swatch[0]} → ${swatch[1]}`} />
+                        ))}
+                        {product.swatches.length > 3 && (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] text-gray-500">
+                            +{product.swatches.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {product.isActive ? (
+                          <Eye size={14} className="text-green-600" />
+                        ) : (
+                          <EyeOff size={14} className="text-gray-400" />
+                        )}
+                        {product.featured && (
+                          <span className="rounded bg-[var(--color-brass)]/20 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-wood-dark)]">★</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => handleArchive(product.id, !product.isArchived)}
+                          className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                          title={product.isArchived ? 'Arşivden çıkar' : 'Arşivle'}>
+                          {product.isArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+                        </button>
+                        <button onClick={() => openEdit(product)}
+                          className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                          title="Düzenle">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => handleDeleteClick(product.id)}
                           className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-red-50 hover:text-red-600"
-                          title="Pasif Yap"
-                        >
+                          title="Sil">
                           <Trash2 size={15} />
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
@@ -502,6 +623,19 @@ export default function Products() {
       <p className="mt-3 text-xs text-[var(--color-ink)]/40">
         {filtered.length} / {products.length} ürün
       </p>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={showDeleteModal}
+        title={deleteModalTitle}
+        message={deleteModalMessage}
+        confirmText="Evet, Sil"
+        cancelText="Vazgeç"
+        variant="danger"
+        onConfirm={deleteTarget ? handleDeleteConfirm : handleBulkDeleteConfirm}
+        onCancel={() => { setShowDeleteModal(false); setDeleteTarget(null) }}
+        loading={deleteLoading}
+      />
     </div>
   )
 }

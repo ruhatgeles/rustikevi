@@ -125,6 +125,7 @@ export const products = pgTable('products', {
   swatches: jsonb('swatches').$type<Array<[string, string]>>().default([]),
   featured: boolean('featured').notNull().default(false),
   isActive: boolean('is_active').notNull().default(true),
+  isArchived: boolean('is_archived').notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
