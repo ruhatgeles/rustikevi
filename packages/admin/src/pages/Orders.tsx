@@ -985,7 +985,7 @@ export default function Orders() {
                       const targetIdx = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered'].indexOf(s)
                       return targetIdx < currentIdx
                     }) && (
-                      <div className="mx-1 h-8 w-px bg-[var(--color-ink)]/20" />
+                      <div className="mx-2 h-8 w-0.5 bg-[var(--color-ink)]/30 rounded-full" />
                     )}
 
                     {/* Geriye adım butonları */}
@@ -1053,18 +1053,57 @@ export default function Orders() {
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${itemConfig.bgColor} ${itemConfig.color}`}>
                               {itemConfig.label}
                             </span>
-                            {(VALID_ITEM_TRANSITIONS[item.itemStatus] || []).map((s) => {
-                              const sc = ITEM_STATUS_CONFIG[s]
-                              return (
-                                <button
-                                  key={s}
-                                  onClick={() => handleItemStatusChange(selectedOrder.id, item.id, s)}
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${sc.bgColor} ${sc.color} hover:ring-1 hover:ring-current`}
-                                >
-                                  {sc.label}
-                                </button>
-                              )
-                            })}
+                            {/* İleriye adım butonları */}
+                            {(VALID_ITEM_TRANSITIONS[item.itemStatus] || [])
+                              .filter((s) => {
+                                const order = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered']
+                                const currentIdx = order.indexOf(item.itemStatus)
+                                const targetIdx = order.indexOf(s)
+                                return targetIdx > currentIdx || s === 'returned' || s === 'exchanged'
+                              })
+                              .map((s) => {
+                                const sc = ITEM_STATUS_CONFIG[s]
+                                return (
+                                  <button
+                                    key={s}
+                                    onClick={() => handleItemStatusChange(selectedOrder.id, item.id, s)}
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${sc.bgColor} ${sc.color} hover:ring-1 hover:ring-current`}
+                                  >
+                                    {sc.label}
+                                  </button>
+                                )
+                              })}
+
+                            {/* Ayırıcı çizgi */}
+                            {(VALID_ITEM_TRANSITIONS[item.itemStatus] || []).some((s) => {
+                              const order = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered']
+                              const currentIdx = order.indexOf(item.itemStatus)
+                              const targetIdx = order.indexOf(s)
+                              return targetIdx < currentIdx
+                            }) && (
+                              <div className="mx-1 h-4 w-0.5 bg-[var(--color-ink)]/30 rounded-full" />
+                            )}
+
+                            {/* Geriye adım butonları */}
+                            {(VALID_ITEM_TRANSITIONS[item.itemStatus] || [])
+                              .filter((s) => {
+                                const order = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered']
+                                const currentIdx = order.indexOf(item.itemStatus)
+                                const targetIdx = order.indexOf(s)
+                                return targetIdx < currentIdx
+                              })
+                              .map((s) => {
+                                const sc = ITEM_STATUS_CONFIG[s]
+                                return (
+                                  <button
+                                    key={s}
+                                    onClick={() => handleItemStatusChange(selectedOrder.id, item.id, s)}
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${sc.bgColor} ${sc.color} hover:ring-1 hover:ring-current opacity-70`}
+                                  >
+                                    {sc.label}
+                                  </button>
+                                )
+                              })}
                           </div>
                         </div>
                       )
