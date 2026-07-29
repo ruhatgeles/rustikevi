@@ -52,15 +52,20 @@ class ApiClient {
     const { method = 'GET', body, headers = {} } = options
     const token = this.getToken()
 
-    const res = await fetch(`${API_URL}${path}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    })
+    let res: Response
+    try {
+      res = await fetch(`${API_URL}${path}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+    } catch (err) {
+      throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.')
+    }
 
     // Try refresh on 401
     if (res.status === 401 && token) {
@@ -70,12 +75,28 @@ class ApiClient {
       }
       this.clearTokens()
       window.location.href = '/login'
-      throw new Error('Session expired')
+      throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
     }
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(err.error || `HTTP ${res.status}`)
+      const err = await res.json().catch(() => ({ error: 'İstek başarısız oldu' }))
+
+      // Hata mesajlarınıTürkçe'ye çevir
+      const errorMessages: Record<string, string> = {
+        'Invalid email or password': 'E-posta veya şifre hatalı',
+        'Missing or invalid authorization header': 'Oturum açmanız gerekiyor',
+        'Invalid or expired token': 'Oturum süreniz doldu',
+        'Insufficient permissions': 'Bu işlem için yetkiniz yok',
+        'Order not found': 'Sipariş bulunamadı',
+        'Customer not found': 'Müşteri bulunamadı',
+        'Product not found': 'Ürün bulunamadı',
+        'User not found': 'Kullanıcı bulunamadı',
+        'Request failed': 'İstek başarısız oldu',
+        'Session expired': 'Oturum süreniz doldu',
+      }
+
+      const errorMessage = errorMessages[err.error] || err.error || `Hata: ${res.status}`
+      throw new Error(errorMessage)
     }
 
     const json = await res.json()
