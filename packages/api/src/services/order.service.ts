@@ -1,5 +1,5 @@
 import { db } from '../db/index.js'
-import { orders, orderItems, orderActivities, customers, products, users } from '../db/schema.js'
+import { orders, orderItems, orderActivities, orderReturns, orderReturnItems, customers, products, users } from '../db/schema.js'
 import { eq, and, sql, desc, asc, ilike, inArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
@@ -54,47 +54,49 @@ async function addActivity(
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Beklemede',
-  quoted: 'Teklif Verildi',
+  pending: 'Sipariş Geldi',
   confirmed: 'Onaylandı',
   in_production: 'Üretimde',
-  shipped: 'Kargoya Verildi',
+  atelier: 'Atölyede',
+  ready: 'Hazır',
+  shipped: 'Kargoda',
   delivered: 'Teslim Edildi',
   cancelled: 'İptal Edildi',
-  returned: 'İade Edildi',
 }
 
 const ITEM_STATUS_LABELS: Record<string, string> = {
   pending: 'Beklemede',
-  in_stock: 'Stokta',
-  out_of_stock: 'Stok Yok',
+  confirmed: 'Onaylandı',
   in_production: 'Üretimde',
+  atelier: 'Atölyede',
   ready: 'Hazır',
   shipped: 'Kargoda',
   delivered: 'Teslim Edildi',
   returned: 'İade',
+  exchanged: 'Değişim',
 }
 
 const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
-  pending: ['quoted', 'confirmed', 'cancelled'],
-  quoted: ['confirmed', 'cancelled'],
+  pending: ['confirmed', 'cancelled'],
   confirmed: ['in_production', 'cancelled'],
-  in_production: ['shipped', 'cancelled'],
+  in_production: ['atelier', 'ready', 'cancelled'],
+  atelier: ['ready', 'cancelled'],
+  ready: ['shipped', 'delivered'],
   shipped: ['delivered'],
-  delivered: ['returned'],
+  delivered: ['cancelled'], // iade durumunda iptal seçilebilir
   cancelled: [],
-  returned: [],
 }
 
 const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
-  pending: ['in_stock', 'out_of_stock', 'in_production', 'ready'],
-  in_stock: ['ready', 'shipped'],
-  out_of_stock: ['in_production', 'ready'],
-  in_production: ['ready', 'out_of_stock'],
-  ready: ['shipped'],
+  pending: ['confirmed', 'in_production', 'atelier'],
+  confirmed: ['in_production', 'atelier'],
+  in_production: ['ready', 'atelier'],
+  atelier: ['ready'],
+  ready: ['shipped', 'delivered'],
   shipped: ['delivered'],
-  delivered: ['returned'],
+  delivered: ['returned', 'exchanged'],
   returned: [],
+  exchanged: [],
 }
 
 // ── Service Functions ───────────────────────────────────
@@ -397,6 +399,29 @@ export async function updateItemStatus(
     { itemId, oldStatus, newStatus, productName: item.productName },
   )
 
+  // Sipariş durumunu otomatik hesapla
+  const newOrderStatus = await calculateOrderStatus(orderId)
+  const [currentOrder] = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+
+  if (currentOrder && currentOrder.status !== newOrderStatus) {
+    await db
+      .update(orders)
+      .set({ status: newOrderStatus as any, updatedAt: new Date() })
+      .where(eq(orders.id, orderId))
+
+    await addActivity(
+      orderId,
+      userId,
+      'status_change',
+      `Sipariş durumu otomatik güncellendi: ${STATUS_LABELS[currentOrder.status]} → ${STATUS_LABELS[newOrderStatus]}`,
+      { oldStatus: currentOrder.status, newStatus: newOrderStatus },
+    )
+  }
+
   return getOrderById(orderId)
 }
 
@@ -580,6 +605,218 @@ export async function bulkDeleteOrders(ids: string[], userId: string) {
   await db.delete(orders).where(inArray(orders.id, archivedIds))
 
   return { success: true, count: archivedIds.length }
+}
+
+// ── Order Status Calculation ─────────────────────────────
+
+export async function calculateOrderStatus(orderId: string): Promise<string> {
+  const items = await db
+    .select({ itemStatus: orderItems.itemStatus })
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId))
+
+  if (items.length === 0) return 'pending'
+
+  const statuses = items.map((i) => i.itemStatus)
+
+  // Tüm kalemler aynı durumda mı?
+  const allSame = statuses.every((s) => s === statuses[0])
+  if (allSame) {
+    // Tam eşleşme: kalem durumunu sipariş durumuna çevir
+    const mapping: Record<string, string> = {
+      pending: 'pending',
+      confirmed: 'confirmed',
+      in_production: 'in_production',
+      atelier: 'atelier',
+      ready: 'ready',
+      shipped: 'shipped',
+      delivered: 'delivered',
+      returned: 'delivered', // iade edilmiş teslim sayılır
+      exchanged: 'in_production', // değişim üretimde
+    }
+    return mapping[statuses[0]] || 'pending'
+  }
+
+  // Karışık durumlar: en gerideki kalem belirleyici
+  const priority = ['exchanged', 'returned', 'delivered', 'shipped', 'ready', 'atelier', 'in_production', 'confirmed', 'pending']
+
+  for (const status of priority) {
+    if (statuses.includes(status)) {
+      const mapping: Record<string, string> = {
+        pending: 'pending',
+        confirmed: 'confirmed',
+        in_production: 'in_production',
+        atelier: 'atelier',
+        ready: 'ready',
+        shipped: 'shipped',
+        delivered: 'delivered',
+        returned: 'delivered',
+        exchanged: 'in_production',
+      }
+      return mapping[status] || 'pending'
+    }
+  }
+
+  return 'pending'
+}
+
+// ── Return & Exchange ───────────────────────────────────
+
+interface ReturnInput {
+  items: Array<{ orderItemId: string; quantity: number; note?: string }>
+  returnShippingCost?: number
+  note?: string
+}
+
+export async function processReturn(orderId: string, input: ReturnInput, userId: string) {
+  const order = await getOrderById(orderId)
+
+  if (order.status !== 'delivered') {
+    throw new AppError(400, 'Sadece teslim edilmiş siparişlerde iade yapılabilir')
+  }
+
+  // İade kaydı oluştur
+  const [returnRecord] = await db
+    .insert(orderReturns)
+    .values({
+      orderId,
+      type: 'return',
+      returnShippingCost: input.returnShippingCost || null,
+      note: input.note,
+    })
+    .returning()
+
+  // İade kalemlerini kaydet
+  for (const item of input.items) {
+    await db.insert(orderReturnItems).values({
+      returnId: returnRecord.id,
+      orderItemId: item.orderItemId,
+      quantity: item.quantity,
+      note: item.note,
+    })
+
+    // Kalem durumunu güncelle
+    await db
+      .update(orderItems)
+      .set({ itemStatus: 'returned' })
+      .where(eq(orderItems.id, item.orderItemId))
+  }
+
+  // Sipariş durumunu yeniden hesapla
+  const newStatus = await calculateOrderStatus(orderId)
+  await db
+    .update(orders)
+    .set({ status: newStatus as any, updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+
+  // Aktivite ekle
+  await addActivity(
+    orderId,
+    userId,
+    'return',
+    `İade işlemi: ${input.items.length} ürün iade edildi${input.returnShippingCost ? `, kargo ücreti: ${input.returnShippingCost / 100} ₺` : ''}`,
+    { returnId: returnRecord.id, itemCount: input.items.length },
+  )
+
+  return getOrderById(orderId)
+}
+
+interface ExchangeInput {
+  oldItems: Array<{ orderItemId: string; quantity: number; note?: string }>
+  newItems: Array<{ productName: string; quantity: number; unitPrice?: number; specifications?: string }>
+  note?: string
+}
+
+export async function processExchange(orderId: string, input: ExchangeInput, userId: string) {
+  const order = await getOrderById(orderId)
+
+  if (order.status !== 'delivered') {
+    throw new AppError(400, 'Sadece teslim edilmiş siparişlerde değişim yapılabilir')
+  }
+
+  // Değişim kaydı oluştur
+  const [exchangeRecord] = await db
+    .insert(orderReturns)
+    .values({
+      orderId,
+      type: 'exchange',
+      note: input.note,
+    })
+    .returning()
+
+  // Eski kalemleri işaretle
+  for (const item of input.oldItems) {
+    await db.insert(orderReturnItems).values({
+      returnId: exchangeRecord.id,
+      orderItemId: item.orderItemId,
+      quantity: item.quantity,
+      note: item.note,
+    })
+
+    await db
+      .update(orderItems)
+      .set({
+        itemStatus: 'exchanged',
+        isExchanged: true,
+        exchangeNote: input.note,
+      })
+      .where(eq(orderItems.id, item.orderItemId))
+  }
+
+  // Yeni kalemleri ekle
+  for (const item of input.newItems) {
+    await db.insert(orderItems).values({
+      orderId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice || null,
+      totalPrice: item.unitPrice ? item.unitPrice * item.quantity : null,
+      itemStatus: 'in_production',
+      specifications: item.specifications,
+    })
+  }
+
+  // Sipariş durumunu yeniden hesapla
+  const newStatus = await calculateOrderStatus(orderId)
+  await db
+    .update(orders)
+    .set({ status: newStatus as any, updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+
+  // Aktivite ekle
+  await addActivity(
+    orderId,
+    userId,
+    'exchange',
+    `Değişim işlemi: ${input.oldItems.length} ürün değiştirildi, ${input.newItems.length} yeni ürün eklendi`,
+    { exchangeId: exchangeRecord.id },
+  )
+
+  return getOrderById(orderId)
+}
+
+// ── Tracking Number ─────────────────────────────────────
+
+export async function addTrackingNumber(orderId: string, trackingNumber: string, userId: string) {
+  const [order] = await db
+    .update(orders)
+    .set({ trackingNumber, updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+    .returning()
+
+  if (!order) {
+    throw new AppError(404, 'Order not found')
+  }
+
+  await addActivity(
+    orderId,
+    userId,
+    'tracking_added',
+    `Kargo takip numarası eklendi: ${trackingNumber}`,
+    { trackingNumber },
+  )
+
+  return getOrderById(orderId)
 }
 
 export { STATUS_LABELS, ITEM_STATUS_LABELS, VALID_ORDER_TRANSITIONS, VALID_ITEM_TRANSITIONS }

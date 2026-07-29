@@ -4,6 +4,8 @@ import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
 import ProductSearch from '../components/ProductSearch'
+import ReturnModal from '../components/ReturnModal'
+import ExchangeModal from '../components/ExchangeModal'
 import {
   Search,
   X,
@@ -78,14 +80,14 @@ const ORDER_STATUS_CONFIG: Record<
   string,
   { label: string; color: string; bgColor: string; icon: typeof Clock }
 > = {
-  pending: { label: 'Beklemede', color: 'text-yellow-700', bgColor: 'bg-yellow-50', icon: Clock },
-  quoted: { label: 'Teklif Verildi', color: 'text-blue-700', bgColor: 'bg-blue-50', icon: MessageSquare },
+  pending: { label: 'Sipariş Geldi', color: 'text-blue-700', bgColor: 'bg-blue-50', icon: Clock },
   confirmed: { label: 'Onaylandı', color: 'text-green-700', bgColor: 'bg-green-50', icon: CheckCircle },
-  in_production: { label: 'Üretimde', color: 'text-purple-700', bgColor: 'bg-purple-50', icon: Package },
-  shipped: { label: 'Kargoya Verildi', color: 'text-indigo-700', bgColor: 'bg-indigo-50', icon: Truck },
-  delivered: { label: 'Teslim Edildi', color: 'text-green-800', bgColor: 'bg-green-100', icon: CheckCircle },
+  in_production: { label: 'Üretimde', color: 'text-yellow-700', bgColor: 'bg-yellow-50', icon: Package },
+  atelier: { label: 'Atölyede', color: 'text-orange-700', bgColor: 'bg-orange-50', icon: Package },
+  ready: { label: 'Hazır', color: 'text-green-600', bgColor: 'bg-green-50', icon: CheckCircle },
+  shipped: { label: 'Kargoda', color: 'text-purple-700', bgColor: 'bg-purple-50', icon: Truck },
+  delivered: { label: 'Teslim Edildi', color: 'text-gray-700', bgColor: 'bg-gray-100', icon: CheckCircle },
   cancelled: { label: 'İptal Edildi', color: 'text-red-700', bgColor: 'bg-red-50', icon: XCircle },
-  returned: { label: 'İade Edildi', color: 'text-orange-700', bgColor: 'bg-orange-50', icon: XCircle },
 }
 
 const ITEM_STATUS_CONFIG: Record<
@@ -93,35 +95,37 @@ const ITEM_STATUS_CONFIG: Record<
   { label: string; color: string; bgColor: string }
 > = {
   pending: { label: 'Beklemede', color: 'text-gray-600', bgColor: 'bg-gray-100' },
-  in_stock: { label: 'Stokta', color: 'text-green-700', bgColor: 'bg-green-100' },
-  out_of_stock: { label: 'Stok Yok', color: 'text-red-700', bgColor: 'bg-red-100' },
-  in_production: { label: 'Üretimde', color: 'text-purple-700', bgColor: 'bg-purple-100' },
-  ready: { label: 'Hazır', color: 'text-blue-700', bgColor: 'bg-blue-100' },
-  shipped: { label: 'Kargoda', color: 'text-indigo-700', bgColor: 'bg-indigo-100' },
-  delivered: { label: 'Teslim Edildi', color: 'text-green-800', bgColor: 'bg-green-100' },
-  returned: { label: 'İade', color: 'text-orange-700', bgColor: 'bg-orange-100' },
+  confirmed: { label: 'Onaylandı', color: 'text-blue-700', bgColor: 'bg-blue-100' },
+  in_production: { label: 'Üretimde', color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
+  atelier: { label: 'Atölyede', color: 'text-orange-700', bgColor: 'bg-orange-100' },
+  ready: { label: 'Hazır', color: 'text-green-700', bgColor: 'bg-green-100' },
+  shipped: { label: 'Kargoda', color: 'text-purple-700', bgColor: 'bg-purple-100' },
+  delivered: { label: 'Teslim Edildi', color: 'text-gray-700', bgColor: 'bg-gray-200' },
+  returned: { label: 'İade', color: 'text-red-700', bgColor: 'bg-red-100' },
+  exchanged: { label: 'Değişim', color: 'text-pink-700', bgColor: 'bg-pink-100' },
 }
 
 const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
-  pending: ['quoted', 'confirmed', 'cancelled'],
-  quoted: ['confirmed', 'cancelled'],
+  pending: ['confirmed', 'cancelled'],
   confirmed: ['in_production', 'cancelled'],
-  in_production: ['shipped', 'cancelled'],
+  in_production: ['atelier', 'ready', 'cancelled'],
+  atelier: ['ready', 'cancelled'],
+  ready: ['shipped', 'delivered'],
   shipped: ['delivered'],
-  delivered: ['returned'],
+  delivered: ['cancelled'],
   cancelled: [],
-  returned: [],
 }
 
 const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
-  pending: ['in_stock', 'out_of_stock', 'in_production', 'ready'],
-  in_stock: ['ready', 'shipped'],
-  out_of_stock: ['in_production', 'ready'],
-  in_production: ['ready', 'out_of_stock'],
-  ready: ['shipped'],
+  pending: ['confirmed', 'in_production', 'atelier'],
+  confirmed: ['in_production', 'atelier'],
+  in_production: ['ready', 'atelier'],
+  atelier: ['ready'],
+  ready: ['shipped', 'delivered'],
   shipped: ['delivered'],
-  delivered: ['returned'],
+  delivered: ['returned', 'exchanged'],
   returned: [],
+  exchanged: [],
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -167,6 +171,12 @@ export default function Orders() {
   const [orderNotes, setOrderNotes] = useState('')
   const [orderSource, setOrderSource] = useState('phone')
   const [orderCreating, setOrderCreating] = useState(false)
+
+  // Return & Exchange modals
+  const [showReturnModal, setShowReturnModal] = useState(false)
+  const [showExchangeModal, setShowExchangeModal] = useState(false)
+  const [returnLoading, setReturnLoading] = useState(false)
+  const [exchangeLoading, setExchangeLoading] = useState(false)
 
   // Navigate from customer detail → auto-select order
   useEffect(() => {
@@ -402,6 +412,53 @@ export default function Orders() {
   const closeDetail = () => {
     setSelectedOrder(null)
     setNewNote('')
+  }
+
+  // Return & Exchange handlers
+  const handleReturn = async (data: {
+    items: Array<{ orderItemId: string; quantity: number; note?: string }>
+    returnShippingCost?: number
+    note?: string
+  }) => {
+    if (!selectedOrder) return
+    setReturnLoading(true)
+    setError('')
+    try {
+      await api.request(`/api/orders/${selectedOrder.id}/return`, {
+        method: 'POST',
+        body: data,
+      })
+      setShowReturnModal(false)
+      loadOrderDetail(selectedOrder.id)
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setReturnLoading(false)
+    }
+  }
+
+  const handleExchange = async (data: {
+    oldItems: Array<{ orderItemId: string; quantity: number; note?: string }>
+    newItems: Array<{ productName: string; quantity: number; unitPrice?: number; specifications?: string }>
+    note?: string
+  }) => {
+    if (!selectedOrder) return
+    setExchangeLoading(true)
+    setError('')
+    try {
+      await api.request(`/api/orders/${selectedOrder.id}/exchange`, {
+        method: 'POST',
+        body: data,
+      })
+      setShowExchangeModal(false)
+      loadOrderDetail(selectedOrder.id)
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setExchangeLoading(false)
+    }
   }
 
   // Order creation
@@ -915,6 +972,24 @@ export default function Orders() {
                   </div>
                 </div>
 
+                {/* Return & Exchange Buttons */}
+                {selectedOrder.status === 'delivered' && (
+                  <div className="mb-4 flex gap-2">
+                    <button
+                      onClick={() => setShowReturnModal(true)}
+                      className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                    >
+                      İade Al
+                    </button>
+                    <button
+                      onClick={() => setShowExchangeModal(true)}
+                      className="flex items-center gap-1.5 rounded-lg border border-pink-200 bg-pink-50 px-3 py-2 text-sm font-medium text-pink-700 transition-colors hover:bg-pink-100"
+                    >
+                      Değişim Yap
+                    </button>
+                  </div>
+                )}
+
                 {/* Items */}
                 <div className="mb-4">
                   <label className="mb-2 block text-sm font-medium">Ürünler</label>
@@ -1032,6 +1107,30 @@ export default function Orders() {
           onCancel={() => setShowDeleteModal(false)}
           loading={bulkLoading}
         />
+
+        {/* Return Modal */}
+        {selectedOrder && (
+          <ReturnModal
+            open={showReturnModal}
+            orderItems={selectedOrder.items || []}
+            orderNumber={selectedOrder.orderNumber}
+            onConfirm={handleReturn}
+            onCancel={() => setShowReturnModal(false)}
+            loading={returnLoading}
+          />
+        )}
+
+        {/* Exchange Modal */}
+        {selectedOrder && (
+          <ExchangeModal
+            open={showExchangeModal}
+            orderItems={selectedOrder.items || []}
+            orderNumber={selectedOrder.orderNumber}
+            onConfirm={handleExchange}
+            onCancel={() => setShowExchangeModal(false)}
+            loading={exchangeLoading}
+          />
+        )}
       </div>
   )
 }

@@ -17,24 +17,25 @@ import { relations } from 'drizzle-orm'
 export const userRoleEnum = pgEnum('user_role', ['admin', 'manager', 'viewer'])
 export const contentTypeEnum = pgEnum('content_type', ['text', 'json', 'image'])
 export const orderStatusEnum = pgEnum('order_status', [
-  'pending',
-  'quoted',
-  'confirmed',
-  'in_production',
-  'shipped',
-  'delivered',
-  'cancelled',
-  'returned',
+  'pending',      // Sipariş Geldi
+  'confirmed',    // Onaylandı
+  'in_production',// Üretimde
+  'atelier',      // Atölyede (stokta yok)
+  'ready',        // Hazır
+  'shipped',      // Kargoda
+  'delivered',    // Teslim Edildi
+  'cancelled',    // İptal Edildi
 ])
 export const itemStatusEnum = pgEnum('item_status', [
-  'pending',
-  'in_stock',
-  'out_of_stock',
-  'in_production',
-  'ready',
-  'shipped',
-  'delivered',
-  'returned',
+  'pending',       // Beklemede
+  'confirmed',     // Onaylandı
+  'in_production', // Üretimde
+  'atelier',       // Atölyede (stokta yok)
+  'ready',         // Hazır
+  'shipped',       // Kargoda
+  'delivered',     // Teslim Edildi
+  'returned',      // İade
+  'exchanged',     // Değişim
 ])
 
 // ── Users ──────────────────────────────────────────────
@@ -146,6 +147,7 @@ export const orders = pgTable('orders', {
   internalNotes: text('internal_notes'), // sadece admin görür
   assignedTo: uuid('assigned_to').references(() => users.id),
   source: varchar('source', { length: 50 }).notNull().default('whatsapp'), // whatsapp, phone, website, walk-in
+  trackingNumber: varchar('tracking_number', { length: 100 }),
   isArchived: boolean('is_archived').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -164,6 +166,8 @@ export const orderItems = pgTable('order_items', {
   totalPrice: integer('total_price'), // kuruş cinsinden
   itemStatus: itemStatusEnum('item_status').notNull().default('pending'),
   specifications: text('specifications'), // özel notlar, renk, boyut vb.
+  isExchanged: boolean('is_exchanged').notNull().default(false),
+  exchangeNote: text('exchange_note'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
@@ -178,6 +182,31 @@ export const orderActivities = pgTable('order_activities', {
   description: text('description').notNull(),
   metadata: jsonb('metadata').$type<Record<string, unknown>>().default({}),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+// ── Order Returns & Exchanges ───────────────────────────
+
+export const orderReturns = pgTable('order_returns', {
+  id: serial('id').primaryKey(),
+  orderId: uuid('order_id')
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 20 }).notNull(), // 'return' | 'exchange'
+  returnShippingCost: integer('return_shipping_cost'), // kuruş
+  note: text('note'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const orderReturnItems = pgTable('order_return_items', {
+  id: serial('id').primaryKey(),
+  returnId: integer('return_id')
+    .notNull()
+    .references(() => orderReturns.id, { onDelete: 'cascade' }),
+  orderItemId: uuid('order_item_id')
+    .notNull()
+    .references(() => orderItems.id),
+  quantity: integer('quantity').notNull(),
+  note: text('note'),
 })
 
 // ── Relations ──────────────────────────────────────────
@@ -209,6 +238,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   assignee: one(users, { fields: [orders.assignedTo], references: [users.id] }),
   items: many(orderItems),
   activities: many(orderActivities),
+  returns: many(orderReturns),
 }))
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
@@ -219,4 +249,14 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 export const orderActivitiesRelations = relations(orderActivities, ({ one }) => ({
   order: one(orders, { fields: [orderActivities.orderId], references: [orders.id] }),
   user: one(users, { fields: [orderActivities.userId], references: [users.id] }),
+}))
+
+export const orderReturnsRelations = relations(orderReturns, ({ one, many }) => ({
+  order: one(orders, { fields: [orderReturns.orderId], references: [orders.id] }),
+  items: many(orderReturnItems),
+}))
+
+export const orderReturnItemsRelations = relations(orderReturnItems, ({ one }) => ({
+  return: one(orderReturns, { fields: [orderReturnItems.returnId], references: [orderReturns.id] }),
+  orderItem: one(orderItems, { fields: [orderReturnItems.orderItemId], references: [orderItems.id] }),
 }))

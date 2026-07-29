@@ -16,6 +16,9 @@ import {
   deleteOrder,
   bulkDeleteOrders,
   getOrderStats,
+  processReturn,
+  processExchange,
+  addTrackingNumber,
   VALID_ORDER_TRANSITIONS,
   VALID_ITEM_TRANSITIONS,
   STATUS_LABELS,
@@ -228,13 +231,13 @@ ordersRoutes.patch('/:id/status', requireManager(), async (c) => {
   const statusSchema = z.object({
     status: z.enum([
       'pending',
-      'quoted',
       'confirmed',
       'in_production',
+      'atelier',
+      'ready',
       'shipped',
       'delivered',
       'cancelled',
-      'returned',
     ]),
     note: z.string().optional(),
   })
@@ -254,13 +257,14 @@ ordersRoutes.patch('/:id/items/:itemId/status', requireManager(), async (c) => {
   const itemStatusSchema = z.object({
     status: z.enum([
       'pending',
-      'in_stock',
-      'out_of_stock',
+      'confirmed',
       'in_production',
+      'atelier',
       'ready',
       'shipped',
       'delivered',
       'returned',
+      'exchanged',
     ]),
   })
 
@@ -329,6 +333,74 @@ ordersRoutes.delete('/:id/items/:itemId', requireManager(), async (c) => {
   const user = c.get('user')
 
   const order = await removeOrderItem(orderId, itemId, user.sub)
+  return c.json({ data: order })
+})
+
+// PATCH /api/orders/:id/tracking — add tracking number (manager+)
+ordersRoutes.patch('/:id/tracking', requireManager(), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const trackingSchema = z.object({
+    trackingNumber: z.string().min(1),
+  })
+
+  const input = trackingSchema.parse(body)
+  const order = await addTrackingNumber(id, input.trackingNumber, user.sub)
+  return c.json({ data: order })
+})
+
+// POST /api/orders/:id/return — process return (manager+)
+ordersRoutes.post('/:id/return', requireManager(), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const returnSchema = z.object({
+    items: z.array(
+      z.object({
+        orderItemId: z.string().uuid(),
+        quantity: z.number().min(1),
+        note: z.string().optional(),
+      }),
+    ).min(1),
+    returnShippingCost: z.number().optional(),
+    note: z.string().optional(),
+  })
+
+  const input = returnSchema.parse(body)
+  const order = await processReturn(id, input, user.sub)
+  return c.json({ data: order })
+})
+
+// POST /api/orders/:id/exchange — process exchange (manager+)
+ordersRoutes.post('/:id/exchange', requireManager(), async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const exchangeSchema = z.object({
+    oldItems: z.array(
+      z.object({
+        orderItemId: z.string().uuid(),
+        quantity: z.number().min(1),
+        note: z.string().optional(),
+      }),
+    ).min(1),
+    newItems: z.array(
+      z.object({
+        productName: z.string().min(1),
+        quantity: z.number().min(1),
+        unitPrice: z.number().optional(),
+        specifications: z.string().optional(),
+      }),
+    ).min(1),
+    note: z.string().optional(),
+  })
+
+  const input = exchangeSchema.parse(body)
+  const order = await processExchange(id, input, user.sub)
   return c.json({ data: order })
 })
 
