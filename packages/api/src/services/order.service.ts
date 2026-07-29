@@ -78,23 +78,23 @@ const ITEM_STATUS_LABELS: Record<string, string> = {
 
 const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['in_production', 'cancelled'],
-  in_production: ['atelier', 'ready', 'cancelled'],
-  atelier: ['ready', 'cancelled'],
-  ready: ['shipped', 'delivered'],
-  shipped: ['delivered'],
-  delivered: ['cancelled'], // iade durumunda iptal seçilebilir
+  confirmed: ['pending', 'in_production', 'cancelled'],
+  in_production: ['confirmed', 'atelier', 'ready', 'cancelled'],
+  atelier: ['in_production', 'ready', 'cancelled'],
+  ready: ['atelier', 'in_production', 'shipped', 'delivered'],
+  shipped: ['ready', 'delivered'],
+  delivered: ['ready', 'shipped', 'cancelled'],
   cancelled: [],
 }
 
 const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'atelier', 'in_production'],
-  confirmed: ['atelier', 'in_production'],
-  atelier: ['in_production', 'ready'],
-  in_production: ['ready'],
-  ready: ['shipped', 'delivered'],
-  shipped: ['delivered'],
-  delivered: ['returned', 'exchanged'],
+  confirmed: ['pending', 'atelier', 'in_production'],
+  atelier: ['confirmed', 'in_production', 'ready'],
+  in_production: ['confirmed', 'atelier', 'ready'],
+  ready: ['atelier', 'in_production', 'shipped', 'delivered'],
+  shipped: ['ready', 'delivered'],
+  delivered: ['ready', 'shipped', 'returned', 'exchanged'],
   returned: [],
   exchanged: [],
 }
