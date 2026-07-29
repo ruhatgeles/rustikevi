@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Relative URL — nginx proxy /api/ → api:3001
+const API_URL = ''
 
 interface RequestOptions {
   method?: string
