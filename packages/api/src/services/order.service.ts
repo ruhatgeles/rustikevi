@@ -289,6 +289,47 @@ export async function updateOrderStatus(
     .set({ status: newStatus as any, updatedAt: new Date() })
     .where(eq(orders.id, id))
 
+  // Sipariş durumu değiştiğinde tüm kalemleri otomatik güncelle
+  const ORDER_TO_ITEM_STATUS: Record<string, string> = {
+    pending: 'pending',
+    confirmed: 'confirmed',
+    in_production: 'in_production',
+    atelier: 'atelier',
+    ready: 'ready',
+    shipped: 'shipped',
+    delivered: 'delivered',
+  }
+
+  const newitemStatus = ORDER_TO_ITEM_STATUS[newStatus]
+  if (newitemStatus) {
+    // Sadece daha gerideki kalemleri güncelle
+    const items = await db
+      .select({ id: orderItems.id, itemStatus: orderItems.itemStatus })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, id))
+
+    const newProgress = ITEM_STATUS_PROGRESS[newitemStatus] ?? 0
+
+    for (const item of items) {
+      const currentProgress = ITEM_STATUS_PROGRESS[item.itemStatus] ?? 0
+      // Sadece daha gerideki kalemleri ilerlet
+      if (currentProgress < newProgress) {
+        await db
+          .update(orderItems)
+          .set({ itemStatus: newitemStatus as any })
+          .where(eq(orderItems.id, item.id))
+
+        await addActivity(
+          id,
+          userId,
+          'item_status_change',
+          `${item.productName}: ${ITEM_STATUS_LABELS[item.itemStatus]} → ${ITEM_STATUS_LABELS[newitemStatus]}`,
+          { itemId: item.id, oldStatus: item.itemStatus, newStatus: newitemStatus },
+        )
+      }
+    }
+  }
+
   // Add status change activity
   await addActivity(
     id,
@@ -643,6 +684,32 @@ export async function bulkDeleteOrders(ids: string[], userId: string) {
 
 // ── Order Status Calculation ─────────────────────────────
 
+// Kalem durumlarının ilerleme sırası (en geriden en ileriye)
+const ITEM_STATUS_PROGRESS: Record<string, number> = {
+  pending: 0,
+  confirmed: 1,
+  in_production: 2,
+  atelier: 3,
+  ready: 4,
+  shipped: 5,
+  delivered: 6,
+  returned: 6,    // iade = teslim seviyesinde
+  exchanged: 2,   // değişim = üretim seviyesinde
+}
+
+// Kalem durumunu sipariş durumuna çevir
+const ITEM_TO_ORDER_STATUS: Record<string, string> = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  in_production: 'in_production',
+  atelier: 'atelier',
+  ready: 'ready',
+  shipped: 'shipped',
+  delivered: 'delivered',
+  returned: 'delivered',
+  exchanged: 'in_production',
+}
+
 export async function calculateOrderStatus(orderId: string): Promise<string> {
   const items = await db
     .select({ itemStatus: orderItems.itemStatus })
@@ -653,45 +720,19 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
 
   const statuses = items.map((i) => i.itemStatus)
 
-  // Tüm kalemler aynı durumda mı?
-  const allSame = statuses.every((s) => s === statuses[0])
-  if (allSame) {
-    // Tam eşleşme: kalem durumunu sipariş durumuna çevir
-    const mapping: Record<string, string> = {
-      pending: 'pending',
-      confirmed: 'confirmed',
-      in_production: 'in_production',
-      atelier: 'atelier',
-      ready: 'ready',
-      shipped: 'shipped',
-      delivered: 'delivered',
-      returned: 'delivered', // iade edilmiş teslim sayılır
-      exchanged: 'in_production', // değişim üretimde
-    }
-    return mapping[statuses[0]] || 'pending'
-  }
+  // En gerideki kalem durumunu bul (en düşük progress değeri)
+  let lowestStatus = statuses[0]
+  let lowestProgress = ITEM_STATUS_PROGRESS[statuses[0]] ?? 0
 
-  // Karışık durumlar: en gerideki kalem belirleyici
-  const priority = ['exchanged', 'returned', 'delivered', 'shipped', 'ready', 'atelier', 'in_production', 'confirmed', 'pending']
-
-  for (const status of priority) {
-    if (statuses.includes(status)) {
-      const mapping: Record<string, string> = {
-        pending: 'pending',
-        confirmed: 'confirmed',
-        in_production: 'in_production',
-        atelier: 'atelier',
-        ready: 'ready',
-        shipped: 'shipped',
-        delivered: 'delivered',
-        returned: 'delivered',
-        exchanged: 'in_production',
-      }
-      return mapping[status] || 'pending'
+  for (const status of statuses) {
+    const progress = ITEM_STATUS_PROGRESS[status] ?? 0
+    if (progress < lowestProgress) {
+      lowestProgress = progress
+      lowestStatus = status
     }
   }
 
-  return 'pending'
+  return ITEM_TO_ORDER_STATUS[lowestStatus] || 'pending'
 }
 
 // ── Return & Exchange ───────────────────────────────────
