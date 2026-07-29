@@ -578,9 +578,26 @@ export async function deleteOrder(id: string, userId: string) {
     throw new AppError(400, 'Sadece arşivlenmiş siparişler silinebilir')
   }
 
-  // İlişkili kayıtları sil
+  // İlişkili kayıtları sil (sıra önemli - foreign key kısıtlamaları)
+  // 1. order_return_items (order_items'a bağlı)
+  const returnRecords = await db
+    .select({ id: orderReturns.id })
+    .from(orderReturns)
+    .where(eq(orderReturns.orderId, id))
+
+  if (returnRecords.length > 0) {
+    const returnIds = returnRecords.map((r) => r.id)
+    await db.delete(orderReturnItems).where(inArray(orderReturnItems.returnId, returnIds))
+    await db.delete(orderReturns).where(eq(orderReturns.orderId, id))
+  }
+
+  // 2. order_activities
   await db.delete(orderActivities).where(eq(orderActivities.orderId, id))
+
+  // 3. order_items
   await db.delete(orderItems).where(eq(orderItems.orderId, id))
+
+  // 4. orders
   await db.delete(orders).where(eq(orders.id, id))
 
   return { success: true }
@@ -599,9 +616,26 @@ export async function bulkDeleteOrders(ids: string[], userId: string) {
     throw new AppError(400, 'Silinecek arşivlenmiş sipariş bulunamadı')
   }
 
-  // İlişkili kayıtları sil
+  // İlişkili kayıtları sil (sıra önemli - foreign key kısıtlamaları)
+  // 1. order_return_items (order_items'a bağlı)
+  const returnRecords = await db
+    .select({ id: orderReturns.id })
+    .from(orderReturns)
+    .where(inArray(orderReturns.orderId, archivedIds))
+
+  if (returnRecords.length > 0) {
+    const returnIds = returnRecords.map((r) => r.id)
+    await db.delete(orderReturnItems).where(inArray(orderReturnItems.returnId, returnIds))
+    await db.delete(orderReturns).where(inArray(orderReturns.orderId, archivedIds))
+  }
+
+  // 2. order_activities
   await db.delete(orderActivities).where(inArray(orderActivities.orderId, archivedIds))
+
+  // 3. order_items
   await db.delete(orderItems).where(inArray(orderItems.orderId, archivedIds))
+
+  // 4. orders
   await db.delete(orders).where(inArray(orders.id, archivedIds))
 
   return { success: true, count: archivedIds.length }
