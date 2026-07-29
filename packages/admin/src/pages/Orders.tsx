@@ -955,21 +955,60 @@ export default function Orders() {
                 {/* Status Buttons */}
                 <div className="mb-4">
                   <label className="mb-2 block text-sm font-medium">Durum Değiştir</label>
-                  <div className="flex flex-wrap gap-2">
-                    {(VALID_ORDER_TRANSITIONS[selectedOrder.status] || []).map((s) => {
-                      const config = ORDER_STATUS_CONFIG[s]
-                      const Icon = config.icon
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => handleStatusChange(selectedOrder.id, s)}
-                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${config.bgColor} ${config.color} border-transparent hover:ring-1 hover:ring-current`}
-                        >
-                          <Icon size={14} />
-                          {config.label}
-                        </button>
-                      )
-                    })}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* İleriye adım butonları */}
+                    {(VALID_ORDER_TRANSITIONS[selectedOrder.status] || [])
+                      .filter((s) => {
+                        // Geriye adım olmayanları filtrele
+                        const currentIdx = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered'].indexOf(selectedOrder.status)
+                        const targetIdx = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered'].indexOf(s)
+                        return targetIdx > currentIdx || s === 'cancelled'
+                      })
+                      .map((s) => {
+                        const config = ORDER_STATUS_CONFIG[s]
+                        const Icon = config.icon
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => handleStatusChange(selectedOrder.id, s)}
+                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${config.bgColor} ${config.color} border-transparent hover:ring-1 hover:ring-current`}
+                          >
+                            <Icon size={14} />
+                            {config.label}
+                          </button>
+                        )
+                      })}
+
+                    {/* Ayırıcı çizgi */}
+                    {(VALID_ORDER_TRANSITIONS[selectedOrder.status] || []).some((s) => {
+                      const currentIdx = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered'].indexOf(selectedOrder.status)
+                      const targetIdx = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered'].indexOf(s)
+                      return targetIdx < currentIdx
+                    }) && (
+                      <div className="mx-1 h-8 w-px bg-[var(--color-ink)]/20" />
+                    )}
+
+                    {/* Geriye adım butonları */}
+                    {(VALID_ORDER_TRANSITIONS[selectedOrder.status] || [])
+                      .filter((s) => {
+                        const currentIdx = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered'].indexOf(selectedOrder.status)
+                        const targetIdx = ['pending', 'confirmed', 'atelier', 'in_production', 'ready', 'shipped', 'delivered'].indexOf(s)
+                        return targetIdx < currentIdx
+                      })
+                      .map((s) => {
+                        const config = ORDER_STATUS_CONFIG[s]
+                        const Icon = config.icon
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => handleStatusChange(selectedOrder.id, s)}
+                            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${config.bgColor} ${config.color} border-transparent hover:ring-1 hover:ring-current opacity-70`}
+                          >
+                            <Icon size={14} />
+                            {config.label}
+                          </button>
+                        )
+                      })}
                   </div>
                 </div>
 
