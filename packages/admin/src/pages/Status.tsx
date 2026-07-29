@@ -10,25 +10,18 @@ import {
   GripVertical,
   X,
   Package,
-  ChevronDown,
 } from 'lucide-react'
 
 interface OrderItem {
   id: string
+  orderId: string
   productName: string
   quantity: number
-  itemStatus: string
   unitPrice: number | null
+  itemStatus: string
+  specifications: string | null
   isExchanged: boolean
   exchangeNote: string | null
-}
-
-interface OrderActivity {
-  id: string
-  type: string
-  description: string
-  createdAt: string
-  userName: string | null
 }
 
 interface Order {
@@ -45,32 +38,30 @@ interface Order {
   customerPhone?: string
   customerCity?: string
   items?: OrderItem[]
-  activities?: OrderActivity[]
-  customer?: {
-    id: string
-    businessName: string
-    contactName: string
-    phone: string
-    city: string | null
-  }
+}
+
+interface KanbanItem extends OrderItem {
+  orderNumber: string
+  customerName: string
+  customerCity: string
 }
 
 const COLUMNS = [
   {
     key: 'pending',
-    label: 'Sipariş Geldi',
+    label: 'Beklemede',
+    icon: ClipboardList,
+    color: 'text-gray-700',
+    bgColor: 'bg-gray-50',
+    borderColor: 'border-gray-200',
+  },
+  {
+    key: 'confirmed',
+    label: 'Onaylandı',
     icon: ClipboardList,
     color: 'text-blue-700',
     bgColor: 'bg-blue-50',
     borderColor: 'border-blue-200',
-  },
-  {
-    key: 'in_production',
-    label: 'Üretim',
-    icon: Factory,
-    color: 'text-yellow-700',
-    bgColor: 'bg-yellow-50',
-    borderColor: 'border-yellow-200',
   },
   {
     key: 'atelier',
@@ -79,6 +70,14 @@ const COLUMNS = [
     color: 'text-orange-700',
     bgColor: 'bg-orange-50',
     borderColor: 'border-orange-200',
+  },
+  {
+    key: 'in_production',
+    label: 'Üretim',
+    icon: Factory,
+    color: 'text-yellow-700',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200',
   },
   {
     key: 'ready',
@@ -101,20 +100,21 @@ const COLUMNS = [
     label: 'Teslim',
     icon: CheckCircle,
     color: 'text-gray-700',
-    bgColor: 'bg-gray-50',
-    borderColor: 'border-gray-200',
+    bgColor: 'bg-gray-100',
+    borderColor: 'border-gray-300',
   },
 ]
 
-const STATUS_TO_COLUMN: Record<string, string> = {
-  pending: 'pending',
-  confirmed: 'pending',
-  in_production: 'in_production',
-  atelier: 'atelier',
-  ready: 'ready',
-  shipped: 'shipped',
-  delivered: 'delivered',
-  cancelled: '', // gösterilmez
+const ITEM_STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-gray-100 text-gray-700',
+  confirmed: 'bg-blue-100 text-blue-700',
+  in_production: 'bg-yellow-100 text-yellow-700',
+  atelier: 'bg-orange-100 text-orange-700',
+  ready: 'bg-green-100 text-green-700',
+  shipped: 'bg-purple-100 text-purple-700',
+  delivered: 'bg-gray-200 text-gray-800',
+  returned: 'bg-red-100 text-red-700',
+  exchanged: 'bg-pink-100 text-pink-700',
 }
 
 const ITEM_STATUS_LABELS: Record<string, string> = {
@@ -127,18 +127,6 @@ const ITEM_STATUS_LABELS: Record<string, string> = {
   delivered: 'Teslim',
   returned: 'İade',
   exchanged: 'Değişim',
-}
-
-const ITEM_STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  in_production: 'bg-yellow-100 text-yellow-700',
-  atelier: 'bg-orange-100 text-orange-700',
-  ready: 'bg-green-100 text-green-700',
-  shipped: 'bg-purple-100 text-purple-700',
-  delivered: 'bg-gray-200 text-gray-800',
-  returned: 'bg-red-100 text-red-700',
-  exchanged: 'bg-pink-100 text-pink-700',
 }
 
 export default function Status() {
@@ -174,17 +162,6 @@ export default function Status() {
     }
   }
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
-    try {
-      await api.request(`/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        body: { status: newStatus },
-      })
-      if (selectedOrder?.id === orderId) loadOrderDetail(orderId)
-      loadOrders()
-    } catch {}
-  }
-
   const handleItemStatusChange = async (orderId: string, itemId: string, newStatus: string) => {
     try {
       await api.request(`/api/orders/${orderId}/items/${itemId}/status`, {
@@ -213,12 +190,34 @@ export default function Status() {
     setNewNote('')
   }
 
-  const getColumnOrders = (columnKey: string) => {
-    return orders.filter((o) => STATUS_TO_COLUMN[o.status] === columnKey)
+  // Tüm siparişlerden kalemleri düzleştir
+  const getAllItems = (): KanbanItem[] => {
+    const items: KanbanItem[] = []
+    for (const order of orders) {
+      if (order.items) {
+        for (const item of order.items) {
+          items.push({
+            ...item,
+            orderNumber: order.orderNumber,
+            customerName: order.customerName || '',
+            customerCity: order.customerCity || '',
+          })
+        }
+      }
+    }
+    return items
   }
 
-  const handleDragStart = (orderId: string) => {
-    dragItem.current = orderId
+  const allItems = getAllItems()
+
+  // Sütuna göre kalemleri grupla
+  const getColumnItems = (columnKey: string): KanbanItem[] => {
+    return allItems.filter((item) => item.itemStatus === columnKey)
+  }
+
+  // Sürükle-bırak
+  const handleDragStart = (itemId: string) => {
+    dragItem.current = itemId
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -227,22 +226,16 @@ export default function Status() {
 
   const handleDrop = async (columnKey: string) => {
     if (!dragItem.current) return
-    const order = orders.find((o) => o.id === dragItem.current)
-    if (!order) return
 
-    const targetStatus: Record<string, string> = {
-      pending: 'pending',
-      in_production: 'in_production',
-      atelier: 'atelier',
-      ready: 'ready',
-      shipped: 'shipped',
-      delivered: 'delivered',
+    // Kalemi bul
+    const item = allItems.find((i) => i.id === dragItem.current)
+    if (!item || item.itemStatus === columnKey) {
+      dragItem.current = null
+      return
     }
 
-    const newStatus = targetStatus[columnKey]
-    if (newStatus && order.status !== newStatus) {
-      await handleStatusChange(order.id, newStatus)
-    }
+    // Durum güncelle
+    await handleItemStatusChange(item.orderId, item.id, columnKey)
     dragItem.current = null
   }
 
@@ -251,16 +244,12 @@ export default function Status() {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount / 100)
   }
 
-  const getColumnKeyForStatus = (status: string) => {
-    return STATUS_TO_COLUMN[status] || 'pending'
-  }
-
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Durum</h1>
         <p className="mt-1 text-sm text-[var(--color-ink)]/50">
-          Siparişleri sürükle-bırak ile durumlandırın
+          Ürünleri sürükle-bırak ile durumlandırın
         </p>
       </div>
 
@@ -269,98 +258,72 @@ export default function Status() {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
         </div>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-3 overflow-x-auto pb-4">
           {COLUMNS.map((col) => {
             const Icon = col.icon
-            const columnOrders = getColumnOrders(col.key)
+            const columnItems = getColumnItems(col.key)
             return (
               <div
                 key={col.key}
-                className={`min-w-[280px] flex-1 rounded-xl border ${col.borderColor} bg-white/50`}
+                className={`min-w-[220px] w-[220px] flex-shrink-0 rounded-xl border ${col.borderColor} bg-white/50`}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(col.key)}
               >
                 {/* Kolon başlığı */}
                 <div
-                  className={`flex items-center gap-2 rounded-t-xl ${col.bgColor} px-4 py-3 border-b ${col.borderColor}`}
+                  className={`flex items-center gap-2 rounded-t-xl ${col.bgColor} px-3 py-2.5 border-b ${col.borderColor}`}
                 >
-                  <Icon size={18} className={col.color} />
-                  <span className={`text-sm font-semibold ${col.color}`}>{col.label}</span>
+                  <Icon size={16} className={col.color} />
+                  <span className={`text-xs font-semibold ${col.color}`}>{col.label}</span>
                   <span
-                    className={`ml-auto flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${col.bgColor} ${col.color}`}
+                    className={`ml-auto flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${col.bgColor} ${col.color}`}
                   >
-                    {columnOrders.length}
+                    {columnItems.length}
                   </span>
                 </div>
 
-                {/* Sipariş kartları */}
-                <div className="min-h-[200px] space-y-2 p-3">
-                  {columnOrders.length === 0 ? (
-                    <div className="flex h-20 items-center justify-center text-xs text-[var(--color-ink)]/30">
-                      Sipariş yok
+                {/* Ürün kartları */}
+                <div className="min-h-[150px] space-y-2 p-2">
+                  {columnItems.length === 0 ? (
+                    <div className="flex h-16 items-center justify-center text-[10px] text-[var(--color-ink)]/30">
+                      Ürün yok
                     </div>
                   ) : (
-                    columnOrders.map((order) => (
+                    columnItems.map((item) => (
                       <div
-                        key={order.id}
+                        key={item.id}
                         draggable
-                        onDragStart={() => handleDragStart(order.id)}
-                        onClick={() => loadOrderDetail(order.id)}
-                        className={`cursor-grab rounded-lg border p-3 shadow-sm transition-all hover:shadow-md active:cursor-grabbing ${
-                          selectedOrder?.id === order.id
+                        onDragStart={() => handleDragStart(item.id)}
+                        onClick={() => loadOrderDetail(item.orderId)}
+                        className={`cursor-grab rounded-lg border p-2.5 shadow-sm transition-all hover:shadow-md active:cursor-grabbing ${
+                          selectedOrder?.id === item.orderId
                             ? 'border-[var(--color-brass)] ring-1 ring-[var(--color-brass)]'
                             : 'border-[var(--color-cream-deep)]'
                         }`}
                       >
+                        {/* Ürün adı */}
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-semibold text-[var(--color-wood-dark)]">
-                            {order.orderNumber}
+                          <span className="text-xs font-semibold text-[var(--color-espresso)] truncate max-w-[150px]">
+                            {item.productName}
                           </span>
-                          <GripVertical size={12} className="text-[var(--color-ink)]/20" />
+                          <GripVertical size={10} className="text-[var(--color-ink)]/20 flex-shrink-0" />
                         </div>
-                        <div className="mt-1.5 text-sm font-medium">{order.customerName}</div>
-                        <div className="mt-1 flex items-center justify-between text-xs text-[var(--color-ink)]/50">
-                          <span>{order.customerCity}</span>
-                          {order.totalAmount && (
-                            <span className="font-semibold text-[var(--color-wood-dark)]">
-                              {formatPrice(order.totalAmount)}
-                            </span>
-                          )}
+
+                        {/* Miktar */}
+                        <div className="mt-1 text-[11px] text-[var(--color-ink)]/60">
+                          {item.quantity} adet
+                          {item.unitPrice && ` · ${formatPrice(item.unitPrice)}`}
                         </div>
-                        {/* Kalem durumları */}
-                        {order.items && order.items.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {order.items.slice(0, 4).map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between rounded bg-gray-50 px-2 py-1"
-                              >
-                                <span className="text-[11px] font-medium text-[var(--color-ink)] truncate max-w-[120px]">
-                                  {item.productName}
-                                </span>
-                                <span
-                                  className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
-                                    ITEM_STATUS_COLORS[item.itemStatus] || 'bg-gray-100 text-gray-700'
-                                  }`}
-                                >
-                                  {ITEM_STATUS_LABELS[item.itemStatus] || item.itemStatus}
-                                </span>
-                              </div>
-                            ))}
-                            {order.items.length > 4 && (
-                              <div className="text-center text-[10px] text-[var(--color-ink)]/40">
-                                +{order.items.length - 4} ürün daha
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {/* Kargo takip numarası */}
-                        {order.trackingNumber && (
-                          <div className="mt-2 flex items-center gap-1 text-[10px] text-[var(--color-ink)]/40">
-                            <Truck size={10} />
-                            <span className="truncate">{order.trackingNumber}</span>
-                          </div>
-                        )}
+
+                        {/* Sipariş bilgisi */}
+                        <div className="mt-1.5 flex items-center justify-between border-t border-[var(--color-cream-deep)] pt-1.5">
+                          <span className="font-mono text-[10px] text-[var(--color-wood-dark)]">
+                            {item.orderNumber}
+                          </span>
+                          <span className="text-[10px] text-[var(--color-ink)]/40 truncate max-w-[80px]">
+                            {item.customerName}
+                          </span>
+                        </div>
                       </div>
                     ))
                   )}
@@ -403,40 +366,15 @@ export default function Status() {
                 </div>
 
                 {/* Müşteri */}
-                {selectedOrder.customer && (
+                {selectedOrder.customerName && (
                   <div className="mb-4 rounded-lg bg-[var(--color-cream)]/50 p-3">
-                    <div className="text-sm font-semibold">{selectedOrder.customer.businessName}</div>
+                    <div className="text-sm font-semibold">{selectedOrder.customerName}</div>
                     <div className="mt-1 text-xs text-[var(--color-ink)]/60">
-                      {selectedOrder.customer.contactName} · {selectedOrder.customer.phone}
-                      {selectedOrder.customer.city && ` · ${selectedOrder.customer.city}`}
+                      {selectedOrder.customerPhone}
+                      {selectedOrder.customerCity && ` · ${selectedOrder.customerCity}`}
                     </div>
                   </div>
                 )}
-
-                {/* Durum butonları */}
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium">Durum Değiştir</label>
-                  <div className="flex flex-wrap gap-2">
-                    {COLUMNS.map((col) => {
-                      const Icon = col.icon
-                      const isActive = getColumnKeyForStatus(selectedOrder.status) === col.key
-                      return (
-                        <button
-                          key={col.key}
-                          onClick={() => handleStatusChange(selectedOrder.id, col.key)}
-                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                            isActive
-                              ? `${col.bgColor} ${col.color} border-current`
-                              : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/50 hover:border-current hover:text-current'
-                          }`}
-                        >
-                          <Icon size={14} />
-                          {col.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
 
                 {/* Kargo takip numarası */}
                 <div className="mb-4">
@@ -514,8 +452,8 @@ export default function Status() {
                           >
                             <option value="pending">Beklemede</option>
                             <option value="confirmed">Onaylandı</option>
-                            <option value="in_production">Üretimde</option>
                             <option value="atelier">Atölyede</option>
+                            <option value="in_production">Üretimde</option>
                             <option value="ready">Hazır</option>
                             <option value="shipped">Kargoda</option>
                             <option value="delivered">Teslim</option>
@@ -562,39 +500,6 @@ export default function Status() {
                     >
                       Ekle
                     </button>
-                  </div>
-                </div>
-
-                {/* Geçmiş */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium">Geçmiş</label>
-                  <div className="max-h-48 space-y-3 overflow-y-auto">
-                    {selectedOrder.activities?.map((activity) => (
-                      <div key={activity.id} className="flex gap-3">
-                        <div
-                          className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                            activity.type === 'status_change'
-                              ? 'bg-blue-500'
-                              : activity.type === 'note_added'
-                                ? 'bg-yellow-500'
-                                : activity.type === 'return'
-                                  ? 'bg-red-500'
-                                  : activity.type === 'exchange'
-                                    ? 'bg-pink-500'
-                                    : activity.type === 'tracking_added'
-                                      ? 'bg-purple-500'
-                                      : 'bg-[var(--color-wood)]'
-                          }`}
-                        />
-                        <div>
-                          <div className="text-sm">{activity.description}</div>
-                          <div className="text-xs text-[var(--color-ink)]/40">
-                            {activity.userName && `${activity.userName} · `}
-                            {new Date(activity.createdAt).toLocaleString('tr-TR')}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </div>
