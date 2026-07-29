@@ -81,7 +81,7 @@ products.use('/', async (c, next) => {
 })
 
 const createProductSchema = z.object({
-  productCode: z.string().length(5).optional(),
+  productCode: z.string().length(5).optional().or(z.literal('').transform(() => undefined)),
   name: z.string().min(1).max(200),
   category: z.string().min(1).max(100),
   color: z.string().max(50).optional(),

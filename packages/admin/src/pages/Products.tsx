@@ -122,6 +122,8 @@ export default function Products() {
     try {
       const body: any = {
         ...form,
+        productCode: form.productCode || undefined,
+        color: form.color || undefined,
         price: form.price ? Math.round(Number(form.price) * 100) : undefined,
       }
 
@@ -232,6 +234,13 @@ export default function Products() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]"
+            />
+            <input
+              placeholder="Ürün Kodu (5 hane, opsiyonel)"
+              value={form.productCode}
+              maxLength={5}
+              onChange={(e) => setForm({ ...form, productCode: e.target.value.replace(/[^0-9]/g, '') })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 font-mono outline-none focus:border-[var(--color-brass)]"
             />
             <select
               value={form.category}
