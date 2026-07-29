@@ -48,7 +48,8 @@ export default function Dashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [users, customers, content, orderStats] = await Promise.all([
+        // Paralel istekler, hata olsa bile devam et
+        const [usersResult, customersResult, contentResult, orderStatsResult] = await Promise.allSettled([
           api.request<{ total: number }>('/api/users?limit=1'),
           api.request<{ total: number }>('/api/customers?limit=1'),
           api.request<any[]>('/api/content'),
@@ -58,6 +59,11 @@ export default function Dashboard() {
             recentOrders: RecentOrder[]
           }>('/api/orders/stats'),
         ])
+
+        const users = usersResult.status === 'fulfilled' ? usersResult.value : { total: 0 }
+        const customers = customersResult.status === 'fulfilled' ? customersResult.value : { total: 0 }
+        const content = contentResult.status === 'fulfilled' ? contentResult.value : []
+        const orderStats = orderStatsResult.status === 'fulfilled' ? orderStatsResult.value : { total: 0, byStatus: {}, recentOrders: [] }
 
         setStats({
           users: users.total,
