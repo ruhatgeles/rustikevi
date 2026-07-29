@@ -78,9 +78,9 @@ const ITEM_STATUS_LABELS: Record<string, string> = {
 
 const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['pending', 'in_production', 'cancelled'],
+  confirmed: ['pending', 'atelier', 'in_production', 'cancelled'],
+  atelier: ['confirmed', 'in_production', 'ready', 'cancelled'],
   in_production: ['confirmed', 'atelier', 'ready', 'cancelled'],
-  atelier: ['in_production', 'ready', 'cancelled'],
   ready: ['atelier', 'in_production', 'shipped', 'delivered'],
   shipped: ['ready', 'delivered'],
   delivered: ['ready', 'shipped', 'cancelled'],
