@@ -166,8 +166,19 @@ export async function listOrders(filters?: {
     .limit(limit)
     .offset(offset)
 
+  // Her sipariş için kalemleri getir
+  const ordersWithItems = await Promise.all(
+    data.map(async (order) => {
+      const items = await db
+        .select()
+        .from(orderItems)
+        .where(eq(orderItems.orderId, order.id))
+      return { ...order, items }
+    })
+  )
+
   return {
-    data,
+    data: ordersWithItems,
     total: countResult.count,
     page,
     limit,
