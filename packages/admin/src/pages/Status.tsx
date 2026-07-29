@@ -151,7 +151,7 @@ export default function Status() {
 
   const loadOrders = async () => {
     try {
-      const result = await api.request<{ data: { data: Order[] } }>('/api/orders?limit=200')
+      const result = await api.request<{ data: Order[] }>('/api/orders?limit=200')
       setOrders(result.data)
     } catch {} finally {
       setLoading(false)
