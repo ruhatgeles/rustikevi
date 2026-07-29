@@ -133,10 +133,11 @@ export async function listProducts(filters?: {
   return data
 }
 
-export async function getAllProducts() {
+export async function getAllProducts(archived: boolean = false) {
   return db
     .select()
     .from(products)
+    .where(eq(products.isArchived, archived))
     .orderBy(asc(products.productCode), asc(products.sortOrder), asc(products.id))
 }
 

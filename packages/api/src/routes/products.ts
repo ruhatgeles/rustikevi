@@ -95,7 +95,8 @@ products.post('/bulk/delete', requireAdmin(), async (c) => {
 
 // GET /api/products/all — all products including inactive (manager+)
 products.get('/all', requireManager(), async (c) => {
-  const data = await getAllProducts()
+  const archived = c.req.query('archived') === 'true'
+  const data = await getAllProducts(archived)
   return c.json({ data })
 })
 
