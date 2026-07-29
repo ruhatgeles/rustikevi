@@ -248,6 +248,7 @@ export default function Orders() {
         body: { status: newStatus },
       })
       if (selectedOrder?.id === orderId) loadOrderDetail(orderId)
+      loadOrders()
     } catch (err: any) {
       setError(err.message)
     }
