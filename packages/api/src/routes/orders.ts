@@ -326,6 +326,24 @@ ordersRoutes.post('/:id/items', requireManager(), async (c) => {
   return c.json({ data: order })
 })
 
+// PATCH /api/orders/:id/items/:itemId — update item (manager+)
+ordersRoutes.patch('/:id/items/:itemId', requireManager(), async (c) => {
+  const orderId = c.req.param('id')
+  const itemId = c.req.param('itemId')
+  const body = await c.req.json()
+  const user = c.get('user')
+
+  const updateItemSchema = z.object({
+    quantity: z.number().min(1).optional(),
+    unitPrice: z.number().nullable().optional(),
+    specifications: z.string().optional(),
+  })
+
+  const input = updateItemSchema.parse(body)
+  const order = await updateOrderItem(orderId, itemId, input, user.sub)
+  return c.json({ data: order })
+})
+
 // DELETE /api/orders/:id/items/:itemId — remove item (manager+)
 ordersRoutes.delete('/:id/items/:itemId', requireManager(), async (c) => {
   const orderId = c.req.param('id')

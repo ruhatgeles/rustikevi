@@ -154,7 +154,14 @@ export default function ExchangeModal({
         <div className="grid grid-cols-2 gap-4">
           {/* Sol: Yanlış gönderilen ürünler */}
           <div>
-            <label className="mb-2 block text-sm font-medium">Yanlış Gönderilen Ürünler</label>
+            <label className="mb-2 block text-sm font-medium">
+              Yanlış Gönderilen Ürünler
+              {totalSelectedOld > 0 && (
+                <span className="ml-2 rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-medium text-pink-700">
+                  {totalSelectedOld} seçili
+                </span>
+              )}
+            </label>
             <div className="max-h-48 space-y-2 overflow-y-auto">
               {deliveredItems.length === 0 ? (
                 <div className="rounded-lg bg-gray-50 p-4 text-center text-sm text-gray-500">
@@ -166,17 +173,25 @@ export default function ExchangeModal({
                   return (
                     <div
                       key={item.id}
-                      className={`rounded-lg border p-3 transition-colors ${
-                        isSelected ? 'border-pink-300 bg-pink-50' : 'border-[var(--color-cream-deep)]'
+                      onClick={() => toggleOldItem(item.id, item.quantity)}
+                      className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                        isSelected
+                          ? 'border-pink-400 bg-pink-50 shadow-sm'
+                          : 'border-[var(--color-cream-deep)] hover:border-pink-200'
                       }`}
                     >
                       <div className="flex items-start gap-2">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleOldItem(item.id, item.quantity)}
-                          className="mt-1 h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                        />
+                        <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
+                          isSelected
+                            ? 'border-pink-500 bg-pink-500'
+                            : 'border-gray-300'
+                        }`}>
+                          {isSelected && (
+                            <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
                         <div className="flex-1">
                           <div className="text-sm font-medium">{item.productName}</div>
                           <div className="mt-1 text-xs text-[var(--color-ink)]/50">
@@ -192,6 +207,7 @@ export default function ExchangeModal({
                                   min={1}
                                   max={item.quantity}
                                   value={selectedOldItems[item.id]?.quantity || 1}
+                                  onClick={(e) => e.stopPropagation()}
                                   onChange={(e) =>
                                     updateOldQuantity(item.id, parseInt(e.target.value, 10), item.quantity)
                                   }
@@ -202,6 +218,7 @@ export default function ExchangeModal({
                                 type="text"
                                 placeholder="Değişim notu"
                                 value={selectedOldItems[item.id]?.note || ''}
+                                onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => updateOldNote(item.id, e.target.value)}
                                 className="w-full rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
                               />

@@ -10,7 +10,9 @@ import {
   GripVertical,
   X,
   Package,
+  ArrowLeftRight,
 } from 'lucide-react'
+import ExchangeModal from '../components/ExchangeModal'
 
 interface OrderItem {
   id: string
@@ -135,6 +137,8 @@ export default function Status() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [newNote, setNewNote] = useState('')
+  const [showExchangeModal, setShowExchangeModal] = useState(false)
+  const [exchangeLoading, setExchangeLoading] = useState(false)
   const dragItem = useRef<string | null>(null)
 
   const loadOrders = async () => {
@@ -183,6 +187,26 @@ export default function Status() {
       setNewNote('')
       loadOrderDetail(selectedOrder.id)
     } catch {}
+  }
+
+  const handleExchange = async (data: {
+    oldItems: Array<{ orderItemId: string; quantity: number; note?: string }>
+    newItems: Array<{ productName: string; quantity: number; unitPrice?: number; specifications?: string }>
+    note?: string
+  }) => {
+    if (!selectedOrder) return
+    setExchangeLoading(true)
+    try {
+      await api.request(`/api/orders/${selectedOrder.id}/exchange`, {
+        method: 'POST',
+        body: data,
+      })
+      setShowExchangeModal(false)
+      loadOrderDetail(selectedOrder.id)
+      loadOrders()
+    } catch {} finally {
+      setExchangeLoading(false)
+    }
   }
 
   const closeDetail = () => {
@@ -410,7 +434,18 @@ export default function Status() {
 
                 {/* Ürünler */}
                 <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium">Ürünler</label>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-sm font-medium">Ürünler</label>
+                    {selectedOrder.status === 'delivered' && (
+                      <button
+                        onClick={() => setShowExchangeModal(true)}
+                        className="flex items-center gap-1 rounded-lg border border-pink-200 bg-pink-50 px-2 py-1 text-xs font-medium text-pink-700 hover:bg-pink-100"
+                      >
+                        <ArrowLeftRight size={12} />
+                        Değişim Yap
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {selectedOrder.items?.map((item) => (
                       <div
@@ -506,6 +541,18 @@ export default function Status() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Exchange Modal */}
+      {selectedOrder && (
+        <ExchangeModal
+          open={showExchangeModal}
+          orderItems={selectedOrder.items || []}
+          orderNumber={selectedOrder.orderNumber}
+          onConfirm={handleExchange}
+          onCancel={() => setShowExchangeModal(false)}
+          loading={exchangeLoading}
+        />
       )}
     </div>
   )

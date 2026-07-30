@@ -135,6 +135,14 @@ export async function listOrders(filters?: {
     conditions.push(eq(orders.assignedTo, filters.assignedTo))
   }
 
+  // Arama filtresi
+  if (filters?.search) {
+    const searchTerm = `%${filters.search}%`
+    conditions.push(
+      sql`(${orders.orderNumber} ILIKE ${searchTerm} OR ${customers.businessName} ILIKE ${searchTerm} OR ${customers.contactName} ILIKE ${searchTerm} OR ${customers.phone} ILIKE ${searchTerm} OR ${customers.city} ILIKE ${searchTerm})`
+    )
+  }
+
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
   const [countResult] = await db
@@ -516,6 +524,62 @@ export async function addOrderItem(
     userId,
     'item_added',
     `Ürün eklendi: ${item.productName} (${item.quantity} adet)`,
+  )
+
+  return getOrderById(orderId)
+}
+
+export async function updateOrderItem(
+  orderId: string,
+  itemId: string,
+  input: { quantity?: number; unitPrice?: number | null; specifications?: string },
+  userId: string,
+) {
+  const [item] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, orderId)))
+    .limit(1)
+
+  if (!item) {
+    throw new AppError(404, 'Sipariş kalemi bulunamadı')
+  }
+
+  const updateData: any = {}
+  if (input.quantity !== undefined) updateData.quantity = input.quantity
+  if (input.unitPrice !== undefined) updateData.unitPrice = input.unitPrice
+  if (input.specifications !== undefined) updateData.specifications = input.specifications
+
+  // Fiyat veya adet değiştiyse toplam fiyatı güncelle
+  if (input.quantity !== undefined || input.unitPrice !== undefined) {
+    const qty = input.quantity ?? item.quantity
+    const price = input.unitPrice ?? item.unitPrice
+    updateData.totalPrice = price ? qty * price : null
+  }
+
+  await db
+    .update(orderItems)
+    .set(updateData)
+    .where(eq(orderItems.id, itemId))
+
+  // Sipariş toplamını yeniden hesapla
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId))
+
+  const totalAmount = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0)
+
+  await db
+    .update(orders)
+    .set({ totalAmount: totalAmount > 0 ? totalAmount : null, updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+
+  await addActivity(
+    orderId,
+    userId,
+    'item_updated',
+    `Ürün güncellendi: ${item.productName}`,
   )
 
   return getOrderById(orderId)

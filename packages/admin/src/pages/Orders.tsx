@@ -1032,21 +1032,89 @@ export default function Orders() {
 
                 {/* Items */}
                 <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium">Ürünler</label>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-sm font-medium">Ürünler</label>
+                    <button
+                      onClick={() => setShowOrderForm(true)}
+                      className="flex items-center gap-1 rounded-lg bg-[var(--color-cream-deep)] px-2 py-1 text-xs font-medium hover:bg-[var(--color-brass)]/20"
+                    >
+                      <Plus size={12} />
+                      Ürün Ekle
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     {selectedOrder.items?.map((item) => {
                       const itemConfig = ITEM_STATUS_CONFIG[item.itemStatus] || ITEM_STATUS_CONFIG.pending
                       return (
                         <div key={item.id} className="rounded-lg border border-[var(--color-cream-deep)] p-3">
                           <div className="flex items-center justify-between">
-                            <div>
+                            <div className="flex-1">
                               <div className="text-sm font-medium">{item.productName}</div>
-                              <div className="text-xs text-[var(--color-ink)]/50">
-                                {item.quantity} adet
-                                {item.specifications && ` · ${item.specifications}`}
+                              <div className="mt-1 flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={item.quantity}
+                                  onChange={async (e) => {
+                                    const newQty = parseInt(e.target.value, 10) || 1
+                                    try {
+                                      await api.request(`/api/orders/${selectedOrder.id}/items/${item.id}`, {
+                                        method: 'PATCH',
+                                        body: { quantity: newQty },
+                                      })
+                                      loadOrderDetail(selectedOrder.id)
+                                      loadOrders()
+                                    } catch (err: any) {
+                                      setError(err.message)
+                                    }
+                                  }}
+                                  className="w-16 rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
+                                />
+                                <span className="text-xs text-[var(--color-ink)]/50">adet</span>
+                                <span className="text-xs text-[var(--color-ink)]/30">·</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={item.unitPrice ? item.unitPrice / 100 : ''}
+                                  onChange={async (e) => {
+                                    const newPrice = e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null
+                                    try {
+                                      await api.request(`/api/orders/${selectedOrder.id}/items/${item.id}`, {
+                                        method: 'PATCH',
+                                        body: { unitPrice: newPrice },
+                                      })
+                                      loadOrderDetail(selectedOrder.id)
+                                      loadOrders()
+                                    } catch (err: any) {
+                                      setError(err.message)
+                                    }
+                                  }}
+                                  placeholder="Fiyat"
+                                  className="w-20 rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
+                                />
+                                <span className="text-xs text-[var(--color-ink)]/50">₺</span>
                               </div>
                             </div>
-                            <div className="text-sm font-semibold">{formatPrice(item.totalPrice)}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-semibold">{formatPrice(item.totalPrice)}</div>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm('Bu ürünü siparişten çıkarmak istediğinize emin misiniz?')) return
+                                  try {
+                                    await api.request(`/api/orders/${selectedOrder.id}/items/${item.id}`, {
+                                      method: 'DELETE',
+                                    })
+                                    loadOrderDetail(selectedOrder.id)
+                                    loadOrders()
+                                  } catch (err: any) {
+                                    setError(err.message)
+                                  }
+                                }}
+                                className="rounded p-1 text-red-500 transition-colors hover:bg-red-50"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                           {/* Item status selector */}
                           <div className="mt-2 flex flex-wrap gap-1">
