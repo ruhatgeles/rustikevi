@@ -8,6 +8,7 @@ import {
   updateOrder,
   updateItemStatus,
   addOrderItem,
+  updateOrderItem,
   removeOrderItem,
   archiveOrder,
   unarchiveOrder,
