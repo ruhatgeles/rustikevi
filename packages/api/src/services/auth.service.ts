@@ -17,15 +17,23 @@ export async function login(email: string, password: string): Promise<LoginRespo
     throw new AppError(401, 'Invalid email or password')
   }
 
+  // Giriş engeli kontrolü
+  if (user.isLoginBlocked) {
+    throw new AppError(403, 'Hesabınıza giriş engeli konulmuştur. Yöneticiniz ile iletişime geçin.')
+  }
+
   const valid = comparePassword(password, user.passwordHash)
   if (!valid) {
     throw new AppError(401, 'Invalid email or password')
   }
 
+  // isViewOnly ise rolü viewer olarak düşür
+  const effectiveRole = user.isViewOnly ? 'viewer' : user.role
+
   const payload: JwtPayload = {
     sub: user.id,
     email: user.email,
-    role: user.role,
+    role: effectiveRole,
   }
 
   const accessToken = signAccessToken(payload)
@@ -48,7 +56,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: effectiveRole,
     },
   }
 }
@@ -113,6 +121,8 @@ export async function getMe(userId: string) {
       name: users.name,
       role: users.role,
       isActive: users.isActive,
+      isLoginBlocked: users.isLoginBlocked,
+      isViewOnly: users.isViewOnly,
       createdAt: users.createdAt,
     })
     .from(users)

@@ -556,14 +556,14 @@ export default function Orders() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Siparişler</h1>
-          <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+          <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Siparişler</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
             {showArchived ? 'Arşivlenmiş siparişler' : 'Sipariş taleplerini yönetin'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowOrderForm(!showOrderForm)}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -582,7 +582,7 @@ export default function Orders() {
                 className="flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
               >
                 {creatingTest ? <Loader2 size={14} className="animate-spin" /> : <Bug size={14} />}
-                Test Sipariş
+                <span className="hidden sm:inline">Test Sipariş</span>
               </button>
               {/* Classic/UI2 Toggle */}
               <button
@@ -615,7 +615,7 @@ export default function Orders() {
 
       {/* Order Creation Form */}
       {showOrderForm && (
-        <div className="mb-4 rounded-xl border border-[var(--color-brass)]/30 bg-[var(--color-cream)]/30 p-4">
+        <div className="mb-4 rounded-xl border border-[var(--color-brass)]/30 bg-[var(--color-cream)]/30 p-3 sm:p-4">
           <h3 className="mb-3 text-sm font-semibold text-[var(--color-wood-dark)]">Yeni Sipariş</h3>
 
           {/* Customer Selection */}
@@ -659,7 +659,7 @@ export default function Orders() {
           {/* Items */}
           <div className="mb-3 space-y-2">
             {orderItems.map((item, index) => (
-              <div key={index} className="grid grid-cols-[1fr_80px_100px_1fr_32px] gap-2">
+              <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_80px_100px_1fr_32px]">
                 <div>
                   {item.productName ? (
                     <div className="flex items-center gap-1 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-cream)]/30 px-2.5 py-1.5 text-sm">
@@ -675,17 +675,23 @@ export default function Orders() {
                     <ProductSearch onSelect={(p) => handleProductSelect(index, p)} placeholder="Ürün ara..." />
                   )}
                 </div>
-                <input type="number" placeholder="Adet" min="1" value={item.quantity}
-                  onChange={(e) => updateOrderItem(index, 'quantity', e.target.value)}
-                  className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
-                <input type="number" placeholder="Birim ₺" step="0.01" value={item.unitPrice}
-                  onChange={(e) => updateOrderItem(index, 'unitPrice', e.target.value)}
-                  className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
+                <div className="grid grid-cols-[1fr_1fr_32px] gap-2 sm:contents">
+                  <input type="number" placeholder="Adet" min="1" value={item.quantity}
+                    onChange={(e) => updateOrderItem(index, 'quantity', e.target.value)}
+                    className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
+                  <input type="number" placeholder="Birim ₺" step="0.01" value={item.unitPrice}
+                    onChange={(e) => updateOrderItem(index, 'unitPrice', e.target.value)}
+                    className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
+                  <button type="button" onClick={() => removeOrderItemRow(index)} disabled={orderItems.length <= 1}
+                    className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30 sm:hidden">
+                    <X size={16} />
+                  </button>
+                </div>
                 <input placeholder="Not (opsiyonel)" value={item.specifications}
                   onChange={(e) => updateOrderItem(index, 'specifications', e.target.value)}
                   className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]" />
                 <button type="button" onClick={() => removeOrderItemRow(index)} disabled={orderItems.length <= 1}
-                  className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30">
+                  className="hidden items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30 sm:flex">
                   <X size={16} />
                 </button>
               </div>
@@ -724,57 +730,59 @@ export default function Orders() {
       )}
 
       {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
           <input
             type="text"
             placeholder="Sipariş no, müşteri adı..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 outline-none focus:border-[var(--color-brass)]"
+            className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--color-brass)]"
           />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-        >
-          <option value="">Tüm Durumlar</option>
-          {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
-            <option key={key} value={key}>{config.label}</option>
-          ))}
-        </select>
-        <button
-          onClick={() => setShowArchived(!showArchived)}
-          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-            showArchived
-              ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
-              : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
-          }`}
-        >
-          <Archive size={14} />
-          Arşiv
-        </button>
-        {debugMode && (
+        <div className="flex gap-2">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="flex-1 rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)] sm:flex-none"
+          >
+            <option value="">Tüm Durumlar</option>
+            {Object.entries(ORDER_STATUS_CONFIG).map(([key, config]) => (
+              <option key={key} value={key}>{config.label}</option>
+            ))}
+          </select>
           <button
-            onClick={toggleSelectAll}
+            onClick={() => setShowArchived(!showArchived)}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              selectedOrders.size === orders.length && orders.length > 0
+              showArchived
                 ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
                 : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
             }`}
-            title={selectedOrders.size === orders.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
           >
-            <CheckSquare size={14} />
-            {selectedOrders.size === orders.length ? 'Bırak' : 'Tümü'}
+            <Archive size={14} />
+            <span className="hidden sm:inline">Arşiv</span>
           </button>
-        )}
+          {debugMode && (
+            <button
+              onClick={toggleSelectAll}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                selectedOrders.size === orders.length && orders.length > 0
+                  ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                  : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+              }`}
+              title={selectedOrders.size === orders.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
+            >
+              <CheckSquare size={14} />
+              <span className="hidden sm:inline">{selectedOrders.size === orders.length ? 'Bırak' : 'Tümü'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Bulk Actions Bar */}
       {debugMode && selectedOrders.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-4 py-2.5">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-3 py-2.5 sm:gap-3 sm:px-4">
           <span className="text-sm font-medium text-[var(--color-wood-dark)]">
             {selectedOrders.size} sipariş seçildi
           </span>
@@ -839,7 +847,7 @@ export default function Orders() {
                   <button
                     key={order.id}
                     onClick={() => loadOrderDetail(order.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition-colors ${
+                    className={`w-full rounded-xl border p-3 text-left transition-colors sm:p-4 ${
                       isSelected
                         ? 'border-[var(--color-brass)] bg-white shadow-sm'
                         : isChecked
@@ -903,10 +911,10 @@ export default function Orders() {
             )}
           </div>
 
-          {/* Order Detail */}
-          <div>
+          {/* Order Detail - Mobile: overlay panel, Desktop: side panel */}
+          <div className={`${selectedOrder ? 'block' : 'hidden lg:block'}`}>
             {!selectedOrder ? (
-              <div className="flex h-64 items-center justify-center rounded-xl border border-[var(--color-cream-deep)] bg-white text-[var(--color-ink)]/40">
+              <div className="hidden h-64 items-center justify-center rounded-xl border border-[var(--color-cream-deep)] bg-white text-[var(--color-ink)]/40 lg:flex">
                 Sipariş detayı için listeden seçin
               </div>
             ) : loadingDetail ? (
@@ -914,12 +922,12 @@ export default function Orders() {
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
               </div>
             ) : (
-              <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
+              <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-4 sm:p-5">
                 {/* Header */}
                 <div className="mb-4 flex items-center justify-between border-b border-[var(--color-cream-deep)] pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-lg font-bold text-[var(--color-wood-dark)]">
+                      <span className="font-mono text-base font-bold text-[var(--color-wood-dark)] sm:text-lg">
                         {selectedOrder.orderNumber}
                       </span>
                       <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${ORDER_STATUS_CONFIG[selectedOrder.status]?.bgColor} ${ORDER_STATUS_CONFIG[selectedOrder.status]?.color}`}>
@@ -958,7 +966,7 @@ export default function Orders() {
                 {/* Status Buttons */}
                 <div className="mb-4">
                   <label className="mb-2 block text-sm font-medium">Durum Değiştir</label>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     {/* İleriye adım butonları */}
                     {(VALID_ORDER_TRANSITIONS[selectedOrder.status] || [])
                       .filter((s) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
@@ -91,20 +91,54 @@ export default function Products() {
     return () => clearTimeout(timer)
   }, [search])
 
-  const filtered = products.filter((p) => {
+  // Memoized + stable-sorted filtered list
+  const filtered = useMemo(() => {
     const s = debouncedSearch.toLowerCase()
-    const matchesSearch =
-      !s ||
-      (p.productCode || '').toLowerCase().includes(s) ||
-      p.name.toLowerCase().includes(s) ||
-      p.category.toLowerCase().includes(s) ||
-      (p.color || '').toLowerCase().includes(s)
-    const matchesCategory = !filterCategory || p.category === filterCategory
-    return matchesSearch && matchesCategory
-  })
+    return products
+      .filter((p) => {
+        const matchesSearch =
+          !s ||
+          (p.productCode || '').toLowerCase().includes(s) ||
+          p.name.toLowerCase().includes(s) ||
+          p.category.toLowerCase().includes(s) ||
+          (p.color || '').toLowerCase().includes(s)
+        const matchesCategory = !filterCategory || p.category === filterCategory
+        return matchesSearch && matchesCategory
+      })
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
+  }, [products, debouncedSearch, filterCategory])
+
+  // Freeze display order during editing so products don't shift mid-edit
+  const frozenOrderRef = useRef<Map<number, Product> | null>(null)
+
+  useEffect(() => {
+    if (editingId !== null) {
+      // Start editing: snapshot the current filtered order
+      if (!frozenOrderRef.current) {
+        const map = new Map<number, Product>()
+        for (const p of filtered) map.set(p.id, p)
+        frozenOrderRef.current = map
+      }
+    } else {
+      // Editing finished: clear freeze
+      frozenOrderRef.current = null
+    }
+  }, [editingId, filtered])
+
+  const displayProducts = useMemo(() => {
+    if (frozenOrderRef.current) {
+      // During editing, keep frozen order but reflect live data from filtered
+      const filteredMap = new Map<number, Product>()
+      for (const p of filtered) filteredMap.set(p.id, p)
+      return Array.from(frozenOrderRef.current.keys())
+        .map((id) => filteredMap.get(id)!)
+        .filter(Boolean)
+    }
+    return filtered
+  }, [filtered, editingId])
 
   // Selection
-  const toggleProductSelection = (id: number, e: React.MouseEvent) => {
+  const toggleProductSelection = useCallback((id: number, e: React.MouseEvent) => {
     e.stopPropagation()
     setSelectedProducts((prev) => {
       const next = new Set(prev)
@@ -112,15 +146,15 @@ export default function Products() {
       else next.add(id)
       return next
     })
-  }
+  }, [])
 
-  const toggleSelectAll = () => {
-    if (selectedProducts.size === filtered.length) {
+  const toggleSelectAll = useCallback(() => {
+    if (selectedProducts.size === displayProducts.length) {
       setSelectedProducts(new Set())
     } else {
-      setSelectedProducts(new Set(filtered.map((p) => p.id)))
+      setSelectedProducts(new Set(displayProducts.map((p) => p.id)))
     }
-  }
+  }, [selectedProducts.size, displayProducts])
 
   // Bulk actions
   const handleBulkArchive = async () => {
@@ -216,19 +250,21 @@ export default function Products() {
     }
   }
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setForm(emptyForm)
     setEditingId(null)
     setShowForm(false)
     setError('')
-  }
+  }, [])
 
-  const openCreate = () => {
-    resetForm()
+  const openCreate = useCallback(() => {
+    setForm(emptyForm)
+    setEditingId(null)
+    setError('')
     setShowForm(true)
-  }
+  }, [])
 
-  const openEdit = (product: Product) => {
+  const openEdit = useCallback((product: Product) => {
     setEditingId(product.id)
     setForm({
       productCode: product.productCode || '',
@@ -245,7 +281,7 @@ export default function Products() {
       sortOrder: product.sortOrder,
     })
     setShowForm(true)
-  }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -302,16 +338,16 @@ export default function Products() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Ürünler</h1>
-          <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+          <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Ürünler</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
             {showArchived ? 'Arşivlenmiş ürünler' : 'Ürün listesi'}
           </p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
+          className="flex items-center justify-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
         >
           <Plus size={16} />
           Ürün Ekle
@@ -323,56 +359,58 @@ export default function Products() {
       )}
 
       {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
           <input
             type="text"
             placeholder="Kod, ürün adı, kategori veya renk ara..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 outline-none focus:border-[var(--color-brass)]"
+            className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--color-brass)]"
           />
         </div>
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 outline-none focus:border-[var(--color-brass)]"
-        >
-          <option value="">Tüm Kategoriler</option>
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-        <button
-          onClick={() => setShowArchived(!showArchived)}
-          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-            showArchived
-              ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
-              : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
-          }`}
-        >
-          <Archive size={14} />
-          Arşiv
-        </button>
-        {debugMode && (
+        <div className="flex gap-2">
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="flex-1 rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)] sm:flex-none"
+          >
+            <option value="">Tüm Kategoriler</option>
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
           <button
-            onClick={toggleSelectAll}
+            onClick={() => setShowArchived(!showArchived)}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              selectedProducts.size === filtered.length && filtered.length > 0
+              showArchived
                 ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
                 : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
             }`}
           >
-            <CheckSquare size={14} />
-            {selectedProducts.size === filtered.length ? 'Bırak' : 'Tümü'}
+            <Archive size={14} />
+            <span className="hidden sm:inline">Arşiv</span>
           </button>
-        )}
+          {debugMode && (
+            <button
+              onClick={toggleSelectAll}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                selectedProducts.size === displayProducts.length && displayProducts.length > 0
+                  ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                  : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+              }`}
+            >
+              <CheckSquare size={14} />
+              <span className="hidden sm:inline">{selectedProducts.size === displayProducts.length ? 'Bırak' : 'Tümü'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Bulk Actions Bar */}
       {debugMode && selectedProducts.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-4 py-2.5">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-3 py-2.5 sm:gap-3 sm:px-4">
           <span className="text-sm font-medium text-[var(--color-wood-dark)]">
             {selectedProducts.size} ürün seçildi
           </span>
@@ -406,7 +444,7 @@ export default function Products() {
 
       {/* Form */}
       {showForm && (
-        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
+        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold">{editingId ? 'Ürün Düzenle' : 'Yeni Ürün'}</h2>
             <button onClick={resetForm}><X size={18} /></button>
@@ -491,8 +529,8 @@ export default function Products() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-[var(--color-cream-deep)] bg-white">
+      {/* Desktop Table */}
+      <div className="hidden overflow-hidden rounded-xl border border-[var(--color-cream-deep)] bg-white md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
             <tr>
@@ -514,14 +552,14 @@ export default function Products() {
                   Yükleniyor...
                 </td>
               </tr>
-            ) : filtered.length === 0 ? (
+            ) : displayProducts.length === 0 ? (
               <tr>
                 <td colSpan={debugMode ? 9 : 8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Ürün bulunamadı
                 </td>
               </tr>
             ) : (
-              filtered.map((product) => {
+              displayProducts.map((product) => {
                 const isChecked = selectedProducts.has(product.id)
                 return (
                   <tr key={product.id}
@@ -620,8 +658,107 @@ export default function Products() {
         </table>
       </div>
 
+      {/* Mobile Cards */}
+      <div className="space-y-2 md:hidden">
+        {loading ? (
+          <div className="flex h-32 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
+          </div>
+        ) : displayProducts.length === 0 ? (
+          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/40">
+            Ürün bulunamadı
+          </div>
+        ) : (
+          displayProducts.map((product) => {
+            const isChecked = selectedProducts.has(product.id)
+            return (
+              <div
+                key={product.id}
+                className={`rounded-xl border bg-white p-3 ${
+                  !product.isActive ? 'opacity-50' : ''
+                } ${product.isArchived ? 'opacity-60' : ''} ${
+                  isChecked ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/5' : 'border-[var(--color-cream-deep)]'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {debugMode && (
+                        <div
+                          onClick={(e) => toggleProductSelection(product.id, e)}
+                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                            isChecked
+                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                          }`}
+                        >
+                          {isChecked && <CheckSquare size={12} />}
+                        </div>
+                      )}
+                      {product.productCode && (
+                        <span className="rounded bg-[var(--color-cream-deep)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--color-wood-dark)]">
+                          {product.productCode}
+                        </span>
+                      )}
+                      <span className="rounded-full bg-[var(--color-cream-deep)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-wood-dark)]">
+                        {product.category}
+                      </span>
+                      {product.isArchived && (
+                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 text-sm font-medium">{product.name}</div>
+                    {product.shortDescription && (
+                      <div className="mt-0.5 truncate text-xs text-[var(--color-ink)]/50">{product.shortDescription}</div>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(product)}
+                      className="rounded-lg p-1.5 text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                      title="Düzenle">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteClick(product.id)}
+                      className="rounded-lg p-1.5 text-[var(--color-ink)]/40 hover:bg-red-50 hover:text-red-600"
+                      title="Sil">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
+                    {product.color && (
+                      <span className="text-xs text-[var(--color-ink)]/50">{product.color}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      {product.swatches.slice(0, 3).map((swatch, i) => (
+                        <div key={i} className="h-4 w-4 rounded-full border border-gray-200"
+                          style={{ background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})` }} />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {product.isActive ? (
+                        <Eye size={12} className="text-green-600" />
+                      ) : (
+                        <EyeOff size={12} className="text-gray-400" />
+                      )}
+                      {product.featured && (
+                        <span className="rounded bg-[var(--color-brass)]/20 px-1 py-0.5 text-[9px] font-semibold text-[var(--color-wood-dark)]">★</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
       <p className="mt-3 text-xs text-[var(--color-ink)]/40">
-        {filtered.length} / {products.length} ürün
+        {displayProducts.length} / {products.length} ürün
       </p>
 
       {/* Delete Confirmation Modal */}

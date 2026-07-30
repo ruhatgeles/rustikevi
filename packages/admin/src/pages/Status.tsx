@@ -270,9 +270,9 @@ export default function Status() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Durum</h1>
-        <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Durum</h1>
+        <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
           Ürünleri sürükle-bırak ile durumlandırın
         </p>
       </div>
@@ -282,23 +282,24 @@ export default function Status() {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
         </div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="flex gap-2 overflow-x-auto pb-4 sm:gap-3">
           {COLUMNS.map((col) => {
             const Icon = col.icon
             const columnItems = getColumnItems(col.key)
             return (
               <div
                 key={col.key}
-                className={`min-w-[220px] w-[220px] flex-shrink-0 rounded-xl border ${col.borderColor} bg-white/50`}
+                className={`min-w-[200px] w-[200px] flex-shrink-0 rounded-xl border sm:min-w-[220px] sm:w-[220px] ${col.borderColor} bg-white/50`}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(col.key)}
               >
                 {/* Kolon başlığı */}
                 <div
-                  className={`flex items-center gap-2 rounded-t-xl ${col.bgColor} px-3 py-2.5 border-b ${col.borderColor}`}
+                  className={`flex items-center gap-2 rounded-t-xl ${col.bgColor} px-2.5 py-2 border-b sm:px-3 sm:py-2.5 ${col.borderColor}`}
                 >
-                  <Icon size={16} className={col.color} />
-                  <span className={`text-xs font-semibold ${col.color}`}>{col.label}</span>
+                  <Icon size={14} className={`${col.color} sm:hidden`} />
+                  <Icon size={16} className={`${col.color} hidden sm:block`} />
+                  <span className={`text-[11px] font-semibold sm:text-xs ${col.color}`}>{col.label}</span>
                   <span
                     className={`ml-auto flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${col.bgColor} ${col.color}`}
                   >
@@ -307,7 +308,7 @@ export default function Status() {
                 </div>
 
                 {/* Ürün kartları */}
-                <div className="min-h-[150px] space-y-2 p-2">
+                <div className="min-h-[120px] space-y-2 p-2 sm:min-h-[150px]">
                   {columnItems.length === 0 ? (
                     <div className="flex h-16 items-center justify-center text-[10px] text-[var(--color-ink)]/30">
                       Ürün yok
@@ -319,7 +320,7 @@ export default function Status() {
                         draggable
                         onDragStart={() => handleDragStart(item.id)}
                         onClick={() => loadOrderDetail(item.orderId)}
-                        className={`cursor-grab rounded-lg border p-2.5 shadow-sm transition-all hover:shadow-md active:cursor-grabbing ${
+                        className={`cursor-grab rounded-lg border p-2 shadow-sm transition-all hover:shadow-md active:cursor-grabbing sm:p-2.5 ${
                           selectedOrder?.id === item.orderId
                             ? 'border-[var(--color-brass)] ring-1 ring-[var(--color-brass)]'
                             : 'border-[var(--color-cream-deep)]'
@@ -327,14 +328,14 @@ export default function Status() {
                       >
                         {/* Ürün adı */}
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-[var(--color-espresso)] truncate max-w-[150px]">
+                          <span className="text-[11px] font-semibold text-[var(--color-espresso)] truncate max-w-[130px] sm:text-xs sm:max-w-[150px]">
                             {item.productName}
                           </span>
                           <GripVertical size={10} className="text-[var(--color-ink)]/20 flex-shrink-0" />
                         </div>
 
                         {/* Miktar */}
-                        <div className="mt-1 text-[11px] text-[var(--color-ink)]/60">
+                        <div className="mt-1 text-[10px] text-[var(--color-ink)]/60 sm:text-[11px]">
                           {item.quantity} adet
                           {item.unitPrice && ` · ${formatPrice(item.unitPrice)}`}
                         </div>
@@ -344,7 +345,7 @@ export default function Status() {
                           <span className="font-mono text-[10px] text-[var(--color-wood-dark)]">
                             {item.orderNumber}
                           </span>
-                          <span className="text-[10px] text-[var(--color-ink)]/40 truncate max-w-[80px]">
+                          <span className="text-[10px] text-[var(--color-ink)]/40 truncate max-w-[70px] sm:max-w-[80px]">
                             {item.customerName}
                           </span>
                         </div>
@@ -370,7 +371,7 @@ export default function Status() {
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
               </div>
             ) : (
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 {/* Header */}
                 <div className="mb-4 flex items-center justify-between border-b border-[var(--color-cream-deep)] pb-4">
                   <div>

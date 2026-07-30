@@ -110,24 +110,25 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-[var(--color-espresso)]">Dashboard</h1>
+      <h1 className="mb-4 text-xl font-bold text-[var(--color-espresso)] sm:mb-6 sm:text-2xl">Dashboard</h1>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon
           return (
             <div
               key={card.label}
-              className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-5"
+              className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-3 sm:p-5"
             >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm text-[var(--color-ink)]/50">{card.label}</span>
-                <div className={`rounded-lg p-2 ${card.color}`}>
-                  <Icon size={18} />
+              <div className="mb-2 flex items-center justify-between sm:mb-3">
+                <span className="text-xs text-[var(--color-ink)]/50 sm:text-sm">{card.label}</span>
+                <div className={`rounded-lg p-1.5 sm:p-2 ${card.color}`}>
+                  <Icon size={16} className="sm:hidden" />
+                  <Icon size={18} className="hidden sm:block" />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-[var(--color-espresso)]">{card.value}</p>
+              <p className="text-2xl font-bold text-[var(--color-espresso)] sm:text-3xl">{card.value}</p>
             </div>
           )
         })}
@@ -135,11 +136,13 @@ export default function Dashboard() {
 
       {/* Recent Orders */}
       {recentOrders.length > 0 && (
-        <div className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold text-[var(--color-espresso)]">
+        <div className="mt-6 sm:mt-8">
+          <h2 className="mb-3 text-base font-semibold text-[var(--color-espresso)] sm:mb-4 sm:text-lg">
             Son Siparişler
           </h2>
-          <div className="overflow-hidden rounded-xl border border-[var(--color-cream-deep)] bg-white">
+
+          {/* Desktop Table */}
+          <div className="hidden overflow-hidden rounded-xl border border-[var(--color-cream-deep)] bg-white md:block">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
                 <tr>
@@ -175,6 +178,33 @@ export default function Dashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="space-y-2 md:hidden">
+            {recentOrders.map((order) => (
+              <div
+                key={order.id}
+                className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-semibold text-[var(--color-wood-dark)]">
+                    {order.orderNumber}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      STATUS_COLORS[order.status] || 'bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    {STATUS_LABELS[order.status] || order.status}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-[var(--color-ink)]/50">
+                  <span>{order.customerName}</span>
+                  <span>{new Date(order.createdAt).toLocaleDateString('tr-TR')}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -47,6 +47,8 @@ export const users = pgTable('users', {
   name: varchar('name', { length: 100 }).notNull(),
   role: userRoleEnum('role').notNull().default('viewer'),
   isActive: boolean('is_active').notNull().default(true),
+  isLoginBlocked: boolean('is_login_blocked').notNull().default(false),
+  isViewOnly: boolean('is_view_only').notNull().default(false),
   inviteCodeId: uuid('invite_code_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

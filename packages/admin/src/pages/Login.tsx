@@ -26,8 +26,8 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-linen)]">
-      <div className="w-full max-w-sm rounded-2xl border border-[var(--color-cream-deep)] bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--color-linen)] p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-[var(--color-cream-deep)] bg-white p-6 shadow-sm sm:p-8">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--color-wood)] text-xl font-bold text-white">
             RE

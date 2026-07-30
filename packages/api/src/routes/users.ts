@@ -22,6 +22,8 @@ const updateUserSchema = z.object({
   password: z.string().min(6).optional(),
   role: z.enum(['admin', 'manager', 'viewer']).optional(),
   isActive: z.boolean().optional(),
+  isLoginBlocked: z.boolean().optional(),
+  isViewOnly: z.boolean().optional(),
 })
 
 // GET /api/users

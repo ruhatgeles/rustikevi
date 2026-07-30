@@ -69,6 +69,9 @@ importers:
       react-router-dom:
         specifier: ^7.0.0
         version: 7.18.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      sweetalert2:
+        specifier: ^11.26.25
+        version: 11.26.25
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.0
@@ -2149,6 +2152,9 @@ packages:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
 
+  sweetalert2@11.26.25:
+    resolution: {integrity: sha512-+hunCOJdJ6FLj04T9YSLvvZXRjsvIkTeTKP2e4VF8CaBias961BTnWiSFAy7F/CM5eq3QK2Rraoc5Gzftslvkg==}
+
   tailwindcss@4.2.2:
     resolution: {integrity: sha512-KWBIxs1Xb6NoLdMVqhbhgwZf2PGBpPEiwOqgI4pFIYbNTfBXiKYyWoTsXgBQ9WFg/OlhnvHaY+AEpW7wSmFo2Q==}
 
@@ -3995,6 +4001,8 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
     optional: true
+
+  sweetalert2@11.26.25: {}
 
   tailwindcss@4.2.2: {}
 

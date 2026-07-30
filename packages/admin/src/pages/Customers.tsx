@@ -464,7 +464,7 @@ export default function Customers() {
         )}
 
         {/* Customer Info Card */}
-        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
+        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-4 sm:p-5">
           {editing ? (
             <form onSubmit={handleEdit}>
               <div className="mb-4 flex items-center justify-between">
@@ -510,9 +510,9 @@ export default function Customers() {
           ) : (
             <>
               <div className="flex items-start justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-[var(--color-espresso)]">
+                    <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">
                       {selectedCustomer.businessName}
                     </h1>
                     {selectedCustomer.isArchived && (
@@ -590,9 +590,9 @@ export default function Customers() {
         </div>
 
         {/* Orders */}
-        <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-[var(--color-espresso)]">
+        <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-4 sm:p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-base font-semibold text-[var(--color-espresso)] sm:text-lg">
               Siparişler ({customerOrders.length})
             </h2>
             <div className="flex items-center gap-2">
@@ -627,7 +627,7 @@ export default function Customers() {
               {/* Items */}
               <div className="mb-3 space-y-2">
                 {orderItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-[1fr_80px_100px_1fr_32px] gap-2">
+                  <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_80px_100px_1fr_32px]">
                     <div>
                       {item.productName ? (
                         <div className="flex items-center gap-1 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-cream)]/30 px-2.5 py-1.5 text-sm">
@@ -650,22 +650,32 @@ export default function Customers() {
                         />
                       )}
                     </div>
-                    <input
-                      type="number"
-                      placeholder="Adet"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateOrderItem(index, 'quantity', e.target.value)}
-                      className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Birim ₺"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) => updateOrderItem(index, 'unitPrice', e.target.value)}
-                      className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
-                    />
+                    <div className="grid grid-cols-[1fr_1fr_32px] gap-2 sm:contents">
+                      <input
+                        type="number"
+                        placeholder="Adet"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateOrderItem(index, 'quantity', e.target.value)}
+                        className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Birim ₺"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={(e) => updateOrderItem(index, 'unitPrice', e.target.value)}
+                        className="rounded-lg border border-[var(--color-cream-deep)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-brass)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeOrderItemRow(index)}
+                        disabled={orderItems.length <= 1}
+                        className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30 sm:hidden"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                     <input
                       placeholder="Not (opsiyonel)"
                       value={item.specifications}
@@ -676,7 +686,7 @@ export default function Customers() {
                       type="button"
                       onClick={() => removeOrderItemRow(index)}
                       disabled={orderItems.length <= 1}
-                      className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30"
+                      className="hidden items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30 sm:flex"
                     >
                       <X size={16} />
                     </button>
@@ -794,16 +804,16 @@ export default function Customers() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Müşteriler</h1>
-          <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+          <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Müşteriler</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
             {showArchived ? 'Arşivlenmiş müşteriler' : 'Müşteri listesi'}
           </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
+          className="flex items-center justify-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
         >
           <Plus size={16} />
           Müşteri Ekle
@@ -815,48 +825,50 @@ export default function Customers() {
       )}
 
       {/* Search + Filters */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
           <input
             type="text"
             placeholder="İşletme adı, yetkili veya telefon ile ara..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 outline-none focus:border-[var(--color-brass)]"
+            className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--color-brass)]"
           />
         </div>
-        <button
-          onClick={() => setShowArchived(!showArchived)}
-          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-            showArchived
-              ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
-              : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
-          }`}
-        >
-          <Archive size={14} />
-          Arşiv
-        </button>
-        {debugMode && (
+        <div className="flex gap-2">
           <button
-            type="button"
-            onClick={toggleSelectAll}
+            onClick={() => setShowArchived(!showArchived)}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-              selectedCustomers.size === customers.length && customers.length > 0
+              showArchived
                 ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
                 : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
             }`}
-            title={selectedCustomers.size === customers.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
           >
-            <CheckSquare size={14} />
-            {selectedCustomers.size === customers.length ? 'Bırak' : 'Tümü'}
+            <Archive size={14} />
+            <span className="hidden sm:inline">Arşiv</span>
           </button>
-        )}
+          {debugMode && (
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                selectedCustomers.size === customers.length && customers.length > 0
+                  ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                  : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+              }`}
+              title={selectedCustomers.size === customers.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
+            >
+              <CheckSquare size={14} />
+              <span className="hidden sm:inline">{selectedCustomers.size === customers.length ? 'Bırak' : 'Tümü'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Bulk Actions Bar */}
       {debugMode && selectedCustomers.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-4 py-2.5">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-3 py-2.5 sm:gap-3 sm:px-4">
           <span className="text-sm font-medium text-[var(--color-wood-dark)]">
             {selectedCustomers.size} müşteri seçildi
           </span>
@@ -901,7 +913,7 @@ export default function Customers() {
 
       {/* Create Form */}
       {showForm && (
-        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
+        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold">Yeni Müşteri</h2>
             <button onClick={() => setShowForm(false)}>
@@ -938,8 +950,8 @@ export default function Customers() {
         </div>
       )}
 
-      {/* Customer List */}
-      <div className="overflow-hidden rounded-xl border border-[var(--color-cream-deep)] bg-white">
+      {/* Desktop Table */}
+      <div className="hidden overflow-hidden rounded-xl border border-[var(--color-cream-deep)] bg-white md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
             <tr>
@@ -1035,6 +1047,70 @@ export default function Customers() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="space-y-2 md:hidden">
+        {loading ? (
+          <div className="flex h-32 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
+          </div>
+        ) : customers.length === 0 ? (
+          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/40">
+            Müşteri bulunamadı
+          </div>
+        ) : (
+          customers.map((c) => {
+            const isChecked = selectedCustomers.has(c.id)
+            return (
+              <button
+                key={c.id}
+                onClick={() => openCustomerDetail(c)}
+                className={`w-full rounded-xl border bg-white p-3 text-left transition-colors ${
+                  isChecked
+                    ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/5'
+                    : 'border-[var(--color-cream-deep)]'
+                } ${c.isArchived ? 'opacity-60' : ''}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {debugMode && (
+                        <div
+                          onClick={(e) => toggleCustomerSelection(c.id, e)}
+                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                            isChecked
+                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                          }`}
+                        >
+                          {isChecked && <CheckSquare size={12} />}
+                        </div>
+                      )}
+                      <span className="text-sm font-medium">{c.businessName}</span>
+                      {c.isArchived && (
+                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--color-ink)]/60">{c.contactName}</div>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-[var(--color-ink)]/50">
+                      <span>{c.phone}</span>
+                      {c.city && <span>{c.city}</span>}
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        (c.orderCount || 0) > 0
+                          ? 'bg-[var(--color-cream-deep)] text-[var(--color-wood-dark)]'
+                          : 'bg-gray-50 text-gray-400'
+                      }`}>
+                        {c.orderCount || 0} sipariş
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="mt-1 shrink-0 text-[var(--color-ink)]/30" />
+                </div>
+              </button>
+            )
+          })
+        )}
       </div>
 
       {/* Bulk Delete Confirmation Modal */}

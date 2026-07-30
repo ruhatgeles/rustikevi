@@ -19,6 +19,8 @@ interface UpdateUserInput {
   password?: string
   role?: string
   isActive?: boolean
+  isLoginBlocked?: boolean
+  isViewOnly?: boolean
 }
 
 export async function listUsers(
@@ -44,6 +46,8 @@ export async function listUsers(
       name: users.name,
       role: users.role,
       isActive: users.isActive,
+      isLoginBlocked: users.isLoginBlocked,
+      isViewOnly: users.isViewOnly,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     })
@@ -159,6 +163,8 @@ export async function updateUser(id: string, input: UpdateUserInput) {
       name: users.name,
       role: users.role,
       isActive: users.isActive,
+      isLoginBlocked: users.isLoginBlocked,
+      isViewOnly: users.isViewOnly,
       updatedAt: users.updatedAt,
     })
 

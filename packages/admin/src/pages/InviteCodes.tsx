@@ -73,16 +73,16 @@ export default function InviteCodes() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-espresso)]">Davet Kodları</h1>
-          <p className="mt-1 text-sm text-[var(--color-ink)]/50">
+          <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Davet Kodları</h1>
+          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
             Yeni kullanıcı kaydı için davet kodları oluşturun.
           </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
+          className="flex items-center justify-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
         >
           <Plus size={16} />
           Kod Oluştur
@@ -94,7 +94,7 @@ export default function InviteCodes() {
       )}
 
       {showForm && (
-        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-5">
+        <div className="mb-6 rounded-xl border border-[var(--color-cream-deep)] bg-white p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold">Yeni Davet Kodu</h2>
             <button onClick={() => setShowForm(false)}>
@@ -148,31 +148,33 @@ export default function InviteCodes() {
           codes.map((code) => (
             <div
               key={code.id}
-              className="flex items-center justify-between rounded-xl border border-[var(--color-cream-deep)] bg-white p-4"
+              className="flex items-center justify-between rounded-xl border border-[var(--color-cream-deep)] bg-white p-3 sm:p-4"
             >
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => copyCode(code.code, code.id)}
-                  className="flex items-center gap-2 rounded-lg bg-[var(--color-cream)] px-3 py-1.5 font-mono text-sm font-medium transition-colors hover:bg-[var(--color-cream-deep)]"
-                >
-                  {copiedId === code.id ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-                  {code.code}
-                </button>
-                <span className="rounded-full bg-[var(--color-cream-deep)] px-2.5 py-0.5 text-xs font-medium">
-                  {code.role}
-                </span>
-                <span className="text-xs text-[var(--color-ink)]/50">
-                  {code.useCount}/{code.maxUses ?? '∞'} kullanım
-                </span>
-                {code.expiresAt && (
-                  <span className="text-xs text-[var(--color-ink)]/40">
-                    Son: {new Date(code.expiresAt).toLocaleDateString('tr-TR')}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => copyCode(code.code, code.id)}
+                    className="flex items-center gap-2 rounded-lg bg-[var(--color-cream)] px-3 py-1.5 font-mono text-sm font-medium transition-colors hover:bg-[var(--color-cream-deep)]"
+                  >
+                    {copiedId === code.id ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                    {code.code}
+                  </button>
+                  <span className="rounded-full bg-[var(--color-cream-deep)] px-2.5 py-0.5 text-xs font-medium">
+                    {code.role}
                   </span>
-                )}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--color-ink)]/50">
+                  <span>{code.useCount}/{code.maxUses ?? '∞'} kullanım</span>
+                  {code.expiresAt && (
+                    <span className="text-[var(--color-ink)]/40">
+                      Son: {new Date(code.expiresAt).toLocaleDateString('tr-TR')}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => handleDelete(code.id)}
-                className="rounded p-1.5 text-red-500 transition-colors hover:bg-red-50"
+                className="ml-2 shrink-0 rounded p-1.5 text-red-500 transition-colors hover:bg-red-50"
               >
                 <Trash2 size={16} />
               </button>
