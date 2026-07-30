@@ -192,6 +192,10 @@ export default function Orders() {
   const [itemToDelete, setItemToDelete] = useState<string | null>(null)
   const [itemDeleteLoading, setItemDeleteLoading] = useState(false)
 
+  // Item-level return & exchange
+  const [itemToReturn, setItemToReturn] = useState<OrderItem | null>(null)
+  const [itemToExchange, setItemToExchange] = useState<OrderItem | null>(null)
+
   // Navigate from customer detail → auto-select order
   useEffect(() => {
     const orderId = (location.state as any)?.orderId
@@ -1223,6 +1227,29 @@ export default function Orders() {
                               )}
                             </div>
                           </div>
+                          {/* Return & Exchange buttons in edit mode */}
+                          {editMode && (
+                            <div className="mt-2 flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setItemToReturn(item)
+                                  setShowReturnModal(true)
+                                }}
+                                className="flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-100"
+                              >
+                                İade Al
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setItemToExchange(item)
+                                  setShowExchangeModal(true)
+                                }}
+                                className="flex items-center gap-1 rounded-md border border-pink-200 bg-pink-50 px-2 py-1 text-[11px] font-medium text-pink-600 transition-colors hover:bg-pink-100"
+                              >
+                                Değişim Yap
+                              </button>
+                            </div>
+                          )}
                           {/* Item status selector */}
                           <div className="mt-2 flex flex-wrap gap-1">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${itemConfig.bgColor} ${itemConfig.color}`}>
@@ -1381,8 +1408,9 @@ export default function Orders() {
             open={showReturnModal}
             orderItems={selectedOrder.items || []}
             orderNumber={selectedOrder.orderNumber}
+            preselectedItemId={itemToReturn?.id}
             onConfirm={handleReturn}
-            onCancel={() => setShowReturnModal(false)}
+            onCancel={() => { setShowReturnModal(false); setItemToReturn(null) }}
             loading={returnLoading}
           />
         )}
@@ -1393,8 +1421,9 @@ export default function Orders() {
             open={showExchangeModal}
             orderItems={selectedOrder.items || []}
             orderNumber={selectedOrder.orderNumber}
+            preselectedItemId={itemToExchange?.id}
             onConfirm={handleExchange}
-            onCancel={() => setShowExchangeModal(false)}
+            onCancel={() => { setShowExchangeModal(false); setItemToExchange(null) }}
             loading={exchangeLoading}
           />
         )}

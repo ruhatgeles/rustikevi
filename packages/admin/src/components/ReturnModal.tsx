@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Package, AlertTriangle } from 'lucide-react'
 
 interface OrderItem {
@@ -13,6 +13,7 @@ interface ReturnModalProps {
   open: boolean
   orderItems: OrderItem[]
   orderNumber: string
+  preselectedItemId?: string | null
   onConfirm: (data: {
     items: Array<{ orderItemId: string; quantity: number; note?: string }>
     returnShippingCost?: number
@@ -26,6 +27,7 @@ export default function ReturnModal({
   open,
   orderItems,
   orderNumber,
+  preselectedItemId,
   onConfirm,
   onCancel,
   loading = false,
@@ -33,6 +35,16 @@ export default function ReturnModal({
   const [selectedItems, setSelectedItems] = useState<Record<string, { quantity: number; note: string }>>({})
   const [returnShippingCost, setReturnShippingCost] = useState('')
   const [note, setNote] = useState('')
+
+  // Auto-select preselected item when modal opens
+  useEffect(() => {
+    if (open && preselectedItemId) {
+      const item = orderItems.find((i) => i.id === preselectedItemId)
+      if (item) {
+        setSelectedItems({ [preselectedItemId]: { quantity: item.quantity, note: '' } })
+      }
+    }
+  }, [open, preselectedItemId])
 
   if (!open) return null
 

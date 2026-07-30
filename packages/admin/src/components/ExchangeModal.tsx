@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Package, ArrowRight, Plus, Trash2 } from 'lucide-react'
 import ProductSearch from './ProductSearch'
 
@@ -23,6 +23,7 @@ interface ExchangeModalProps {
   open: boolean
   orderItems: OrderItem[]
   orderNumber: string
+  preselectedItemId?: string | null
   onConfirm: (data: {
     oldItems: Array<{ orderItemId: string; quantity: number; note?: string }>
     newItems: Array<{ productName: string; quantity: number; unitPrice?: number; specifications?: string }>
@@ -43,6 +44,7 @@ export default function ExchangeModal({
   open,
   orderItems,
   orderNumber,
+  preselectedItemId,
   onConfirm,
   onCancel,
   loading = false,
@@ -50,6 +52,16 @@ export default function ExchangeModal({
   const [selectedOldItems, setSelectedOldItems] = useState<Record<string, { quantity: number; note: string }>>({})
   const [newItems, setNewItems] = useState<NewItem[]>([])
   const [note, setNote] = useState('')
+
+  // Auto-select preselected item when modal opens
+  useEffect(() => {
+    if (open && preselectedItemId) {
+      const item = orderItems.find((i) => i.id === preselectedItemId)
+      if (item) {
+        setSelectedOldItems({ [preselectedItemId]: { quantity: item.quantity, note: '' } })
+      }
+    }
+  }, [open, preselectedItemId])
 
   if (!open) return null
 
