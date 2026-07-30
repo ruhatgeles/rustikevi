@@ -22,6 +22,7 @@ import {
   ArchiveRestore,
   CheckSquare,
   Trash2,
+  Plus,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
