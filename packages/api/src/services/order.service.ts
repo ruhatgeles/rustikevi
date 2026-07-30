@@ -322,9 +322,8 @@ export async function updateOrderStatus(
 
   const newitemStatus = ORDER_TO_ITEM_STATUS[newStatus]
   if (newitemStatus) {
-    // Sadece daha gerideki kalemleri güncelle
     const items = await db
-      .select({ id: orderItems.id, itemStatus: orderItems.itemStatus })
+      .select({ id: orderItems.id, itemStatus: orderItems.itemStatus, productName: orderItems.productName })
       .from(orderItems)
       .where(eq(orderItems.orderId, id))
 
@@ -332,8 +331,13 @@ export async function updateOrderStatus(
 
     for (const item of items) {
       const currentProgress = ITEM_STATUS_PROGRESS[item.itemStatus] ?? 0
-      // Sadece daha gerideki kalemleri ilerlet
-      if (currentProgress < newProgress) {
+      // İleriye adım: gerideki kalemleri ilerlet
+      // Geriye adım: ilerideki kalemleri geri al
+      const shouldUpdate =
+        currentProgress < newProgress || // ileriye
+        currentProgress > newProgress    // geriye
+
+      if (shouldUpdate) {
         await db
           .update(orderItems)
           .set({ itemStatus: newitemStatus as any })
