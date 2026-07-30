@@ -187,6 +187,11 @@ export default function Orders() {
   const [addItemResults, setAddItemResults] = useState<any[]>([])
   const [addItemLoading, setAddItemLoading] = useState(false)
 
+  // Item delete confirmation
+  const [showItemDeleteModal, setShowItemDeleteModal] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null)
+  const [itemDeleteLoading, setItemDeleteLoading] = useState(false)
+
   // Navigate from customer detail → auto-select order
   useEffect(() => {
     const orderId = (location.state as any)?.orderId
@@ -227,6 +232,10 @@ export default function Orders() {
     setLoadingDetail(true)
     try {
       const order = await api.request<Order>(`/api/orders/${id}`)
+      // Sort items by id to keep stable order
+      if (order.items) {
+        order.items = [...order.items].sort((a, b) => a.id.localeCompare(b.id))
+      }
       setSelectedOrder(order)
     } catch (err: any) {
       setError(err.message)
@@ -431,6 +440,31 @@ export default function Orders() {
       const result = await api.request<any[]>(`/api/products?search=${encodeURIComponent(query)}&limit=10`)
       setAddItemResults(result)
     } catch { setAddItemResults([]) }
+  }
+
+  // Delete item from order
+  const handleDeleteItemClick = (itemId: string) => {
+    setItemToDelete(itemId)
+    setShowItemDeleteModal(true)
+  }
+
+  const handleDeleteItemConfirm = async () => {
+    if (!itemToDelete || !selectedOrder) return
+    setItemDeleteLoading(true)
+    setError('')
+    try {
+      await api.request(`/api/orders/${selectedOrder.id}/items/${itemToDelete}`, {
+        method: 'DELETE',
+      })
+      setShowItemDeleteModal(false)
+      setItemToDelete(null)
+      loadOrderDetail(selectedOrder.id)
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setItemDeleteLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -1181,18 +1215,7 @@ export default function Orders() {
                               <div className="text-sm font-semibold">{formatPrice(item.totalPrice)}</div>
                               {editMode && (
                                 <button
-                                  onClick={async () => {
-                                    if (!confirm('Bu ürünü siparişten çıkarmak istediğinize emin misiniz?')) return
-                                    try {
-                                      await api.request(`/api/orders/${selectedOrder.id}/items/${item.id}`, {
-                                        method: 'DELETE',
-                                      })
-                                      loadOrderDetail(selectedOrder.id)
-                                      loadOrders()
-                                    } catch (err: any) {
-                                      setError(err.message)
-                                    }
-                                  }}
+                                  onClick={() => handleDeleteItemClick(item.id)}
                                   className="rounded p-1 text-red-500 transition-colors hover:bg-red-50"
                                 >
                                   <Trash2 size={14} />
@@ -1337,6 +1360,19 @@ export default function Orders() {
           onConfirm={handleBulkDeleteConfirm}
           onCancel={() => setShowDeleteModal(false)}
           loading={bulkLoading}
+        />
+
+        {/* Item Delete Confirmation Modal */}
+        <ConfirmModal
+          open={showItemDeleteModal}
+          title="Ürünü Çıkar"
+          message="Bu ürünü siparişten çıkarmak istediğinize emin misiniz?"
+          confirmText="Evet, Çıkar"
+          cancelText="Vazgeç"
+          variant="danger"
+          onConfirm={handleDeleteItemConfirm}
+          onCancel={() => { setShowItemDeleteModal(false); setItemToDelete(null) }}
+          loading={itemDeleteLoading}
         />
 
         {/* Return Modal */}
