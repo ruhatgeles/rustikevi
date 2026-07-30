@@ -181,6 +181,12 @@ export default function Orders() {
   const [returnLoading, setReturnLoading] = useState(false)
   const [exchangeLoading, setExchangeLoading] = useState(false)
 
+  // Add item modal
+  const [showAddItemModal, setShowAddItemModal] = useState(false)
+  const [addItemSearch, setAddItemSearch] = useState('')
+  const [addItemResults, setAddItemResults] = useState<any[]>([])
+  const [addItemLoading, setAddItemLoading] = useState(false)
+
   // Navigate from customer detail → auto-select order
   useEffect(() => {
     const orderId = (location.state as any)?.orderId
@@ -416,6 +422,47 @@ export default function Orders() {
   const closeDetail = () => {
     setSelectedOrder(null)
     setNewNote('')
+  }
+
+  // Add item to existing order
+  const searchProducts = async (query: string) => {
+    if (query.length < 2) { setAddItemResults([]); return }
+    try {
+      const result = await api.request<any[]>(`/api/products?search=${encodeURIComponent(query)}&limit=10`)
+      setAddItemResults(result)
+    } catch { setAddItemResults([]) }
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (addItemSearch) searchProducts(addItemSearch)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [addItemSearch])
+
+  const handleAddItemToOrder = async (product: any) => {
+    if (!selectedOrder) return
+    setAddItemLoading(true)
+    setError('')
+    try {
+      await api.request(`/api/orders/${selectedOrder.id}/items`, {
+        method: 'POST',
+        body: {
+          productName: product.name,
+          quantity: 1,
+          unitPrice: product.price || undefined,
+        },
+      })
+      setShowAddItemModal(false)
+      setAddItemSearch('')
+      setAddItemResults([])
+      loadOrderDetail(selectedOrder.id)
+      loadOrders()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setAddItemLoading(false)
+    }
   }
 
   // Return & Exchange handlers
@@ -1059,7 +1106,7 @@ export default function Orders() {
                       </button>
                       {editMode && (
                         <button
-                          onClick={() => setShowOrderForm(true)}
+                          onClick={() => setShowAddItemModal(true)}
                           className="flex items-center gap-1 rounded-lg bg-[var(--color-cream-deep)] px-2 py-1 text-xs font-medium hover:bg-[var(--color-brass)]/20"
                         >
                           <Plus size={12} />
@@ -1314,6 +1361,63 @@ export default function Orders() {
             onCancel={() => setShowExchangeModal(false)}
             loading={exchangeLoading}
           />
+        )}
+
+        {/* Add Item Modal */}
+        {showAddItemModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowAddItemModal(false); setAddItemSearch(''); setAddItemResults([]) }}>
+            <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl sm:p-5" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[var(--color-espresso)]">Ürün Ekle</h3>
+                <button onClick={() => { setShowAddItemModal(false); setAddItemSearch(''); setAddItemResults([]) }} className="text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="relative mb-3">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
+                <input
+                  type="text"
+                  value={addItemSearch}
+                  onChange={(e) => setAddItemSearch(e.target.value)}
+                  placeholder="Ürün ara..."
+                  autoFocus
+                  className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-[var(--color-brass)]"
+                />
+              </div>
+              <div className="max-h-60 space-y-1 overflow-y-auto">
+                {addItemResults.length === 0 ? (
+                  <div className="py-4 text-center text-sm text-[var(--color-ink)]/40">
+                    {addItemSearch.length < 2 ? 'Ürün adı veya kodu yazın' : 'Ürün bulunamadı'}
+                  </div>
+                ) : (
+                  addItemResults.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => handleAddItemToOrder(product)}
+                      disabled={addItemLoading}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[var(--color-cream)]/50 disabled:opacity-50"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          {product.productCode && (
+                            <span className="rounded bg-[var(--color-cream-deep)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--color-wood-dark)]">
+                              {product.productCode}
+                            </span>
+                          )}
+                          <span className="text-sm font-medium">{product.name}</span>
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--color-ink)]/50">
+                          {product.category}
+                          {product.price && ` · ${new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(product.price / 100)}`}
+                        </div>
+                      </div>
+                      <Plus size={16} className="shrink-0 text-[var(--color-wood-dark)]" />
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
   )

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
@@ -109,33 +109,27 @@ export default function Products() {
   }, [products, debouncedSearch, filterCategory])
 
   // Freeze display order during editing so products don't shift mid-edit
-  const frozenOrderRef = useRef<Map<number, Product> | null>(null)
+  const [frozenIds, setFrozenIds] = useState<number[] | null>(null)
 
   useEffect(() => {
-    if (editingId !== null) {
+    if (editingId !== null && frozenIds === null) {
       // Start editing: snapshot the current filtered order
-      if (!frozenOrderRef.current) {
-        const map = new Map<number, Product>()
-        for (const p of filtered) map.set(p.id, p)
-        frozenOrderRef.current = map
-      }
-    } else {
+      setFrozenIds(filtered.map((p) => p.id))
+    } else if (editingId === null && frozenIds !== null) {
       // Editing finished: clear freeze
-      frozenOrderRef.current = null
+      setFrozenIds(null)
     }
-  }, [editingId, filtered])
+  }, [editingId])
 
   const displayProducts = useMemo(() => {
-    if (frozenOrderRef.current) {
+    if (frozenIds) {
       // During editing, keep frozen order but reflect live data from filtered
       const filteredMap = new Map<number, Product>()
       for (const p of filtered) filteredMap.set(p.id, p)
-      return Array.from(frozenOrderRef.current.keys())
-        .map((id) => filteredMap.get(id)!)
-        .filter(Boolean)
+      return frozenIds.map((id) => filteredMap.get(id)).filter(Boolean) as Product[]
     }
     return filtered
-  }, [filtered, editingId])
+  }, [filtered, frozenIds])
 
   // Selection
   const toggleProductSelection = useCallback((id: number, e: React.MouseEvent) => {
