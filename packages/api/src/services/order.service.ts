@@ -148,6 +148,7 @@ export async function listOrders(filters?: {
   const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(orders)
+    .leftJoin(customers, eq(orders.customerId, customers.id))
     .where(where)
 
   const data = await db

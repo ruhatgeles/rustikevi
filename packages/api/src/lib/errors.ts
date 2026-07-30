@@ -16,7 +16,7 @@ export function errorHandler(err: Error, c: Context) {
   if (err instanceof ZodError) {
     return c.json(
       {
-        error: 'Validation error',
+        error: 'Doğrulama hatası',
         details: err.errors.map((e) => ({
           path: e.path.join('.'),
           message: e.message,
@@ -30,6 +30,15 @@ export function errorHandler(err: Error, c: Context) {
     return c.json({ error: err.message }, err.status as any)
   }
 
-  console.error('Unhandled error:', err)
-  return c.json({ error: 'Internal server error' }, 500)
+  // Hata detaylarını logla
+  console.error('═══════════════════════════════════════')
+  console.error('❌ Beklenmeyen Hata:')
+  console.error('Mesaj:', err.message)
+  console.error('Stack:', err.stack)
+  if ((err as any).cause) {
+    console.error('Neden:', (err as any).cause)
+  }
+  console.error('═══════════════════════════════════════')
+
+  return c.json({ error: 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.' }, 500)
 }
