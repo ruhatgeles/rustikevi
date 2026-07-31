@@ -13,6 +13,7 @@ import Products from './pages/Products'
 import Orders from './pages/Orders'
 import Status from './pages/Status'
 import Atolye from './pages/Atolye'
+import AutoLogin from './pages/AutoLogin'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -47,6 +48,7 @@ export default function App() {
         <DebugProvider>
         <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/auto-login/:token" element={<AutoLogin />} />
         <Route
           path="/"
           element={

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { Plus, Pencil, Trash2, X, Save, ShieldBan, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Save, ShieldBan, Eye, Link, Copy, Check } from 'lucide-react'
 import ConfirmModal from '../components/ConfirmModal'
 import Swal from 'sweetalert2'
 
@@ -100,6 +100,45 @@ export default function Users() {
       loadUsers()
     } catch (err: any) {
       setError(err.message)
+    }
+  }
+
+  const [generatedLink, setGeneratedLink] = useState<{ userId: string; url: string } | null>(null)
+  const [copiedLink, setCopiedLink] = useState(false)
+
+  const handleGenerateLink = async (user: User) => {
+    try {
+      const result = await api.request<{ url: string; token: string; expiresAt: string }>(
+        '/api/auto-login/generate',
+        {
+          method: 'POST',
+          body: { userId: user.id },
+        }
+      )
+      setGeneratedLink({ userId: user.id, url: result.url })
+      setCopiedLink(false)
+    } catch (err: any) {
+      Swal.fire('Hata', err.message || 'Link oluşturulamadı', 'error')
+    }
+  }
+
+  const handleCopyLink = () => {
+    if (generatedLink?.url) {
+      navigator.clipboard.writeText(generatedLink.url)
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2000)
+    }
+  }
+
+  const handleDeleteLink = async (userId: string) => {
+    try {
+      await api.request(`/api/auto-login/${userId}`, { method: 'DELETE' })
+      if (generatedLink?.userId === userId) {
+        setGeneratedLink(null)
+      }
+      Swal.fire('Silindi', 'Otomatik giriş linki silindi', 'success')
+    } catch (err: any) {
+      Swal.fire('Hata', err.message || 'Link silinemedi', 'error')
     }
   }
 
@@ -258,6 +297,7 @@ export default function Users() {
               <option value="viewer">Viewer</option>
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
+              <option value="atolye">Atölye</option>
             </select>
             <button
               type="submit"
@@ -320,6 +360,7 @@ export default function Users() {
                 <option value="viewer">Viewer</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
+                <option value="atolye">Atölye</option>
               </select>
             </div>
             <div className="flex gap-2 sm:col-span-2">
@@ -422,6 +463,13 @@ export default function Users() {
                           <ShieldBan size={16} />
                         </button>
                         <button
+                          onClick={() => handleGenerateLink(user)}
+                          title="Otomatik giriş linki"
+                          className="rounded p-1 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                        >
+                          <Link size={16} />
+                        </button>
+                        <button
                           onClick={() => handleDeactivateClick(user.id)}
                           className="rounded p-1 text-red-500 transition-colors hover:bg-red-50"
                         >
@@ -522,6 +570,60 @@ export default function Users() {
         onConfirm={handleDeactivateConfirm}
         onCancel={() => { setShowDeleteModal(false); setUserToDelete(null) }}
       />
+
+      {/* Otomatik Giriş Linki Modal */}
+      {generatedLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl border border-[var(--color-cream-deep)] bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[var(--color-espresso)]">
+                Otomatik Giriş Linki
+              </h3>
+              <button
+                onClick={() => setGeneratedLink(null)}
+                className="rounded-lg p-1 text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)]"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-[var(--color-ink)]/60">
+              Bu link 30 gün geçerlidir. Kullanıcı bu link ile şifre girmeden giriş yapabilir.
+            </p>
+
+            <div className="mb-4 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-linen)] p-3">
+              <p className="break-all font-mono text-xs text-[var(--color-ink)]">
+                {generatedLink.url}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCopyLink}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--color-wood)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-wood-dark)]"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check size={16} />
+                    Kopyalandı!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} />
+                    Linki Kopyala
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleDeleteLink(generatedLink.userId)}
+                className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                Linki Sil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

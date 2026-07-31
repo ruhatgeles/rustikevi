@@ -66,6 +66,18 @@ export const refreshTokens = pgTable('refresh_tokens', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+// ── Auto Login Tokens ──────────────────────────────────
+
+export const autoLoginTokens = pgTable('auto_login_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: varchar('token_hash', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
 // ── Invite Codes ───────────────────────────────────────
 
 export const inviteCodes = pgTable('invite_codes', {

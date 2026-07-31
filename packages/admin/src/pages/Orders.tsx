@@ -27,6 +27,7 @@ import {
   Pencil,
   ImageIcon,
   Lock,
+  ArrowRight,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
@@ -43,6 +44,7 @@ interface OrderItem {
   isExchanged: boolean
   exchangeNote: string | null
   isLocked: boolean
+  isReadyInWorkshop: boolean
 }
 
 interface OrderActivity {
@@ -1162,8 +1164,12 @@ export default function Orders() {
                     {selectedOrder.items?.map((item) => {
                       const itemConfig = ITEM_STATUS_CONFIG[item.itemStatus] || ITEM_STATUS_CONFIG.pending
                       return (
-                        <div key={item.id} className={`rounded-lg border p-3 ${
-                          editMode ? 'border-[var(--color-brass)]' : 'border-[var(--color-cream-deep)]'
+                        <div key={item.id} className={`rounded-lg border-2 p-3 ${
+                          item.isReadyInWorkshop
+                            ? 'border-green-500 bg-green-50/50'
+                            : editMode
+                              ? 'border-[var(--color-brass)]'
+                              : 'border-[var(--color-cream-deep)]'
                         }`}>
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -1173,6 +1179,12 @@ export default function Orders() {
                                   <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-wood)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-wood-dark)]">
                                     <Lock size={10} />
                                     Kilitli
+                                  </span>
+                                )}
+                                {item.isReadyInWorkshop && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-bold text-green-700">
+                                    <CheckCircle size={12} />
+                                    TRANSFER HAZIR
                                   </span>
                                 )}
                               </div>
