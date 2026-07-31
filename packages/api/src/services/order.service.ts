@@ -88,10 +88,10 @@ const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
 }
 
 const VALID_ITEM_TRANSITIONS: Record<string, string[]> = {
-  pending: ['confirmed', 'atelier', 'in_production'],
-  confirmed: ['pending', 'atelier', 'in_production'],
-  atelier: ['confirmed', 'in_production', 'ready'],
-  in_production: ['confirmed', 'atelier', 'ready'],
+  pending: ['confirmed', 'atelier', 'in_production', 'cancelled'],
+  confirmed: ['pending', 'atelier', 'in_production', 'cancelled'],
+  atelier: ['confirmed', 'in_production', 'ready', 'cancelled'],
+  in_production: ['confirmed', 'atelier', 'ready', 'cancelled'],
   ready: ['atelier', 'in_production', 'shipped', 'delivered'],
   shipped: ['ready', 'delivered'],
   delivered: ['ready', 'shipped', 'returned', 'exchanged'],
@@ -452,19 +452,12 @@ export async function updateItemStatus(
     )
   }
 
-  // Kilitli kalem kontrolü: atolye rolü veya admin olmayanlar kilitleyemez
-  if (item.isLocked && userRole && userRole !== 'admin' && userRole !== 'atolye') {
-    throw new AppError(403, 'Bu kalem kilitli. Sadece atölye veya admin kullanıcılar güncelleyebilir.')
-  }
-
-  // atelier → ready geçişi: sadece manager veya admin yapabilir
-  if (oldStatus === 'atelier' && newStatus === 'ready' && userRole && userRole !== 'admin' && userRole !== 'manager') {
-    throw new AppError(403, 'Atölyeden hazır durumuna geçiş sadece manager veya admin tarafından yapılabilir.')
-  }
-
-  // Kilitli kalemi atolye rolü ile güncelliyorsa sadece ready yapabilir
-  if (item.isLocked && userRole === 'atolye' && newStatus !== 'ready') {
-    throw new AppError(403, 'Atölye kullanıcıları kilitli kalemleri sadece "hazır" durumuna geçirebilir.')
+  // Kilitli kalem kontrolü: sadece iptal, iade, değişim yapılabilir
+  if (item.isLocked && oldStatus === 'atelier') {
+    const allowedForLocked = ['cancelled', 'returned', 'exchanged']
+    if (!allowedForLocked.includes(newStatus)) {
+      throw new AppError(403, 'Kilitli kalem sadece iptal, iade veya değişim yapılabilir. Önce kilidi açın veya atölye kullanıcısından "Atölyede Hazır" işaretlemesini isteyin.')
+    }
   }
 
   await db
@@ -1090,16 +1083,17 @@ export async function markItemReadyInWorkshop(
     throw new AppError(400, 'Sadece atölyedeki kalemler "hazır" olarak işaretlenebilir')
   }
 
+  // Kilit kalkar ve status ready olur
   await db
     .update(orderItems)
-    .set({ itemStatus: 'ready' as any })
+    .set({ itemStatus: 'ready' as any, isLocked: false })
     .where(eq(orderItems.id, itemId))
 
   await addActivity(
     orderId,
     userId,
     'item_ready_workshop',
-    `${item.productName}: Atölyede hazır`,
+    `${item.productName}: Atölyede hazır - Transfer`,
     { itemId, productName: item.productName },
   )
 
@@ -1129,7 +1123,7 @@ export async function markItemReadyInWorkshop(
   return getOrderById(orderId)
 }
 
-// Atölyedeki tüm kilitli kalemleri getir
+// Atölyedeki kalemleri getir (atelier + transfer/ready)
 export async function getAtelierItems() {
   const items = await db
     .select({
@@ -1157,7 +1151,7 @@ export async function getAtelierItems() {
     .leftJoin(products, eq(orderItems.productId, products.id))
     .where(
       and(
-        eq(orderItems.itemStatus, 'atelier'),
+        inArray(orderItems.itemStatus, ['atelier', 'ready']),
         eq(orders.isArchived, false),
       ),
     )

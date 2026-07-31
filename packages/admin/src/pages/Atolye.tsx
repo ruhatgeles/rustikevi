@@ -10,6 +10,7 @@ import {
   User,
   RefreshCw,
   AlertTriangle,
+  ArrowRight,
 } from 'lucide-react'
 
 interface AtelierItem {
@@ -195,9 +196,14 @@ export default function Atolye() {
                   </div>
                 </div>
 
-                {/* Lock Status Badge */}
+                {/* Status Badge */}
                 <div className="flex items-center gap-2">
-                  {item.isLocked ? (
+                  {item.itemStatus === 'ready' ? (
+                    <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-sm font-medium text-green-700">
+                      <ArrowRight size={14} />
+                      Transfer
+                    </span>
+                  ) : item.isLocked ? (
                     <span className="flex items-center gap-1.5 rounded-full bg-[var(--color-wood)]/10 px-3 py-1.5 text-sm font-medium text-[var(--color-wood-dark)]">
                       <Lock size={14} />
                       Kilitli
@@ -220,44 +226,55 @@ export default function Atolye() {
                 </div>
               )}
 
-              {/* Actions */}
-              <div className="flex flex-wrap gap-3 border-t border-[var(--color-cream-deep)] pt-4">
-                {/* Kilitle butonu - sadece kilitli olmayan ve manager/admin */}
-                {!item.isLocked && (isAdmin || user?.role === 'manager') && (
-                  <button
-                    onClick={() => handleLock(item.orderId, item.id)}
-                    disabled={actionLoading === item.id}
-                    className="flex items-center gap-2 rounded-lg bg-[var(--color-wood)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-wood-dark)] disabled:opacity-50"
-                  >
-                    <Lock size={16} />
-                    {actionLoading === item.id ? 'Kilitleniyor...' : 'Kilitle'}
-                  </button>
-                )}
+              {/* Actions - sadece atelier durumundaki kalemler için */}
+              {item.itemStatus === 'atelier' && (
+                <div className="flex flex-wrap gap-3 border-t border-[var(--color-cream-deep)] pt-4">
+                  {/* Kilitle butonu - sadece kilitli olmayan ve manager/admin */}
+                  {!item.isLocked && (isAdmin || user?.role === 'manager') && (
+                    <button
+                      onClick={() => handleLock(item.orderId, item.id)}
+                      disabled={actionLoading === item.id}
+                      className="flex items-center gap-2 rounded-lg bg-[var(--color-wood)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-wood-dark)] disabled:opacity-50"
+                    >
+                      <Lock size={16} />
+                      {actionLoading === item.id ? 'Kilitleniyor...' : 'Kilitle'}
+                    </button>
+                  )}
 
-                {/* Kilit aç butonu - sadece admin */}
-                {item.isLocked && isAdmin && (
-                  <button
-                    onClick={() => handleUnlock(item.orderId, item.id)}
-                    disabled={actionLoading === item.id}
-                    className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <Unlock size={16} />
-                    {actionLoading === item.id ? 'Açılıyor...' : 'Kilidi Aç'}
-                  </button>
-                )}
+                  {/* Kilit aç butonu - sadece admin */}
+                  {item.isLocked && isAdmin && (
+                    <button
+                      onClick={() => handleUnlock(item.orderId, item.id)}
+                      disabled={actionLoading === item.id}
+                      className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <Unlock size={16} />
+                      {actionLoading === item.id ? 'Açılıyor...' : 'Kilidi Aç'}
+                    </button>
+                  )}
 
-                {/* Atölyede Hazır butonu - sadece kilitli ve atolye/admin */}
-                {item.isLocked && (isAdmin || isAtolye) && (
-                  <button
-                    onClick={() => handleReady(item.orderId, item.id)}
-                    disabled={actionLoading === item.id}
-                    className="flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-                  >
-                    <CheckCircle size={16} />
-                    {actionLoading === item.id ? 'İşleniyor...' : 'Atölyede Hazır'}
-                  </button>
-                )}
-              </div>
+                  {/* Atölyede Hazır butonu - sadece kilitli ve atolye/admin */}
+                  {item.isLocked && (isAdmin || isAtolye) && (
+                    <button
+                      onClick={() => handleReady(item.orderId, item.id)}
+                      disabled={actionLoading === item.id}
+                      className="flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                    >
+                      <CheckCircle size={16} />
+                      {actionLoading === item.id ? 'İşleniyor...' : 'Atölyede Hazır'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Transfer durumu bilgisi */}
+              {item.itemStatus === 'ready' && (
+                <div className="border-t border-[var(--color-cream-deep)] pt-4">
+                  <p className="text-sm text-green-600">
+                    ✓ Atölyede hazırlandı, transfer bekleniyor
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -268,19 +285,25 @@ export default function Atolye() {
         <div className="mt-6 rounded-lg border border-[var(--color-cream-deep)] bg-white p-4">
           <div className="flex flex-wrap gap-6 text-sm">
             <div>
-              <span className="text-[var(--color-ink)]/50">Toplam Kalem:</span>{' '}
+              <span className="text-[var(--color-ink)]/50">Toplam:</span>{' '}
               <span className="font-semibold text-[var(--color-espresso)]">{items.length}</span>
             </div>
             <div>
-              <span className="text-[var(--color-ink)]/50">Kilitli:</span>{' '}
+              <span className="text-[var(--color-ink)]/50">Atölyede:</span>{' '}
               <span className="font-semibold text-[var(--color-wood)]">
+                {items.filter((i) => i.itemStatus === 'atelier').length}
+              </span>
+            </div>
+            <div>
+              <span className="text-[var(--color-ink)]/50">Kilitli:</span>{' '}
+              <span className="font-semibold text-orange-600">
                 {items.filter((i) => i.isLocked).length}
               </span>
             </div>
             <div>
-              <span className="text-[var(--color-ink)]/50">Kilitli Değil:</span>{' '}
-              <span className="font-semibold text-gray-600">
-                {items.filter((i) => !i.isLocked).length}
+              <span className="text-[var(--color-ink)]/50">Transfer:</span>{' '}
+              <span className="font-semibold text-green-600">
+                {items.filter((i) => i.itemStatus === 'ready').length}
               </span>
             </div>
           </div>
