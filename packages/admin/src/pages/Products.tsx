@@ -760,7 +760,12 @@ export default function Products() {
                         <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
                       )}
                     </div>
-                    <div className="mt-1.5 text-sm font-medium">{product.name}</div>
+                    <button
+                      onClick={() => { setSelectedProduct(product); setShowDetailModal(true) }}
+                      className="mt-1.5 text-sm font-medium text-[var(--color-wood-dark)] hover:underline"
+                    >
+                      {product.name}
+                    </button>
                     {product.shortDescription && (
                       <div className="mt-0.5 truncate text-xs text-[var(--color-ink)]/50">{product.shortDescription}</div>
                     )}
