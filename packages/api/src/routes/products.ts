@@ -19,19 +19,20 @@ import {
   CATEGORY_CODES,
 } from '../services/product.service.js'
 import { requireManager, requireAdmin } from '../middleware/auth.js'
+import { cacheMiddleware, CACHE_TTL, invalidateCache } from '../middleware/cache.js'
 
 const products = new Hono()
 
 // ─── Public routes ──────────────────────────────────────────
 
-// GET /api/products/categories — distinct categories (public)
-products.get('/categories', async (c) => {
+// GET /api/products/categories — distinct categories (public, cached)
+products.get('/categories', cacheMiddleware({ ttl: CACHE_TTL.CATEGORIES, keyPrefix: 'products' }), async (c) => {
   const categories = await getDistinctCategories()
   return c.json({ data: categories })
 })
 
-// GET /api/products — list active products (public, supports search)
-products.get('/', async (c) => {
+// GET /api/products — list active products (public, cached)
+products.get('/', cacheMiddleware({ ttl: CACHE_TTL.PRODUCTS, keyPrefix: 'products' }), async (c) => {
   const category = c.req.query('category')
   const featured = c.req.query('featured')
   const search = c.req.query('search')
@@ -149,6 +150,7 @@ products.post('/', async (c) => {
   const body = await c.req.json()
   const input = createProductSchema.parse(body)
   const product = await createProduct(input)
+  await invalidateCache('products:*')
   return c.json({ data: product }, 201)
 })
 
@@ -158,6 +160,7 @@ products.patch('/:id', requireManager(), async (c) => {
   const body = await c.req.json()
   const input = updateProductSchema.parse(body)
   const product = await updateProduct(id, input)
+  await invalidateCache('products:*')
   return c.json({ data: product })
 })
 
@@ -165,6 +168,7 @@ products.patch('/:id', requireManager(), async (c) => {
 products.delete('/:id', requireAdmin(), async (c) => {
   const id = Number(c.req.param('id'))
   const product = await deleteProduct(id)
+  await invalidateCache('products:*')
   return c.json({ data: product })
 })
 
@@ -172,6 +176,7 @@ products.delete('/:id', requireAdmin(), async (c) => {
 products.post('/:id/archive', requireManager(), async (c) => {
   const id = Number(c.req.param('id'))
   const product = await archiveProduct(id)
+  await invalidateCache('products:*')
   return c.json({ data: product })
 })
 
@@ -179,6 +184,7 @@ products.post('/:id/archive', requireManager(), async (c) => {
 products.post('/:id/unarchive', requireManager(), async (c) => {
   const id = Number(c.req.param('id'))
   const product = await unarchiveProduct(id)
+  await invalidateCache('products:*')
   return c.json({ data: product })
 })
 

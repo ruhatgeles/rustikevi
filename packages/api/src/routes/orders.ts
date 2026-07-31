@@ -27,6 +27,7 @@ import {
 } from '../services/order.service.js'
 import { requireAuth, requireManager, requireAdmin } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rate-limit.js'
+import { cacheMiddleware, CACHE_TTL } from '../middleware/cache.js'
 
 const ordersRoutes = new Hono()
 
@@ -133,8 +134,8 @@ ordersRoutes.get('/stats', async (c) => {
   return c.json({ data: stats })
 })
 
-// GET /api/orders/meta — status transitions and labels
-ordersRoutes.get('/meta', async (c) => {
+// GET /api/orders/meta — status transitions and labels (cached)
+ordersRoutes.get('/meta', cacheMiddleware({ ttl: CACHE_TTL.META, keyPrefix: 'orders' }), async (c) => {
   return c.json({
     data: {
       orderTransitions: VALID_ORDER_TRANSITIONS,
