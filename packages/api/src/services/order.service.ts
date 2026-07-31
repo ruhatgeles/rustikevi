@@ -338,9 +338,16 @@ export async function updateOrderStatus(
         currentProgress > newProgress    // geriye
 
       if (shouldUpdate) {
+        // Atölyeden çıkıyorsa isReadyInWorkshop ve isLocked sıfırla
+        const itemUpdateData: any = { itemStatus: newitemStatus }
+        if (item.itemStatus === 'atelier' && newitemStatus !== 'atelier') {
+          itemUpdateData.isReadyInWorkshop = false
+          itemUpdateData.isLocked = false
+        }
+
         await db
           .update(orderItems)
-          .set({ itemStatus: newitemStatus as any })
+          .set(itemUpdateData)
           .where(eq(orderItems.id, item.id))
 
         await addActivity(
