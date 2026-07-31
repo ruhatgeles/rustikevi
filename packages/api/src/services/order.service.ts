@@ -460,9 +460,16 @@ export async function updateItemStatus(
     }
   }
 
+  // Atölyeden çıkıyorsa isReadyInWorkshop ve isLocked sıfırla
+  const updateData: any = { itemStatus: newStatus }
+  if (oldStatus === 'atelier' && newStatus !== 'atelier') {
+    updateData.isReadyInWorkshop = false
+    updateData.isLocked = false
+  }
+
   await db
     .update(orderItems)
-    .set({ itemStatus: newStatus as any })
+    .set(updateData)
     .where(eq(orderItems.id, itemId))
 
   await addActivity(
