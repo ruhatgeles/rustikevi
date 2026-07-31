@@ -83,7 +83,7 @@ const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
   in_production: ['confirmed', 'atelier', 'ready', 'cancelled'],
   ready: ['atelier', 'in_production', 'shipped', 'delivered'],
   shipped: ['ready', 'delivered'],
-  delivered: ['ready', 'shipped', 'cancelled'],
+  delivered: ['ready', 'shipped'],
   cancelled: [],
 }
 

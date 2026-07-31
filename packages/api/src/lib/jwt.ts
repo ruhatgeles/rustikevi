@@ -1,7 +1,13 @@
 import jwt from 'jsonwebtoken'
 import { createHash } from 'node:crypto'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret'
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production')
+  }
+  console.warn('⚠️  JWT_SECRET not set, using dev_secret — NOT for production!')
+  return 'dev_secret'
+})()
 const ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '15m'
 const REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || '7d'
 

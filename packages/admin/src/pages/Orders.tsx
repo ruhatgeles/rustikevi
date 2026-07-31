@@ -39,6 +39,8 @@ interface OrderItem {
   totalPrice: number | null
   itemStatus: string
   specifications: string | null
+  isExchanged: boolean
+  exchangeNote: string | null
 }
 
 interface OrderActivity {
@@ -1330,6 +1332,12 @@ export default function Orders() {
                                 )
                               })}
                           </div>
+                          {/* Exchange note */}
+                          {item.isExchanged && item.exchangeNote && (
+                            <div className="mt-1.5 rounded-md bg-pink-50 px-2.5 py-1.5 text-[11px] text-pink-700">
+                              <span className="font-medium">Değişim notu:</span> {item.exchangeNote}
+                            </div>
+                          )}
                         </div>
                       )
                     })}

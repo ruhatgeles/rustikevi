@@ -30,7 +30,6 @@ interface Product {
   updatedAt: string
 }
 
-const CATEGORIES = ['Rustik', 'Saçak', 'Başlık', 'Dekorink', 'Sarkıt', 'Braçöl']
 const DEFAULT_COLORS = ['Beyaz', 'Krem', 'Kırık Beyaz', 'Kahverengi', 'Siyah', 'Altın', 'Gümüş', 'Gri', 'Ahşap', 'Doğal']
 
 // Load colors from localStorage or use defaults
@@ -74,6 +73,9 @@ export default function Products() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // Dynamic categories from API
+  const [categories, setCategories] = useState<string[]>([])
+
   // Dynamic colors
   const [colors, setColors] = useState<string[]>(getColors)
   const [customColor, setCustomColor] = useState('')
@@ -108,8 +110,18 @@ export default function Products() {
     }
   }
 
+  const loadCategories = async () => {
+    try {
+      const data = await api.request<string[]>('/api/products/categories')
+      setCategories(data)
+    } catch {
+      // Kategoriler yüklenemezse boş kalır
+    }
+  }
+
   useEffect(() => {
     loadProducts()
+    loadCategories()
     setSelectedProducts(new Set())
   }, [showArchived])
 
@@ -399,7 +411,7 @@ export default function Products() {
             className="flex-1 rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)] sm:flex-none"
           >
             <option value="">Tüm Kategoriler</option>
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
@@ -479,7 +491,7 @@ export default function Products() {
             <select value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
-              {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
             {/* Color Select with Custom Input */}
             <div className="relative">

@@ -133,5 +133,11 @@ export async function getMe(userId: string) {
     throw new AppError(404, 'User not found')
   }
 
-  return user
+  // isViewOnly ise rolü viewer olarak düşür
+  const effectiveRole = user.isViewOnly ? 'viewer' : user.role
+
+  return {
+    ...user,
+    role: effectiveRole,
+  }
 }

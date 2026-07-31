@@ -13,6 +13,7 @@ import {
   bulkUnarchiveProducts,
   bulkDeleteProducts,
   generateProductCode,
+  getDistinctCategories,
   COLOR_CODES,
   COLOR_NAMES,
   CATEGORY_CODES,
@@ -23,17 +24,25 @@ const products = new Hono()
 
 // ─── Public routes ──────────────────────────────────────────
 
+// GET /api/products/categories — distinct categories (public)
+products.get('/categories', async (c) => {
+  const categories = await getDistinctCategories()
+  return c.json({ data: categories })
+})
+
 // GET /api/products — list active products (public, supports search)
 products.get('/', async (c) => {
   const category = c.req.query('category')
   const featured = c.req.query('featured')
   const search = c.req.query('search')
+  const tag = c.req.query('tag')
   const archived = c.req.query('archived') === 'true'
 
-  const filters: { category?: string; featured?: boolean; search?: string; archived?: boolean } = {}
+  const filters: { category?: string; featured?: boolean; search?: string; archived?: boolean; tag?: string } = {}
   if (category) filters.category = category
   if (featured === 'true') filters.featured = true
   if (search) filters.search = search
+  if (tag) filters.tag = tag
   if (archived) filters.archived = true
 
   const data = await listProducts(filters)

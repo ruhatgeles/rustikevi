@@ -139,13 +139,17 @@ export default function Status() {
   const [newNote, setNewNote] = useState('')
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [exchangeLoading, setExchangeLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const dragItem = useRef<string | null>(null)
 
   const loadOrders = async () => {
     try {
       const result = await api.request<{ data: Order[] }>('/api/orders?limit=200')
       setOrders(result.data)
-    } catch {} finally {
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || 'Siparişler yüklenemedi')
+    } finally {
       setLoading(false)
     }
   }
@@ -161,7 +165,10 @@ export default function Status() {
     try {
       const order = await api.request<Order>(`/api/orders/${id}`)
       setSelectedOrder(order)
-    } catch {} finally {
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || 'Sipariş detayı yüklenemedi')
+    } finally {
       setLoadingDetail(false)
     }
   }
@@ -172,9 +179,12 @@ export default function Status() {
         method: 'PATCH',
         body: { status: newStatus },
       })
+      setError(null)
       if (selectedOrder?.id === orderId) loadOrderDetail(orderId)
       loadOrders()
-    } catch {}
+    } catch (err: any) {
+      setError(err.message || 'Durum güncellenemedi')
+    }
   }
 
   const handleAddNote = async () => {
@@ -185,8 +195,11 @@ export default function Status() {
         body: { internalNotes: newNote },
       })
       setNewNote('')
+      setError(null)
       loadOrderDetail(selectedOrder.id)
-    } catch {}
+    } catch (err: any) {
+      setError(err.message || 'Not eklenemedi')
+    }
   }
 
   const handleExchange = async (data: {
@@ -202,9 +215,12 @@ export default function Status() {
         body: data,
       })
       setShowExchangeModal(false)
+      setError(null)
       loadOrderDetail(selectedOrder.id)
       loadOrders()
-    } catch {} finally {
+    } catch (err: any) {
+      setError(err.message || 'Değişim işlemi başarısız')
+    } finally {
       setExchangeLoading(false)
     }
   }
@@ -276,6 +292,13 @@ export default function Status() {
           Ürünleri sürükle-bırak ile durumlandırın
         </p>
       </div>
+
+      {error && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700">&times;</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex h-64 items-center justify-center">

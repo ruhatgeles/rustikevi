@@ -18,7 +18,7 @@ export async function getContentBySlug(slug: string) {
     .limit(1)
 
   if (!content) {
-    throw new AppError(404, 'Content not found')
+    throw new AppError(404, 'İçerik bulunamadı')
   }
 
   return content
@@ -82,7 +82,7 @@ export async function deleteContent(slug: string) {
     .returning({ id: contentBlocks.id })
 
   if (!deleted) {
-    throw new AppError(404, 'Content not found')
+    throw new AppError(404, 'İçerik bulunamadı')
   }
 
   return deleted

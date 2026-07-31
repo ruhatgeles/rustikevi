@@ -92,6 +92,7 @@ export async function listProducts(filters?: {
   activeOnly?: boolean
   search?: string
   archived?: boolean
+  tag?: string
 }) {
   const conditions = []
 
@@ -108,6 +109,11 @@ export async function listProducts(filters?: {
 
   if (filters?.featured !== undefined) {
     conditions.push(eq(products.featured, filters.featured))
+  }
+
+  if (filters?.tag) {
+    // JSON array içinde tag ara
+    conditions.push(sql`${products.tags}::jsonb ? ${filters.tag}`)
   }
 
   if (filters?.search) {
@@ -140,6 +146,16 @@ export async function getAllProducts(archived: boolean = false) {
     .from(products)
     .where(eq(products.isArchived, archived))
     .orderBy(asc(products.productCode), asc(products.sortOrder), asc(products.id))
+}
+
+export async function getDistinctCategories(): Promise<string[]> {
+  const result = await db
+    .selectDistinct({ category: products.category })
+    .from(products)
+    .where(and(eq(products.isActive, true), eq(products.isArchived, false)))
+    .orderBy(asc(products.category))
+
+  return result.map((r) => r.category).filter(Boolean)
 }
 
 export async function getProductById(id: number) {

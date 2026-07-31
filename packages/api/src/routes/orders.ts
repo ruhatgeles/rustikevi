@@ -59,11 +59,11 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
   let customerId: string
 
   if (existing) {
+    // Güvenlik: Mevcut müşterinin adını/değerini değiştirmiyoruz
+    // Sadece şehir bilgisi güncellenebilir
     await db
       .update(customersTable)
       .set({
-        businessName: input.isletme,
-        contactName: input.yetkili,
         city: input.sehir || existing.city,
         updatedAt: new Date(),
       })
@@ -119,10 +119,11 @@ ordersRoutes.get('/', async (c) => {
   const limit = Number(c.req.query('limit') || 20)
   const status = c.req.query('status')
   const customerId = c.req.query('customerId')
+  const assignedTo = c.req.query('assignedTo')
   const search = c.req.query('search')
   const archived = c.req.query('archived') === 'true'
 
-  const result = await listOrders({ status, customerId, search, archived, page, limit })
+  const result = await listOrders({ status, customerId, assignedTo, search, archived, page, limit })
   return c.json({ data: result })
 })
 

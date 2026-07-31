@@ -8,6 +8,9 @@ interface RequestOptions {
 }
 
 class ApiClient {
+  private refreshAttempts = 0
+  private maxRefreshAttempts = 1
+
   private getToken(): string | null {
     return localStorage.getItem('accessToken')
   }
@@ -19,6 +22,7 @@ class ApiClient {
   private setTokens(access: string, refresh: string) {
     localStorage.setItem('accessToken', access)
     localStorage.setItem('refreshToken', refresh)
+    this.refreshAttempts = 0 // Token yenilendi, sayacı sıfırla
   }
 
   clearTokens() {
@@ -28,6 +32,11 @@ class ApiClient {
   }
 
   private async refreshAccessToken(): Promise<boolean> {
+    if (this.refreshAttempts >= this.maxRefreshAttempts) {
+      return false // Sonsuz döngüyü engelle
+    }
+
+    this.refreshAttempts++
     const refreshToken = this.getRefreshToken()
     if (!refreshToken) return false
 
@@ -67,8 +76,8 @@ class ApiClient {
       throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.')
     }
 
-    // Try refresh on 401
-    if (res.status === 401 && token) {
+    // Try refresh on 401 (max 1 retry)
+    if (res.status === 401 && token && this.refreshAttempts < this.maxRefreshAttempts) {
       const refreshed = await this.refreshAccessToken()
       if (refreshed) {
         return this.request<T>(path, options)
@@ -81,7 +90,7 @@ class ApiClient {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'İstek başarısız oldu' }))
 
-      // Hata mesajlarınıTürkçe'ye çevir
+      // Hata mesajlarını Türkçe'ye çevir
       const errorMessages: Record<string, string> = {
         'Invalid email or password': 'E-posta veya şifre hatalı',
         'Missing or invalid authorization header': 'Oturum açmanız gerekiyor',
@@ -119,8 +128,8 @@ class ApiClient {
       throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.')
     }
 
-    // Try refresh on 401
-    if (res.status === 401 && token) {
+    // Try refresh on 401 (max 1 retry)
+    if (res.status === 401 && token && this.refreshAttempts < this.maxRefreshAttempts) {
       const refreshed = await this.refreshAccessToken()
       if (refreshed) {
         return this.uploadFile<T>(path, formData)
