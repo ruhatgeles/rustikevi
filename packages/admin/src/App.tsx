@@ -48,7 +48,7 @@ export default function App() {
         <DebugProvider>
         <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/auto-login/:token" element={<AutoLogin />} />
+        <Route path="/g/:token" element={<AutoLogin />} />
         <Route
           path="/"
           element={

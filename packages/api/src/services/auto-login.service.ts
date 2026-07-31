@@ -8,6 +8,20 @@ import crypto from 'crypto'
 // Token süresi: 90 gün
 const TOKEN_EXPIRY_DAYS = 90
 const MAX_USES = 1000
+const TOKEN_LENGTH = 8 // Kısa token
+
+/**
+ * Kısa token oluştur (8 karakter, URL-safe)
+ */
+function generateShortToken(): string {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789' // Benzer karakterler çıkarıldı (0o, 1l, 9g)
+  let result = ''
+  const bytes = crypto.randomBytes(TOKEN_LENGTH)
+  for (let i = 0; i < TOKEN_LENGTH; i++) {
+    result += chars[bytes[i] % chars.length]
+  }
+  return result
+}
 
 /**
  * Kullanıcı için otomatik giriş linki oluştur veya mevcut linki getir
@@ -44,13 +58,13 @@ export async function createAutoLoginToken(userId: string): Promise<{ token: str
     )
     .limit(1)
 
-  // Mevcut token varsa ve kullanılabilecek durumdaysa, yeni token oluşturup güncelle
-  if (existing) {
-    // Yeni token oluştur (eski linki geçersiz kıl)
-    const token = crypto.randomBytes(32).toString('hex')
-    const tokenHash = getTokenHash(token)
-    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+  // Kısa token oluştur
+  const token = generateShortToken()
+  const tokenHash = getTokenHash(token)
+  const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
 
+  if (existing) {
+    // Mevcut token'ı güncelle
     await db
       .update(autoLoginTokens)
       .set({
@@ -60,28 +74,20 @@ export async function createAutoLoginToken(userId: string): Promise<{ token: str
         expiresAt,
       })
       .where(eq(autoLoginTokens.id, existing.id))
-
-    const baseUrl = process.env.ADMIN_URL || 'http://localhost:3002'
-    const url = `${baseUrl}/auto-login/${token}`
-
-    return { token, url, expiresAt, useCount: 0 }
+  } else {
+    // Yeni token oluştur
+    await db.insert(autoLoginTokens).values({
+      userId,
+      tokenHash,
+      useCount: 0,
+      maxUses: MAX_USES,
+      expiresAt,
+    })
   }
 
-  // Yeni token oluştur
-  const token = crypto.randomBytes(32).toString('hex')
-  const tokenHash = getTokenHash(token)
-  const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
-
-  await db.insert(autoLoginTokens).values({
-    userId,
-    tokenHash,
-    useCount: 0,
-    maxUses: MAX_USES,
-    expiresAt,
-  })
-
+  // URL oluştur - ADMIN_URL environment variable'ı varsa onu kullan
   const baseUrl = process.env.ADMIN_URL || 'http://localhost:3002'
-  const url = `${baseUrl}/auto-login/${token}`
+  const url = `${baseUrl}/g/${token}`
 
   return { token, url, expiresAt, useCount: 0 }
 }
