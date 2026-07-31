@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './lib/errors.js'
 import authRoutes from './routes/auth.js'
@@ -11,6 +12,7 @@ import contentRoutes from './routes/content.js'
 import inviteCodeRoutes from './routes/invite-codes.js'
 import orderRoutes from './routes/orders.js'
 import productRoutes from './routes/products.js'
+import uploadRoutes from './routes/upload.js'
 
 const app = new Hono()
 
@@ -49,6 +51,10 @@ app.route('/api/content', contentRoutes)
 app.route('/api/invite-codes', inviteCodeRoutes)
 app.route('/api/orders', orderRoutes)
 app.route('/api/products', productRoutes)
+app.route('/api/upload', uploadRoutes)
+
+// Static file serving for uploads
+app.use('/uploads/*', serveStatic({ root: './', index: '' }))
 
 // Error handler
 app.onError(errorHandler)

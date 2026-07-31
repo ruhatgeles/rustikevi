@@ -4,6 +4,7 @@ import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
 import ProductDetailModal from '../components/ProductDetailModal'
 import ProductGalleryModal from '../components/ProductGalleryModal'
+import ImageUpload from '../components/ImageUpload'
 import {
   Plus, Search, X, Pencil, Trash2, Eye, EyeOff,
   Archive, ArchiveRestore, CheckSquare, Loader2, ImageIcon, Check,
@@ -535,35 +536,12 @@ export default function Products() {
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
             {/* Images */}
             <div className="sm:col-span-2">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-[var(--color-ink)]/70">Görseller (URL)</label>
-                <button type="button" onClick={() => setForm({ ...form, images: [...form.images, ''] })}
-                  className="flex items-center gap-1 text-xs font-medium text-[var(--color-wood-dark)] hover:underline">
-                  <Plus size={12} /> Görsel Ekle
-                </button>
-              </div>
-              <div className="space-y-2">
-                {form.images.map((img, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input type="url" placeholder="https://..." value={img}
-                      onChange={(e) => {
-                        const updated = [...form.images]
-                        updated[i] = e.target.value
-                        setForm({ ...form, images: updated })
-                      }}
-                      className="flex-1 rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)]" />
-                    {img && (
-                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-200">
-                        <img src={img} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                      </div>
-                    )}
-                    <button type="button" onClick={() => setForm({ ...form, images: form.images.filter((_, j) => j !== i) })}
-                      className="text-red-400 hover:text-red-600">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <label className="mb-2 block text-sm font-medium text-[var(--color-ink)]/70">Görseller</label>
+              <ImageUpload
+                images={form.images}
+                onChange={(images) => setForm({ ...form, images })}
+                maxImages={10}
+              />
             </div>
             <div className="flex items-center gap-4 sm:col-span-2">
               <label className="flex items-center gap-2 text-sm">

@@ -102,6 +102,42 @@ class ApiClient {
     const json = await res.json()
     return json.data
   }
+
+  async uploadFile<T>(path: string, formData: FormData): Promise<T> {
+    const token = this.getToken()
+
+    let res: Response
+    try {
+      res = await fetch(`${API_URL}${path}`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      })
+    } catch (err) {
+      throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.')
+    }
+
+    // Try refresh on 401
+    if (res.status === 401 && token) {
+      const refreshed = await this.refreshAccessToken()
+      if (refreshed) {
+        return this.uploadFile<T>(path, formData)
+      }
+      this.clearTokens()
+      window.location.href = '/login'
+      throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'İstek başarısız oldu' }))
+      throw new Error(err.error || `Hata: ${res.status}`)
+    }
+
+    const json = await res.json()
+    return json.data
+  }
 }
 
 export const api = new ApiClient()

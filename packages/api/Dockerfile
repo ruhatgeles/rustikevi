@@ -35,4 +35,7 @@ WORKDIR /app/packages/api
 ENV NODE_ENV=production
 EXPOSE 3001
 
+# Create uploads directory
+RUN mkdir -p /app/packages/api/uploads/products
+
 CMD ["node", "dist/index.js"]
