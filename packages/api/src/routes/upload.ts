@@ -30,10 +30,10 @@ upload.post('/image', requireManager(), async (c) => {
       throw new AppError(400, 'Desteklenmeyen dosya formatı. JPEG, PNG, WebP veya GIF kullanın.')
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024
+    // Validate file size (max 20MB)
+    const maxSize = 20 * 1024 * 1024
     if (file.size > maxSize) {
-      throw new AppError(400, 'Dosya boyutu 5MB\'dan büyük olamaz.')
+      throw new AppError(400, 'Dosya boyutu 20MB\'dan büyük olamaz.')
     }
 
     // Generate unique filename

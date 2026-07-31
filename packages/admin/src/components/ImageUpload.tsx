@@ -115,7 +115,7 @@ export default function ImageUpload({
                 Görselleri sürükle bırak veya tıkla
               </p>
               <p className="mt-1 text-xs text-[var(--color-ink)]/40">
-                JPEG, PNG, WebP, GIF • Maks 5MB • En fazla {maxImages} görsel
+                JPEG, PNG, WebP, GIF • Maks 20MB • En fazla {maxImages} görsel
               </p>
             </div>
           </div>
