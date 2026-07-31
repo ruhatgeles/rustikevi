@@ -74,6 +74,8 @@ export const autoLoginTokens = pgTable('auto_login_tokens', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   tokenHash: varchar('token_hash', { length: 255 }).notNull().unique(),
+  useCount: integer('use_count').notNull().default(0),
+  maxUses: integer('max_uses').notNull().default(1000),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })

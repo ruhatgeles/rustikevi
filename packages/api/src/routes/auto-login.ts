@@ -5,12 +5,13 @@ import { rateLimit } from '../middleware/rate-limit.js'
 import {
   createAutoLoginToken,
   autoLogin,
+  getAutoLoginInfo,
   deleteAutoLoginToken,
 } from '../services/auto-login.service.js'
 
 const autoLoginRoutes = new Hono()
 
-// POST /api/auto-login/generate — Otomatik giriş linki oluştur (admin)
+// POST /api/auto-login/generate — Otomatik giriş linki oluştur/yenile (admin)
 autoLoginRoutes.post('/generate', requireAdmin(), rateLimit(10, 60_000), async (c) => {
   const body = await c.req.json()
   const schema = z.object({
@@ -20,21 +21,19 @@ autoLoginRoutes.post('/generate', requireAdmin(), rateLimit(10, 60_000), async (
   const input = schema.parse(body)
   const result = await createAutoLoginToken(input.userId)
 
-  // Tam URL oluştur
-  const baseUrl = process.env.ADMIN_URL || 'http://localhost:3002'
-  const loginUrl = `${baseUrl}/auto-login/${result.token}`
-
   return c.json({
     data: {
-      url: loginUrl,
+      url: result.url,
       token: result.token,
       expiresAt: result.expiresAt,
+      useCount: result.useCount,
+      maxUses: 1000,
     }
   })
 })
 
 // POST /api/auto-login/verify — Token ile giriş yap (public)
-autoLoginRoutes.post('/verify', rateLimit(20, 60_000), async (c) => {
+autoLoginRoutes.post('/verify', rateLimit(30, 60_000), async (c) => {
   const body = await c.req.json()
   const schema = z.object({
     token: z.string().min(1),
@@ -44,6 +43,13 @@ autoLoginRoutes.post('/verify', rateLimit(20, 60_000), async (c) => {
   const result = await autoLogin(input.token)
 
   return c.json({ data: result })
+})
+
+// GET /api/auto-login/info/:userId — Link bilgisini getir (admin)
+autoLoginRoutes.get('/info/:userId', requireAdmin(), async (c) => {
+  const userId = c.req.param('userId')
+  const info = await getAutoLoginInfo(userId)
+  return c.json({ data: info })
 })
 
 // DELETE /api/auto-login/:userId — Kullanıcının linkini sil (admin)

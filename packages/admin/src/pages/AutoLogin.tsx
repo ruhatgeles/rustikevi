@@ -10,6 +10,7 @@ export default function AutoLogin() {
   const { setTokens } = useAuth()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [error, setError] = useState('')
+  const [userName, setUserName] = useState('')
 
   useEffect(() => {
     if (!token) {
@@ -17,6 +18,9 @@ export default function AutoLogin() {
       setError('Token bulunamadı')
       return
     }
+
+    // Birden fazla denemeyi önle
+    let isMounted = true
 
     const verifyToken = async () => {
       try {
@@ -29,23 +33,38 @@ export default function AutoLogin() {
           body: { token },
         })
 
-        // Token'ları kaydet
-        setTokens(result.accessToken, result.refreshToken)
+        if (!isMounted) return
 
+        // Token'ları kaydet
+        localStorage.setItem('accessToken', result.accessToken)
+        localStorage.setItem('refreshToken', result.refreshToken)
+        localStorage.setItem('user', JSON.stringify(result.user))
+
+        // Auth context'i güncelle
+        setTokens(result.accessToken, result.refreshToken, result.user)
+
+        setUserName(result.user.name)
         setStatus('success')
 
         // 1.5 saniye sonra dashboard'a yönlendir
         setTimeout(() => {
-          navigate('/')
+          if (isMounted) {
+            navigate('/', { replace: true })
+          }
         }, 1500)
       } catch (err: any) {
+        if (!isMounted) return
         setStatus('error')
         setError(err.message || 'Giriş yapılamadı')
       }
     }
 
     verifyToken()
-  }, [token, navigate, setTokens])
+
+    return () => {
+      isMounted = false
+    }
+  }, [token]) // setTokens ve navigate dependency'den çıkarıldı
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-linen)]">
@@ -72,7 +91,7 @@ export default function AutoLogin() {
             <>
               <CheckCircle className="mx-auto mb-4 text-green-500" size={48} />
               <h1 className="text-xl font-bold text-[var(--color-espresso)]">
-                Giriş başarılı!
+                Hoş geldin {userName}!
               </h1>
               <p className="mt-2 text-sm text-[var(--color-ink)]/60">
                 Ana sayfaya yönlendiriliyorsunuz...

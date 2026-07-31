@@ -103,19 +103,39 @@ export default function Users() {
     }
   }
 
-  const [generatedLink, setGeneratedLink] = useState<{ userId: string; url: string } | null>(null)
+  const [generatedLink, setGeneratedLink] = useState<{
+    userId: string
+    userName: string
+    url: string
+    useCount: number
+    maxUses: number
+    expiresAt: string
+  } | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
 
   const handleGenerateLink = async (user: User) => {
     try {
-      const result = await api.request<{ url: string; token: string; expiresAt: string }>(
+      const result = await api.request<{
+        url: string
+        token: string
+        expiresAt: string
+        useCount: number
+        maxUses: number
+      }>(
         '/api/auto-login/generate',
         {
           method: 'POST',
           body: { userId: user.id },
         }
       )
-      setGeneratedLink({ userId: user.id, url: result.url })
+      setGeneratedLink({
+        userId: user.id,
+        userName: user.name,
+        url: result.url,
+        useCount: result.useCount,
+        maxUses: result.maxUses,
+        expiresAt: result.expiresAt,
+      })
       setCopiedLink(false)
     } catch (err: any) {
       Swal.fire('Hata', err.message || 'Link oluşturulamadı', 'error')
@@ -587,17 +607,43 @@ export default function Users() {
               </button>
             </div>
 
-            <p className="mb-4 text-sm text-[var(--color-ink)]/60">
-              Bu link 30 gün geçerlidir. Kullanıcı bu link ile şifre girmeden giriş yapabilir.
-            </p>
+            {/* Kullanıcı Bilgisi */}
+            <div className="mb-4 rounded-lg bg-[var(--color-linen)] p-3">
+              <p className="text-sm font-medium text-[var(--color-espresso)]">
+                {generatedLink.userName}
+              </p>
+            </div>
 
+            {/* Link Bilgileri */}
+            <div className="mb-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--color-ink)]/60">Kullanım:</span>
+                <span className="font-medium text-[var(--color-espresso)]">
+                  {generatedLink.useCount} / {generatedLink.maxUses}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--color-ink)]/60">Geçerlilik:</span>
+                <span className="font-medium text-[var(--color-espresso)]">
+                  90 gün
+                </span>
+              </div>
+            </div>
+
+            {/* Link */}
             <div className="mb-4 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-linen)] p-3">
               <p className="break-all font-mono text-xs text-[var(--color-ink)]">
                 {generatedLink.url}
               </p>
             </div>
 
-            <div className="flex gap-3">
+            {/* Bilgi */}
+            <p className="mb-4 text-xs text-[var(--color-ink)]/50">
+              Bu link {generatedLink.maxUses} kez kullanılabilir. "Linki Yenile" ile sıfırlayıp yeni link oluşturabilirsiniz.
+            </p>
+
+            {/* Butonlar */}
+            <div className="flex gap-2">
               <button
                 onClick={handleCopyLink}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--color-wood)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-wood-dark)]"
@@ -610,15 +656,24 @@ export default function Users() {
                 ) : (
                   <>
                     <Copy size={16} />
-                    Linki Kopyala
+                    Kopyala
                   </>
                 )}
               </button>
               <button
-                onClick={() => handleDeleteLink(generatedLink.userId)}
-                className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                onClick={() => {
+                  const user = users.find(u => u.id === generatedLink.userId)
+                  if (user) handleGenerateLink(user)
+                }}
+                className="rounded-lg border border-[var(--color-cream-deep)] px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] transition-colors hover:bg-[var(--color-cream)]"
               >
-                Linki Sil
+                Yenile
+              </button>
+              <button
+                onClick={() => handleDeleteLink(generatedLink.userId)}
+                className="rounded-lg border border-red-200 px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                Sil
               </button>
             </div>
           </div>

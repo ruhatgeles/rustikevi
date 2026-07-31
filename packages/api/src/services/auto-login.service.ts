@@ -1,17 +1,18 @@
 import { db } from '../db/index.js'
 import { users, autoLoginTokens } from '../db/schema.js'
-import { eq, and, gt } from 'drizzle-orm'
+import { eq, and, gt, sql } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 import { signAccessToken, signRefreshToken, getTokenHash, JwtPayload } from '../lib/jwt.js'
 import crypto from 'crypto'
 
-// Token süresi: 30 gün
-const TOKEN_EXPIRY_DAYS = 30
+// Token süresi: 90 gün
+const TOKEN_EXPIRY_DAYS = 90
+const MAX_USES = 1000
 
 /**
- * Kullanıcı için otomatik giriş linki oluştur
+ * Kullanıcı için otomatik giriş linki oluştur veya mevcut linki getir
  */
-export async function createAutoLoginToken(userId: string): Promise<{ token: string; expiresAt: Date }> {
+export async function createAutoLoginToken(userId: string): Promise<{ token: string; url: string; expiresAt: Date; useCount: number }> {
   // Kullanıcıyı kontrol et
   const [user] = await db
     .select({ id: users.id, role: users.role, isActive: users.isActive })
@@ -27,24 +28,62 @@ export async function createAutoLoginToken(userId: string): Promise<{ token: str
     throw new AppError(400, 'Bu kullanıcı aktif değil')
   }
 
-  // Önce bu kullanıcının eski token'larını temizle
-  await db
-    .delete(autoLoginTokens)
-    .where(eq(autoLoginTokens.userId, userId))
+  // Mevcut token var mı kontrol et
+  const [existing] = await db
+    .select({
+      id: autoLoginTokens.id,
+      useCount: autoLoginTokens.useCount,
+      expiresAt: autoLoginTokens.expiresAt,
+    })
+    .from(autoLoginTokens)
+    .where(
+      and(
+        eq(autoLoginTokens.userId, userId),
+        gt(autoLoginTokens.expiresAt, new Date())
+      )
+    )
+    .limit(1)
+
+  // Mevcut token varsa ve kullanılabilecek durumdaysa, yeni token oluşturup güncelle
+  if (existing) {
+    // Yeni token oluştur (eski linki geçersiz kıl)
+    const token = crypto.randomBytes(32).toString('hex')
+    const tokenHash = getTokenHash(token)
+    const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+
+    await db
+      .update(autoLoginTokens)
+      .set({
+        tokenHash,
+        useCount: 0,
+        maxUses: MAX_USES,
+        expiresAt,
+      })
+      .where(eq(autoLoginTokens.id, existing.id))
+
+    const baseUrl = process.env.ADMIN_URL || 'http://localhost:3002'
+    const url = `${baseUrl}/auto-login/${token}`
+
+    return { token, url, expiresAt, useCount: 0 }
+  }
 
   // Yeni token oluştur
   const token = crypto.randomBytes(32).toString('hex')
   const tokenHash = getTokenHash(token)
   const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
 
-  // Token'ı kaydet
   await db.insert(autoLoginTokens).values({
     userId,
     tokenHash,
+    useCount: 0,
+    maxUses: MAX_USES,
     expiresAt,
   })
 
-  return { token, expiresAt }
+  const baseUrl = process.env.ADMIN_URL || 'http://localhost:3002'
+  const url = `${baseUrl}/auto-login/${token}`
+
+  return { token, url, expiresAt, useCount: 0 }
 }
 
 /**
@@ -62,6 +101,8 @@ export async function autoLogin(token: string): Promise<{
     .select({
       id: autoLoginTokens.id,
       userId: autoLoginTokens.userId,
+      useCount: autoLoginTokens.useCount,
+      maxUses: autoLoginTokens.maxUses,
       expiresAt: autoLoginTokens.expiresAt,
     })
     .from(autoLoginTokens)
@@ -75,6 +116,11 @@ export async function autoLogin(token: string): Promise<{
 
   if (!stored) {
     throw new AppError(401, 'Geçersiz veya süresi dolmuş token')
+  }
+
+  // Kullanım sayısını kontrol et
+  if (stored.useCount >= stored.maxUses) {
+    throw new AppError(401, 'Bu linkin kullanım hakkı dolmuş. Yeni link isteyin.')
   }
 
   // Kullanıcıyı getir
@@ -95,19 +141,11 @@ export async function autoLogin(token: string): Promise<{
     throw new AppError(401, 'Kullanıcı bulunamadı veya aktif değil')
   }
 
-  // Token'ı kullanıldıktan sonra yenile (her girişte yeni token)
-  await db.delete(autoLoginTokens).where(eq(autoLoginTokens.id, stored.id))
-
-  // Yeni token oluştur (kullanıcı tekrar giriş yapabilsin)
-  const newToken = crypto.randomBytes(32).toString('hex')
-  const newTokenHash = getTokenHash(newToken)
-  const newExpiresAt = new Date(Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
-
-  await db.insert(autoLoginTokens).values({
-    userId: user.id,
-    tokenHash: newTokenHash,
-    expiresAt: newExpiresAt,
-  })
+  // Kullanım sayısını artır
+  await db
+    .update(autoLoginTokens)
+    .set({ useCount: sql`${autoLoginTokens.useCount} + 1` })
+    .where(eq(autoLoginTokens.id, stored.id))
 
   // Normal JWT token'ları oluştur
   const effectiveRole = user.isViewOnly ? 'viewer' : user.role
@@ -133,12 +171,18 @@ export async function autoLogin(token: string): Promise<{
 }
 
 /**
- * Kullanıcının mevcut otomatik giriş linkini getir
+ * Kullanıcının mevcut otomatik giriş link bilgisini getir
  */
-export async function getAutoLoginLink(userId: string): Promise<{ token: string; expiresAt: Date } | null> {
+export async function getAutoLoginInfo(userId: string): Promise<{
+  exists: boolean
+  useCount?: number
+  maxUses?: number
+  expiresAt?: Date
+} | null> {
   const [stored] = await db
     .select({
-      tokenHash: autoLoginTokens.tokenHash,
+      useCount: autoLoginTokens.useCount,
+      maxUses: autoLoginTokens.maxUses,
       expiresAt: autoLoginTokens.expiresAt,
     })
     .from(autoLoginTokens)
@@ -151,12 +195,15 @@ export async function getAutoLoginLink(userId: string): Promise<{ token: string;
     .limit(1)
 
   if (!stored) {
-    return null
+    return { exists: false }
   }
 
-  // Token hash'i geri dönüştürülemez, bu yüzden sadece varlığını bildiriyoruz
-  // Gerçek token sadece oluşturulduğunda bilinebilir
-  return { token: '***', expiresAt: stored.expiresAt }
+  return {
+    exists: true,
+    useCount: stored.useCount,
+    maxUses: stored.maxUses,
+    expiresAt: stored.expiresAt,
+  }
 }
 
 /**
