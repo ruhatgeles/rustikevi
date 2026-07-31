@@ -1083,17 +1083,17 @@ export async function markItemReadyInWorkshop(
     throw new AppError(400, 'Sadece atölyedeki kalemler "hazır" olarak işaretlenebilir')
   }
 
-  // Kilit kalkar ve status ready olur
+  // Kilit kalkar, isReadyInWorkshop true olur ama status atelier'de kalır
   await db
     .update(orderItems)
-    .set({ itemStatus: 'ready' as any, isLocked: false })
+    .set({ isLocked: false, isReadyInWorkshop: true })
     .where(eq(orderItems.id, itemId))
 
   await addActivity(
     orderId,
     userId,
     'item_ready_workshop',
-    `${item.productName}: Atölyede hazır - Transfer`,
+    `${item.productName}: Atölyede hazır - Transfer bekleniyor`,
     { itemId, productName: item.productName },
   )
 
@@ -1123,7 +1123,7 @@ export async function markItemReadyInWorkshop(
   return getOrderById(orderId)
 }
 
-// Atölyedeki kalemleri getir (atelier + transfer/ready)
+// Atölyedeki kalemleri getir (atelier durumundakiler)
 export async function getAtelierItems() {
   const items = await db
     .select({
@@ -1137,6 +1137,7 @@ export async function getAtelierItems() {
       itemStatus: orderItems.itemStatus,
       specifications: orderItems.specifications,
       isLocked: orderItems.isLocked,
+      isReadyInWorkshop: orderItems.isReadyInWorkshop,
       createdAt: orderItems.createdAt,
       orderNumber: orders.orderNumber,
       orderStatus: orders.status,
@@ -1151,7 +1152,7 @@ export async function getAtelierItems() {
     .leftJoin(products, eq(orderItems.productId, products.id))
     .where(
       and(
-        inArray(orderItems.itemStatus, ['atelier', 'ready']),
+        eq(orderItems.itemStatus, 'atelier'),
         eq(orders.isArchived, false),
       ),
     )

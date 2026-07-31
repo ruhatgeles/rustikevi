@@ -172,6 +172,7 @@ export const orderItems = pgTable('order_items', {
   isExchanged: boolean('is_exchanged').notNull().default(false),
   exchangeNote: text('exchange_note'),
   isLocked: boolean('is_locked').notNull().default(false),
+  isReadyInWorkshop: boolean('is_ready_in_workshop').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 

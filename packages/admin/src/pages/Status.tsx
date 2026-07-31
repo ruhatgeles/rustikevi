@@ -26,6 +26,7 @@ interface OrderItem {
   isExchanged: boolean
   exchangeNote: string | null
   isLocked: boolean
+  isReadyInWorkshop: boolean
 }
 
 interface Order {
@@ -345,10 +346,12 @@ export default function Status() {
                         draggable
                         onDragStart={() => handleDragStart(item.id)}
                         onClick={() => loadOrderDetail(item.orderId)}
-                        className={`cursor-grab rounded-lg border p-2 shadow-sm transition-all hover:shadow-md active:cursor-grabbing sm:p-2.5 ${
-                          selectedOrder?.id === item.orderId
-                            ? 'border-[var(--color-brass)] ring-1 ring-[var(--color-brass)]'
-                            : 'border-[var(--color-cream-deep)]'
+                        className={`cursor-grab rounded-lg border-2 p-2 shadow-sm transition-all hover:shadow-md active:cursor-grabbing sm:p-2.5 ${
+                          item.isReadyInWorkshop
+                            ? 'border-green-500 bg-green-50/50'
+                            : selectedOrder?.id === item.orderId
+                              ? 'border-[var(--color-brass)] ring-1 ring-[var(--color-brass)]'
+                              : 'border-[var(--color-cream-deep)]'
                         }`}
                       >
                         {/* Ürün adı */}
@@ -359,6 +362,9 @@ export default function Status() {
                             </span>
                             {item.isLocked && (
                               <Lock size={10} className="text-[var(--color-wood)] flex-shrink-0" />
+                            )}
+                            {item.isReadyInWorkshop && (
+                              <CheckCircle size={10} className="text-green-600 flex-shrink-0" />
                             )}
                           </div>
                           <GripVertical size={10} className="text-[var(--color-ink)]/20 flex-shrink-0" />
@@ -379,6 +385,13 @@ export default function Status() {
                             {item.customerName}
                           </span>
                         </div>
+
+                        {/* Transfer etiketi */}
+                        {item.isReadyInWorkshop && (
+                          <div className="mt-1.5 flex items-center gap-1 rounded bg-green-100 px-1.5 py-0.5">
+                            <span className="text-[9px] font-semibold text-green-700">TRANSFER HAZIR</span>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
@@ -497,6 +510,12 @@ export default function Status() {
                                 <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-wood)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-wood-dark)]">
                                   <Lock size={10} />
                                   Kilitli
+                                </span>
+                              )}
+                              {item.isReadyInWorkshop && (
+                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                                  <CheckCircle size={10} />
+                                  Transfer Hazır
                                 </span>
                               )}
                               {item.isExchanged && (

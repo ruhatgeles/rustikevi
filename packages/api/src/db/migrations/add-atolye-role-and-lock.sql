@@ -11,8 +11,8 @@ END $$;
 -- 2. order_items tablosuna is_locked sütunu ekle
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_locked BOOLEAN NOT NULL DEFAULT false;
 
--- 3. Mevcut atelier durumundaki kalemlerin is_locked değerini false yap (zaten default bu)
-UPDATE order_items SET is_locked = false WHERE item_status = 'atelier' AND is_locked IS NULL;
+-- 3. order_items tablosuna is_ready_in_workshop sütunu ekle
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS is_ready_in_workshop BOOLEAN NOT NULL DEFAULT false;
 
 -- Migration tamamlandı
 SELECT 'Atölye modülü migration tamamlandı' AS status;
