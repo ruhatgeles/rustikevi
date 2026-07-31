@@ -110,6 +110,7 @@ export default function InviteCodes() {
               <option value="viewer">Viewer</option>
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
+              <option value="atolye">Atölye</option>
             </select>
             <input
               type="number"

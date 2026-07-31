@@ -26,6 +26,7 @@ import {
   Plus,
   Pencil,
   ImageIcon,
+  Lock,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
@@ -41,6 +42,7 @@ interface OrderItem {
   specifications: string | null
   isExchanged: boolean
   exchangeNote: string | null
+  isLocked: boolean
 }
 
 interface OrderActivity {
@@ -1165,7 +1167,15 @@ export default function Orders() {
                         }`}>
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
-                              <div className="text-sm font-medium">{item.productName}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{item.productName}</span>
+                                {item.isLocked && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-wood)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-wood-dark)]">
+                                    <Lock size={10} />
+                                    Kilitli
+                                  </span>
+                                )}
+                              </div>
                               {editMode ? (
                                 <div className="mt-1 flex items-center gap-2">
                                   <input

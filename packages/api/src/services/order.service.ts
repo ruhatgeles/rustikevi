@@ -426,6 +426,7 @@ export async function updateItemStatus(
   itemId: string,
   newStatus: string,
   userId: string,
+  userRole?: string,
 ) {
   const [item] = await db
     .select()
@@ -434,7 +435,7 @@ export async function updateItemStatus(
     .limit(1)
 
   if (!item) {
-    throw new AppError(404, 'Order item not found')
+    throw new AppError(404, 'Sipariş kalemi bulunamadı')
   }
 
   const oldStatus = item.itemStatus
@@ -449,6 +450,21 @@ export async function updateItemStatus(
       400,
       `Geçersiz ürün durum geçişi: ${oldStatus} → ${newStatus}`,
     )
+  }
+
+  // Kilitli kalem kontrolü: atolye rolü veya admin olmayanlar kilitleyemez
+  if (item.isLocked && userRole && userRole !== 'admin' && userRole !== 'atolye') {
+    throw new AppError(403, 'Bu kalem kilitli. Sadece atölye veya admin kullanıcılar güncelleyebilir.')
+  }
+
+  // atelier → ready geçişi: sadece manager veya admin yapabilir
+  if (oldStatus === 'atelier' && newStatus === 'ready' && userRole && userRole !== 'admin' && userRole !== 'manager') {
+    throw new AppError(403, 'Atölyeden hazır durumuna geçiş sadece manager veya admin tarafından yapılabilir.')
+  }
+
+  // Kilitli kalemi atolye rolü ile güncelliyorsa sadece ready yapabilir
+  if (item.isLocked && userRole === 'atolye' && newStatus !== 'ready') {
+    throw new AppError(403, 'Atölye kullanıcıları kilitli kalemleri sadece "hazır" durumuna geçirebilir.')
   }
 
   await db
@@ -972,6 +988,182 @@ export async function addTrackingNumber(orderId: string, trackingNumber: string,
   )
 
   return getOrderById(orderId)
+}
+
+// ── Workshop (Atölye) Operations ───────────────────────
+
+export async function lockOrderItem(
+  orderId: string,
+  itemId: string,
+  userId: string,
+) {
+  const [item] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, orderId)))
+    .limit(1)
+
+  if (!item) {
+    throw new AppError(404, 'Sipariş kalemi bulunamadı')
+  }
+
+  if (item.isLocked) {
+    throw new AppError(400, 'Bu kalem zaten kilitli')
+  }
+
+  // Sadece atelier durumundaki kalemler kilitlenebilir
+  if (item.itemStatus !== 'atelier') {
+    throw new AppError(400, 'Sadece atölyedeki kalemler kilitlenebilir')
+  }
+
+  await db
+    .update(orderItems)
+    .set({ isLocked: true })
+    .where(eq(orderItems.id, itemId))
+
+  await addActivity(
+    orderId,
+    userId,
+    'item_locked',
+    `${item.productName}: Atölyeye gönderildi ve kilitlendi`,
+    { itemId, productName: item.productName },
+  )
+
+  return getOrderById(orderId)
+}
+
+export async function unlockOrderItem(
+  orderId: string,
+  itemId: string,
+  userId: string,
+) {
+  const [item] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, orderId)))
+    .limit(1)
+
+  if (!item) {
+    throw new AppError(404, 'Sipariş kalemi bulunamadı')
+  }
+
+  if (!item.isLocked) {
+    throw new AppError(400, 'Bu kalem zaten kilitli değil')
+  }
+
+  await db
+    .update(orderItems)
+    .set({ isLocked: false })
+    .where(eq(orderItems.id, itemId))
+
+  await addActivity(
+    orderId,
+    userId,
+    'item_unlocked',
+    `${item.productName}: Kilit kaldırıldı`,
+    { itemId, productName: item.productName },
+  )
+
+  return getOrderById(orderId)
+}
+
+export async function markItemReadyInWorkshop(
+  orderId: string,
+  itemId: string,
+  userId: string,
+) {
+  const [item] = await db
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, orderId)))
+    .limit(1)
+
+  if (!item) {
+    throw new AppError(404, 'Sipariş kalemi bulunamadı')
+  }
+
+  if (!item.isLocked) {
+    throw new AppError(400, 'Bu kalem kilitli değil. Önce kilitleyin.')
+  }
+
+  if (item.itemStatus !== 'atelier') {
+    throw new AppError(400, 'Sadece atölyedeki kalemler "hazır" olarak işaretlenebilir')
+  }
+
+  await db
+    .update(orderItems)
+    .set({ itemStatus: 'ready' as any })
+    .where(eq(orderItems.id, itemId))
+
+  await addActivity(
+    orderId,
+    userId,
+    'item_ready_workshop',
+    `${item.productName}: Atölyede hazır`,
+    { itemId, productName: item.productName },
+  )
+
+  // Sipariş durumunu otomatik hesapla
+  const newOrderStatus = await calculateOrderStatus(orderId)
+  const [currentOrder] = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+
+  if (currentOrder && currentOrder.status !== newOrderStatus) {
+    await db
+      .update(orders)
+      .set({ status: newOrderStatus as any, updatedAt: new Date() })
+      .where(eq(orders.id, orderId))
+
+    await addActivity(
+      orderId,
+      userId,
+      'status_change',
+      `Sipariş durumu otomatik güncellendi: ${STATUS_LABELS[currentOrder.status]} → ${STATUS_LABELS[newOrderStatus]}`,
+      { oldStatus: currentOrder.status, newStatus: newOrderStatus },
+    )
+  }
+
+  return getOrderById(orderId)
+}
+
+// Atölyedeki tüm kilitli kalemleri getir
+export async function getAtelierItems() {
+  const items = await db
+    .select({
+      id: orderItems.id,
+      orderId: orderItems.orderId,
+      productId: orderItems.productId,
+      productName: orderItems.productName,
+      quantity: orderItems.quantity,
+      unitPrice: orderItems.unitPrice,
+      totalPrice: orderItems.totalPrice,
+      itemStatus: orderItems.itemStatus,
+      specifications: orderItems.specifications,
+      isLocked: orderItems.isLocked,
+      createdAt: orderItems.createdAt,
+      orderNumber: orders.orderNumber,
+      orderStatus: orders.status,
+      orderCreatedAt: orders.createdAt,
+      customerName: customers.businessName,
+      customerPhone: customers.phone,
+      productCode: products.productCode,
+    })
+    .from(orderItems)
+    .leftJoin(orders, eq(orderItems.orderId, orders.id))
+    .leftJoin(customers, eq(orders.customerId, customers.id))
+    .leftJoin(products, eq(orderItems.productId, products.id))
+    .where(
+      and(
+        eq(orderItems.itemStatus, 'atelier'),
+        eq(orders.isArchived, false),
+      ),
+    )
+    .orderBy(asc(orderItems.createdAt))
+
+  return items
 }
 
 export { STATUS_LABELS, ITEM_STATUS_LABELS, VALID_ORDER_TRANSITIONS, VALID_ITEM_TRANSITIONS }

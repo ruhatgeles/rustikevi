@@ -20,6 +20,10 @@ import {
   processReturn,
   processExchange,
   addTrackingNumber,
+  lockOrderItem,
+  unlockOrderItem,
+  markItemReadyInWorkshop,
+  getAtelierItems,
   VALID_ORDER_TRANSITIONS,
   VALID_ITEM_TRANSITIONS,
   STATUS_LABELS,
@@ -272,7 +276,7 @@ ordersRoutes.patch('/:id/items/:itemId/status', requireManager(), async (c) => {
   })
 
   const input = itemStatusSchema.parse(body)
-  const order = await updateItemStatus(orderId, itemId, input.status, user.sub)
+  const order = await updateItemStatus(orderId, itemId, input.status, user.sub, user.role)
   return c.json({ data: order })
 })
 
@@ -431,6 +435,47 @@ ordersRoutes.delete('/:id', requireAdmin(), async (c) => {
   const user = c.get('user')
   const result = await deleteOrder(id, user.sub)
   return c.json({ data: result })
+})
+
+// ── Workshop (Atölye) Routes ───────────────────────────
+
+// GET /api/orders/atelier/items — get all atelier items
+ordersRoutes.get('/atelier/items', requireAuth(), async (c) => {
+  const items = await getAtelierItems()
+  return c.json({ data: items })
+})
+
+// POST /api/orders/:orderId/items/:itemId/lock — lock item for workshop (manager+)
+ordersRoutes.post('/:orderId/items/:itemId/lock', requireManager(), async (c) => {
+  const orderId = c.req.param('orderId')
+  const itemId = c.req.param('itemId')
+  const user = c.get('user')
+  const order = await lockOrderItem(orderId, itemId, user.sub)
+  return c.json({ data: order })
+})
+
+// POST /api/orders/:orderId/items/:itemId/unlock — unlock item (admin only)
+ordersRoutes.post('/:orderId/items/:itemId/unlock', requireAdmin(), async (c) => {
+  const orderId = c.req.param('orderId')
+  const itemId = c.req.param('itemId')
+  const user = c.get('user')
+  const order = await unlockOrderItem(orderId, itemId, user.sub)
+  return c.json({ data: order })
+})
+
+// POST /api/orders/:orderId/items/:itemId/ready-workshop — mark item ready in workshop
+ordersRoutes.post('/:orderId/items/:itemId/ready-workshop', requireAuth(), async (c) => {
+  const orderId = c.req.param('orderId')
+  const itemId = c.req.param('itemId')
+  const user = c.get('user')
+
+  // Sadece atolye rolü veya admin erişebilir
+  if (user.role !== 'admin' && user.role !== 'atolye') {
+    return c.json({ error: 'Bu işlem için yetkiniz yok' }, 403)
+  }
+
+  const order = await markItemReadyInWorkshop(orderId, itemId, user.sub)
+  return c.json({ data: order })
 })
 
 export default ordersRoutes

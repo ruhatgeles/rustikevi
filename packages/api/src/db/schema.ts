@@ -14,7 +14,7 @@ import { relations } from 'drizzle-orm'
 
 // ── Enums ──────────────────────────────────────────────
 
-export const userRoleEnum = pgEnum('user_role', ['admin', 'manager', 'viewer'])
+export const userRoleEnum = pgEnum('user_role', ['admin', 'manager', 'viewer', 'atolye'])
 export const contentTypeEnum = pgEnum('content_type', ['text', 'json', 'image'])
 export const orderStatusEnum = pgEnum('order_status', [
   'pending',      // Sipariş Geldi
@@ -171,6 +171,7 @@ export const orderItems = pgTable('order_items', {
   specifications: text('specifications'), // özel notlar, renk, boyut vb.
   isExchanged: boolean('is_exchanged').notNull().default(false),
   exchangeNote: text('exchange_note'),
+  isLocked: boolean('is_locked').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 

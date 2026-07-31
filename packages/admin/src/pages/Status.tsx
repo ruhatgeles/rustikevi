@@ -11,6 +11,7 @@ import {
   X,
   Package,
   ArrowLeftRight,
+  Lock,
 } from 'lucide-react'
 import ExchangeModal from '../components/ExchangeModal'
 
@@ -24,6 +25,7 @@ interface OrderItem {
   specifications: string | null
   isExchanged: boolean
   exchangeNote: string | null
+  isLocked: boolean
 }
 
 interface Order {
@@ -351,9 +353,14 @@ export default function Status() {
                       >
                         {/* Ürün adı */}
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-semibold text-[var(--color-espresso)] truncate max-w-[130px] sm:text-xs sm:max-w-[150px]">
-                            {item.productName}
-                          </span>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="text-[11px] font-semibold text-[var(--color-espresso)] truncate max-w-[110px] sm:text-xs sm:max-w-[130px]">
+                              {item.productName}
+                            </span>
+                            {item.isLocked && (
+                              <Lock size={10} className="text-[var(--color-wood)] flex-shrink-0" />
+                            )}
+                          </div>
                           <GripVertical size={10} className="text-[var(--color-ink)]/20 flex-shrink-0" />
                         </div>
 
@@ -486,6 +493,12 @@ export default function Status() {
                           <div className="flex-1">
                             <div className="text-sm font-medium">
                               {item.productName}
+                              {item.isLocked && (
+                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[var(--color-wood)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-wood-dark)]">
+                                  <Lock size={10} />
+                                  Kilitli
+                                </span>
+                              )}
                               {item.isExchanged && (
                                 <span className="ml-2 inline-flex items-center rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-medium text-pink-700">
                                   Değişim

@@ -38,4 +38,5 @@ export function authMiddleware(requiredRoles?: string[]) {
 // Shorthand guards
 export const requireAdmin = () => authMiddleware(['admin'])
 export const requireManager = () => authMiddleware(['admin', 'manager'])
+export const requireAtolye = () => authMiddleware(['admin', 'atolye'])
 export const requireAuth = () => authMiddleware()

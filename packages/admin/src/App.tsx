@@ -12,6 +12,7 @@ import InviteCodes from './pages/InviteCodes'
 import Products from './pages/Products'
 import Orders from './pages/Orders'
 import Status from './pages/Status'
+import Atolye from './pages/Atolye'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -93,6 +94,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Status />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/atolye"
+          element={
+            <ProtectedRoute>
+              <Atolye />
             </ProtectedRoute>
           }
         />
