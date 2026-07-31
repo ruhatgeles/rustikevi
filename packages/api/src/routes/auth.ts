@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { login, refresh, logout, getMe } from '../services/auth.service.js'
 import { requireAuth } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rate-limit.js'
+import { bruteForceProtection, recordFailedAttempt, clearFailedAttempts } from '../middleware/brute-force.js'
 
 const auth = new Hono()
 
@@ -16,11 +17,21 @@ const refreshSchema = z.object({
 })
 
 // POST /api/auth/login
-auth.post('/login', rateLimit(10, 60_000), async (c) => {
+auth.post('/login', rateLimit(10, 60_000), bruteForceProtection(), async (c) => {
+  const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
   const body = await c.req.json()
   const { email, password } = loginSchema.parse(body)
-  const result = await login(email, password)
-  return c.json({ data: result })
+
+  try {
+    const result = await login(email, password)
+    // Başarılı giriş — failed attempts temizle
+    await clearFailedAttempts(ip, email)
+    return c.json({ data: result })
+  } catch (err) {
+    // Başarısız giriş — failed attempts kaydet
+    await recordFailedAttempt(ip, email)
+    throw err
+  }
 })
 
 // POST /api/auth/refresh

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { listUsers, createUser, updateUser, deactivateUser } from '../services/user.service.js'
 import { requireAdmin } from '../middleware/auth.js'
+import { validatePasswordOrThrow } from '../lib/password-policy.js'
 
 const users = new Hono()
 
@@ -10,7 +11,7 @@ users.use('*', requireAdmin())
 
 const createUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8),
   name: z.string().min(1).max(100),
   role: z.enum(['admin', 'manager', 'viewer']).optional(),
   inviteCode: z.string().optional(),
@@ -19,7 +20,7 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   email: z.string().email().optional(),
-  password: z.string().min(6).optional(),
+  password: z.string().min(8).optional(),
   role: z.enum(['admin', 'manager', 'viewer']).optional(),
   isActive: z.boolean().optional(),
   isLoginBlocked: z.boolean().optional(),
@@ -40,6 +41,7 @@ users.get('/', async (c) => {
 users.post('/', async (c) => {
   const body = await c.req.json()
   const input = createUserSchema.parse(body)
+  validatePasswordOrThrow(input.password)
   const user = await createUser(input)
   return c.json({ data: user }, 201)
 })
@@ -49,6 +51,9 @@ users.patch('/:id', async (c) => {
   const id = c.req.param('id')
   const body = await c.req.json()
   const input = updateUserSchema.parse(body)
+  if (input.password) {
+    validatePasswordOrThrow(input.password)
+  }
   const user = await updateUser(id, input)
   return c.json({ data: user })
 })

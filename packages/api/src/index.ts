@@ -1,10 +1,11 @@
 import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
-import { logger } from 'hono/logger'
 import { serveStatic } from '@hono/node-server/serve-static'
+import helmet from 'helmet'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './lib/errors.js'
+import { logger as pinoLogger } from './lib/logger.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import customerRoutes from './routes/customers.js'
@@ -13,11 +14,46 @@ import inviteCodeRoutes from './routes/invite-codes.js'
 import orderRoutes from './routes/orders.js'
 import productRoutes from './routes/products.js'
 import uploadRoutes from './routes/upload.js'
+import healthRoutes from './routes/health.js'
 
 const app = new Hono()
 
+// Security headers
+app.use('*', helmet())
+
+// Request ID
+app.use('*', async (c, next) => {
+  const requestId = c.req.header('x-request-id') || crypto.randomUUID()
+  c.set('requestId', requestId)
+  c.header('X-Request-Id', requestId)
+  await next()
+})
+
+// Request logging
+app.use('*', async (c, next) => {
+  const start = Date.now()
+  const requestId = c.get('requestId')
+  const reqLogger = pinoLogger.child({ requestId })
+
+  reqLogger.info({
+    method: c.req.method,
+    url: c.req.url,
+    userAgent: c.req.header('user-agent'),
+    ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown',
+  }, 'Request started')
+
+  await next()
+
+  const duration = Date.now() - start
+  reqLogger.info({
+    method: c.req.method,
+    url: c.req.url,
+    status: c.res.status,
+    duration: `${duration}ms`,
+  }, 'Request completed')
+})
+
 // Global middleware
-app.use('*', logger())
 app.use('*', corsMiddleware())
 
 // Root - API info
@@ -39,9 +75,7 @@ app.get('/', (c) =>
 )
 
 // Health check
-app.get('/api/health', (c) =>
-  c.json({ status: 'ok', timestamp: new Date().toISOString() })
-)
+app.route('/api/health', healthRoutes)
 
 // Routes
 app.route('/api/auth', authRoutes)
