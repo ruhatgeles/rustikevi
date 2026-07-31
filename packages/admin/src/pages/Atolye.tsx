@@ -11,6 +11,8 @@ import {
   RefreshCw,
   AlertTriangle,
   ArrowRight,
+  ImageIcon,
+  X,
 } from 'lucide-react'
 
 interface AtelierItem {
@@ -32,6 +34,7 @@ interface AtelierItem {
   customerName: string
   customerPhone: string | null
   productCode: string | null
+  productImages: string[] | null
 }
 
 export default function Atolye() {
@@ -40,6 +43,7 @@ export default function Atolye() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [selectedImages, setSelectedImages] = useState<{ productName: string; images: string[] } | null>(null)
 
   const isAdmin = user?.role === 'admin'
   const isAtolye = user?.role === 'atolye'
@@ -181,6 +185,15 @@ export default function Atolye() {
                         #{item.productCode}
                       </span>
                     )}
+                    {item.productImages && item.productImages.length > 0 && (
+                      <button
+                        onClick={() => setSelectedImages({ productName: item.productName, images: item.productImages! })}
+                        className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                      >
+                        <ImageIcon size={14} />
+                        Fotoğraf ({item.productImages.length})
+                      </button>
+                    )}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-[var(--color-ink)]/70">
                     <span className="flex items-center gap-1.5">
@@ -299,6 +312,50 @@ export default function Atolye() {
               <span className="font-semibold text-green-600">
                 {items.filter((i) => i.isReadyInWorkshop).length}
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ürün Fotoğrafları Modal */}
+      {selectedImages && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--color-cream-deep)] bg-white shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[var(--color-cream-deep)] p-4">
+              <h3 className="text-lg font-bold text-[var(--color-espresso)]">
+                {selectedImages.productName}
+              </h3>
+              <button
+                onClick={() => setSelectedImages(null)}
+                className="rounded-lg p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Images Grid */}
+            <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+              {selectedImages.images.length === 0 ? (
+                <div className="flex h-32 items-center justify-center text-[var(--color-ink)]/40">
+                  Fotoğraf bulunamadı
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {selectedImages.images.map((image, index) => (
+                    <div key={index} className="overflow-hidden rounded-lg border border-[var(--color-cream-deep)]">
+                      <img
+                        src={image.startsWith('http') ? image : `/uploads/products/${image}`}
+                        alt={`${selectedImages.productName} - ${index + 1}`}
+                        className="h-auto w-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5Gb3RvxJ9yYWYgYnVsdW5hbWFkxLE8L3RleHQ+PC9zdmc+'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1159,6 +1159,7 @@ export async function getAtelierItems() {
       customerName: customers.businessName,
       customerPhone: customers.phone,
       productCode: products.productCode,
+      productImages: products.images,
     })
     .from(orderItems)
     .leftJoin(orders, eq(orderItems.orderId, orders.id))
