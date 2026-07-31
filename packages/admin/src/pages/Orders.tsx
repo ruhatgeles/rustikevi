@@ -667,37 +667,35 @@ export default function Orders() {
             {showOrderForm ? 'İptal' : 'Sipariş Oluştur'}
           </button>
           {debugMode && (
-            <>
-              <button
-                onClick={createTestOrder}
-                disabled={creatingTest}
-                className="flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
-              >
-                {creatingTest ? <Loader2 size={14} className="animate-spin" /> : <Bug size={14} />}
-                <span className="hidden sm:inline">Test Sipariş</span>
-              </button>
-              {/* Classic/UI2 Toggle */}
-              <button
-                onClick={() => setUiMode(uiMode === 'classic' ? 'ui2' : 'classic')}
-                className={`relative flex h-8 w-14 items-center rounded-full transition-colors ${
-                  uiMode === 'ui2' ? 'bg-[var(--color-wood-dark)]' : 'bg-gray-300'
-                }`}
-                title={uiMode === 'classic' ? 'UI-2 moduna geç' : 'Klasik moda geç'}
-              >
-                <span className={`absolute left-1 text-[9px] font-bold ${uiMode === 'classic' ? 'text-gray-500' : 'text-transparent'}`}>
-                  KL
-                </span>
-                <span
-                  className={`inline-block h-6 w-6 rounded-full bg-white shadow transition-transform ${
-                    uiMode === 'ui2' ? 'translate-x-7' : 'translate-x-1'
-                  }`}
-                />
-                <span className={`absolute right-1 text-[9px] font-bold ${uiMode === 'ui2' ? 'text-white' : 'text-transparent'}`}>
-                  U2
-                </span>
-              </button>
-            </>
+            <button
+              onClick={createTestOrder}
+              disabled={creatingTest}
+              className="flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+            >
+              {creatingTest ? <Loader2 size={14} className="animate-spin" /> : <Bug size={14} />}
+              <span className="hidden sm:inline">Test Sipariş</span>
+            </button>
           )}
+          {/* Classic/UI2 Toggle */}
+          <button
+            onClick={() => setUiMode(uiMode === 'classic' ? 'ui2' : 'classic')}
+            className={`relative flex h-8 w-14 items-center rounded-full transition-colors ${
+              uiMode === 'ui2' ? 'bg-[var(--color-wood-dark)]' : 'bg-gray-300'
+            }`}
+            title={uiMode === 'classic' ? 'UI-2 moduna geç' : 'Klasik moda geç'}
+          >
+            <span className={`absolute left-1 text-[9px] font-bold ${uiMode === 'classic' ? 'text-gray-500' : 'text-transparent'}`}>
+              KL
+            </span>
+            <span
+              className={`inline-block h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                uiMode === 'ui2' ? 'translate-x-7' : 'translate-x-1'
+              }`}
+            />
+            <span className={`absolute right-1 text-[9px] font-bold ${uiMode === 'ui2' ? 'text-white' : 'text-transparent'}`}>
+              U2
+            </span>
+          </button>
         </div>
       </div>
 
@@ -855,25 +853,23 @@ export default function Orders() {
             <Archive size={14} />
             <span className="hidden sm:inline">Arşiv</span>
           </button>
-          {debugMode && (
-            <button
-              onClick={toggleSelectAll}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                selectedOrders.size === orders.length && orders.length > 0
-                  ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
-                  : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
-              }`}
-              title={selectedOrders.size === orders.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
-            >
-              <CheckSquare size={14} />
-              <span className="hidden sm:inline">{selectedOrders.size === orders.length ? 'Bırak' : 'Tümü'}</span>
-            </button>
-          )}
+          <button
+            onClick={toggleSelectAll}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectedOrders.size === orders.length && orders.length > 0
+                ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+            }`}
+            title={selectedOrders.size === orders.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
+          >
+            <CheckSquare size={14} />
+            <span className="hidden sm:inline">{selectedOrders.size === orders.length ? 'Bırak' : 'Tümü'}</span>
+          </button>
         </div>
       </div>
 
       {/* Bulk Actions Bar */}
-      {debugMode && selectedOrders.size > 0 && (
+      {selectedOrders.size > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-3 py-2.5 sm:gap-3 sm:px-4">
           <span className="text-sm font-medium text-[var(--color-wood-dark)]">
             {selectedOrders.size} sipariş seçildi
@@ -949,18 +945,16 @@ export default function Orders() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        {debugMode && (
-                          <div
-                            onClick={(e) => toggleOrderSelection(order.id, e)}
-                            className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
-                              isChecked
-                                ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
-                                : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
-                            }`}
-                          >
-                            {isChecked && <CheckSquare size={12} />}
-                          </div>
-                        )}
+                        <div
+                          onClick={(e) => toggleOrderSelection(order.id, e)}
+                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                            isChecked
+                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                          }`}
+                        >
+                          {isChecked && <CheckSquare size={12} />}
+                        </div>
                         <span className="font-mono text-sm font-semibold text-[var(--color-wood-dark)]">
                           {order.orderNumber}
                         </span>

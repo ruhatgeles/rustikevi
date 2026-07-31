@@ -414,24 +414,22 @@ export default function Products() {
             <Archive size={14} />
             <span className="hidden sm:inline">Arşiv</span>
           </button>
-          {debugMode && (
-            <button
-              onClick={toggleSelectAll}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                selectedProducts.size === displayProducts.length && displayProducts.length > 0
-                  ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
-                  : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
-              }`}
-            >
-              <CheckSquare size={14} />
-              <span className="hidden sm:inline">{selectedProducts.size === displayProducts.length ? 'Bırak' : 'Tümü'}</span>
-            </button>
-          )}
+          <button
+            onClick={toggleSelectAll}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectedProducts.size === displayProducts.length && displayProducts.length > 0
+                ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+            }`}
+          >
+            <CheckSquare size={14} />
+            <span className="hidden sm:inline">{selectedProducts.size === displayProducts.length ? 'Bırak' : 'Tümü'}</span>
+          </button>
         </div>
       </div>
 
       {/* Bulk Actions Bar */}
-      {debugMode && selectedProducts.size > 0 && (
+      {selectedProducts.size > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-3 py-2.5 sm:gap-3 sm:px-4">
           <span className="text-sm font-medium text-[var(--color-wood-dark)]">
             {selectedProducts.size} ürün seçildi
@@ -570,7 +568,7 @@ export default function Products() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
             <tr>
-              {debugMode && <th className="w-10 px-4 py-3"></th>}
+              <th className="w-10 px-4 py-3"></th>
               <th className="px-4 py-3 font-medium">Kod</th>
               <th className="px-4 py-3 font-medium">Ürün</th>
               <th className="px-4 py-3 font-medium">Kategori</th>
@@ -583,13 +581,13 @@ export default function Products() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={debugMode ? 9 : 8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Yükleniyor...
                 </td>
               </tr>
             ) : displayProducts.length === 0 ? (
               <tr>
-                <td colSpan={debugMode ? 9 : 8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Ürün bulunamadı
                 </td>
               </tr>
@@ -601,18 +599,16 @@ export default function Products() {
                     className={`border-b border-[var(--color-cream-deep)] last:border-0 ${
                       !product.isActive ? 'opacity-50' : ''
                     } ${product.isArchived ? 'opacity-60' : ''} ${isChecked ? 'bg-[var(--color-brass)]/5' : ''}`}>
-                    {debugMode && (
-                      <td className="px-4 py-3">
-                        <div onClick={(e) => toggleProductSelection(product.id, e)}
-                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
-                            isChecked
-                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
-                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
-                          }`}>
-                          {isChecked && <CheckSquare size={12} />}
-                        </div>
-                      </td>
-                    )}
+                    <td className="px-4 py-3">
+                      <div onClick={(e) => toggleProductSelection(product.id, e)}
+                        className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                          isChecked
+                            ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                            : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                        }`}>
+                        {isChecked && <CheckSquare size={12} />}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       {product.productCode ? (
                         <span className="rounded bg-[var(--color-cream-deep)] px-1.5 py-0.5 font-mono text-xs font-semibold text-[var(--color-wood-dark)]">
@@ -720,18 +716,16 @@ export default function Products() {
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {debugMode && (
-                        <div
-                          onClick={(e) => toggleProductSelection(product.id, e)}
-                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
-                            isChecked
-                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
-                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
-                          }`}
-                        >
-                          {isChecked && <CheckSquare size={12} />}
-                        </div>
-                      )}
+                      <div
+                        onClick={(e) => toggleProductSelection(product.id, e)}
+                        className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                          isChecked
+                            ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                            : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                        }`}
+                      >
+                        {isChecked && <CheckSquare size={12} />}
+                      </div>
                       {product.productCode && (
                         <span className="rounded bg-[var(--color-cream-deep)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--color-wood-dark)]">
                           {product.productCode}

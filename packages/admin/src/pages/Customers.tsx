@@ -848,26 +848,24 @@ export default function Customers() {
             <Archive size={14} />
             <span className="hidden sm:inline">Arşiv</span>
           </button>
-          {debugMode && (
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                selectedCustomers.size === customers.length && customers.length > 0
-                  ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
-                  : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
-              }`}
-              title={selectedCustomers.size === customers.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
-            >
-              <CheckSquare size={14} />
-              <span className="hidden sm:inline">{selectedCustomers.size === customers.length ? 'Bırak' : 'Tümü'}</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              selectedCustomers.size === customers.length && customers.length > 0
+                ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60'
+            }`}
+            title={selectedCustomers.size === customers.length ? 'Tümünü Bırak' : 'Tümünü Seç'}
+          >
+            <CheckSquare size={14} />
+            <span className="hidden sm:inline">{selectedCustomers.size === customers.length ? 'Bırak' : 'Tümü'}</span>
+          </button>
         </div>
       </div>
 
       {/* Bulk Actions Bar */}
-      {debugMode && selectedCustomers.size > 0 && (
+      {selectedCustomers.size > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/5 px-3 py-2.5 sm:gap-3 sm:px-4">
           <span className="text-sm font-medium text-[var(--color-wood-dark)]">
             {selectedCustomers.size} müşteri seçildi
@@ -955,7 +953,7 @@ export default function Customers() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50">
             <tr>
-              {debugMode && <th className="w-10 px-4 py-3"></th>}
+              <th className="w-10 px-4 py-3"></th>
               <th onClick={() => toggleSort('businessName')} className="cursor-pointer px-4 py-3 font-medium select-none hover:text-[var(--color-wood-dark)]">
                 <span className="inline-flex items-center gap-1">İşletme <SortIcon field="businessName" /></span>
               </th>
@@ -980,13 +978,13 @@ export default function Customers() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={debugMode ? 8 : 7} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Yükleniyor...
                 </td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={debugMode ? 8 : 7} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
                   Müşteri bulunamadı
                 </td>
               </tr>
@@ -1001,20 +999,18 @@ export default function Customers() {
                       isChecked ? 'bg-[var(--color-brass)]/5' : ''
                     } ${c.isArchived ? 'opacity-60' : ''}`}
                   >
-                    {debugMode && (
-                      <td className="px-4 py-3">
-                        <div
-                          onClick={(e) => toggleCustomerSelection(c.id, e)}
-                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
-                            isChecked
-                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
-                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
-                          }`}
-                        >
-                          {isChecked && <CheckSquare size={12} />}
-                        </div>
-                      </td>
-                    )}
+                    <td className="px-4 py-3">
+                      <div
+                        onClick={(e) => toggleCustomerSelection(c.id, e)}
+                        className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                          isChecked
+                            ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                            : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                        }`}
+                      >
+                        {isChecked && <CheckSquare size={12} />}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 font-medium">
                       <span className="flex items-center gap-2">
                         {c.businessName}
@@ -1075,18 +1071,16 @@ export default function Customers() {
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {debugMode && (
-                        <div
-                          onClick={(e) => toggleCustomerSelection(c.id, e)}
-                          className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
-                            isChecked
-                              ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
-                              : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
-                          }`}
-                        >
-                          {isChecked && <CheckSquare size={12} />}
-                        </div>
-                      )}
+                      <div
+                        onClick={(e) => toggleCustomerSelection(c.id, e)}
+                        className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                          isChecked
+                            ? 'border-[var(--color-brass)] bg-[var(--color-brass)] text-white'
+                            : 'border-[var(--color-cream-deep)] hover:border-[var(--color-brass)]'
+                        }`}
+                      >
+                        {isChecked && <CheckSquare size={12} />}
+                      </div>
                       <span className="text-sm font-medium">{c.businessName}</span>
                       {c.isArchived && (
                         <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
