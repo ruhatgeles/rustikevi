@@ -1,6 +1,6 @@
 import { db } from '../db/index.js'
 import { orders, orderItems, orderActivities, orderReturns, orderReturnItems, customers, products, users } from '../db/schema.js'
-import { eq, and, sql, desc, asc, ilike, inArray } from 'drizzle-orm'
+import { eq, and, or, isNull, sql, desc, asc, ilike, inArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
 // ── Types ───────────────────────────────────────────────
@@ -1164,7 +1164,15 @@ export async function getAtelierItems() {
     .from(orderItems)
     .leftJoin(orders, eq(orderItems.orderId, orders.id))
     .leftJoin(customers, eq(orders.customerId, customers.id))
-    .leftJoin(products, eq(orderItems.productId, products.id))
+    .leftJoin(products,
+      or(
+        eq(orderItems.productId, products.id),
+        and(
+          isNull(orderItems.productId),
+          eq(products.name, orderItems.productName)
+        )
+      )
+    )
     .where(
       and(
         eq(orderItems.itemStatus, 'atelier'),
