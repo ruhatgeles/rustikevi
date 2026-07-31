@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
 import { DebugProvider } from './lib/debug'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
@@ -40,9 +41,10 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <DebugProvider>
-      <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <DebugProvider>
+        <Routes>
         <Route path="/login" element={<Login />} />
         <Route
           path="/"
@@ -112,8 +114,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-      </Routes>
-      </DebugProvider>
-    </AuthProvider>
+        </Routes>
+        </DebugProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
