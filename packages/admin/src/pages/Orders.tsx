@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import ProductSearch from '../components/ProductSearch'
 import ReturnModal from '../components/ReturnModal'
 import ExchangeModal from '../components/ExchangeModal'
+import ProductGalleryModal from '../components/ProductGalleryModal'
 import {
   Search,
   X,
@@ -24,6 +25,7 @@ import {
   Trash2,
   Plus,
   Pencil,
+  ImageIcon,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────
@@ -195,6 +197,11 @@ export default function Orders() {
   // Item-level return & exchange
   const [itemToReturn, setItemToReturn] = useState<OrderItem | null>(null)
   const [itemToExchange, setItemToExchange] = useState<OrderItem | null>(null)
+
+  // Gallery modal
+  const [showGalleryModal, setShowGalleryModal] = useState(false)
+  const [galleryProductName, setGalleryProductName] = useState('')
+  const [galleryImages, setGalleryImages] = useState<string[]>([])
 
   // Navigate from customer detail → auto-select order
   useEffect(() => {
@@ -1217,6 +1224,28 @@ export default function Orders() {
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="text-sm font-semibold">{formatPrice(item.totalPrice)}</div>
+                              <button
+                                onClick={async () => {
+                                  if (item.productId) {
+                                    try {
+                                      const product = await api.request<any>(`/api/products/${item.productId}`)
+                                      setGalleryProductName(item.productName)
+                                      setGalleryImages(product.images || [])
+                                    } catch {
+                                      setGalleryProductName(item.productName)
+                                      setGalleryImages([])
+                                    }
+                                  } else {
+                                    setGalleryProductName(item.productName)
+                                    setGalleryImages([])
+                                  }
+                                  setShowGalleryModal(true)
+                                }}
+                                className="rounded p-1 text-[var(--color-ink)]/30 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                                title="Görselleri Gör"
+                              >
+                                <ImageIcon size={14} />
+                              </button>
                               {editMode && (
                                 <button
                                   onClick={() => handleDeleteItemClick(item.id)}
@@ -1484,6 +1513,14 @@ export default function Orders() {
             </div>
           </div>
         )}
+
+        {/* Gallery Modal */}
+        <ProductGalleryModal
+          open={showGalleryModal}
+          productName={galleryProductName}
+          images={galleryImages}
+          onClose={() => setShowGalleryModal(false)}
+        />
       </div>
   )
 }

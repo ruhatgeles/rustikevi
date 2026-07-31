@@ -2,9 +2,11 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
+import ProductDetailModal from '../components/ProductDetailModal'
+import ProductGalleryModal from '../components/ProductGalleryModal'
 import {
   Plus, Search, X, Pencil, Trash2, Eye, EyeOff,
-  Archive, ArchiveRestore, CheckSquare, Loader2,
+  Archive, ArchiveRestore, CheckSquare, Loader2, ImageIcon,
 } from 'lucide-react'
 
 interface Product {
@@ -18,6 +20,7 @@ interface Product {
   moq: string
   price: number | null
   swatches: Array<[string, string]>
+  images: string[]
   featured: boolean
   isActive: boolean
   isArchived: boolean
@@ -39,6 +42,7 @@ const emptyForm = {
   moq: '',
   price: '',
   swatches: [['#c9a876', '#8a6d43']] as Array<[string, string]>,
+  images: [] as string[],
   featured: false,
   isActive: true,
   sortOrder: 0,
@@ -65,6 +69,12 @@ export default function Products() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Product detail & gallery
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showGalleryModal, setShowGalleryModal] = useState(false)
+  const [galleryProduct, setGalleryProduct] = useState<Product | null>(null)
 
   const loadProducts = async () => {
     try {
@@ -270,6 +280,7 @@ export default function Products() {
       moq: product.moq,
       price: product.price ? String(product.price / 100) : '',
       swatches: product.swatches.length > 0 ? product.swatches : [['#c9a876', '#8a6d43']],
+      images: product.images || [],
       featured: product.featured,
       isActive: product.isActive,
       sortOrder: product.sortOrder,
@@ -501,6 +512,38 @@ export default function Products() {
                 ))}
               </div>
             </div>
+            {/* Images */}
+            <div className="sm:col-span-2">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-sm font-medium text-[var(--color-ink)]/70">Görseller (URL)</label>
+                <button type="button" onClick={() => setForm({ ...form, images: [...form.images, ''] })}
+                  className="flex items-center gap-1 text-xs font-medium text-[var(--color-wood-dark)] hover:underline">
+                  <Plus size={12} /> Görsel Ekle
+                </button>
+              </div>
+              <div className="space-y-2">
+                {form.images.map((img, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input type="url" placeholder="https://..." value={img}
+                      onChange={(e) => {
+                        const updated = [...form.images]
+                        updated[i] = e.target.value
+                        setForm({ ...form, images: updated })
+                      }}
+                      className="flex-1 rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)]" />
+                    {img && (
+                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded border border-gray-200">
+                        <img src={img} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      </div>
+                    )}
+                    <button type="button" onClick={() => setForm({ ...form, images: form.images.filter((_, j) => j !== i) })}
+                      className="text-red-400 hover:text-red-600">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-4 sm:col-span-2">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.featured}
@@ -583,7 +626,12 @@ export default function Products() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{product.name}</span>
+                        <button
+                          onClick={() => { setSelectedProduct(product); setShowDetailModal(true) }}
+                          className="font-medium text-[var(--color-wood-dark)] hover:underline"
+                        >
+                          {product.name}
+                        </button>
                         {product.isArchived && (
                           <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
                         )}
@@ -598,7 +646,18 @@ export default function Products() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-[var(--color-ink)]/60">{product.color || '-'}</td>
-                    <td className="px-4 py-3 font-medium">{formatPrice(product.price)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium">{formatPrice(product.price)}</span>
+                        <button
+                          onClick={() => { setGalleryProduct(product); setShowGalleryModal(true) }}
+                          className="rounded p-1 text-[var(--color-ink)]/30 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                          title="Görselleri Gör"
+                        >
+                          <ImageIcon size={14} />
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         {product.swatches.slice(0, 3).map((swatch, i) => (
@@ -725,6 +784,13 @@ export default function Products() {
                     {product.color && (
                       <span className="text-xs text-[var(--color-ink)]/50">{product.color}</span>
                     )}
+                    <button
+                      onClick={() => { setGalleryProduct(product); setShowGalleryModal(true) }}
+                      className="rounded p-1 text-[var(--color-ink)]/30 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                      title="Görselleri Gör"
+                    >
+                      <ImageIcon size={14} />
+                    </button>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex gap-1">
@@ -766,6 +832,21 @@ export default function Products() {
         onConfirm={deleteTarget ? handleDeleteConfirm : handleBulkDeleteConfirm}
         onCancel={() => { setShowDeleteModal(false); setDeleteTarget(null) }}
         loading={deleteLoading}
+      />
+
+      {/* Product Detail Modal */}
+      <ProductDetailModal
+        open={showDetailModal}
+        product={selectedProduct}
+        onClose={() => { setShowDetailModal(false); setSelectedProduct(null) }}
+      />
+
+      {/* Product Gallery Modal */}
+      <ProductGalleryModal
+        open={showGalleryModal}
+        productName={galleryProduct?.name || ''}
+        images={galleryProduct?.images || []}
+        onClose={() => { setShowGalleryModal(false); setGalleryProduct(null) }}
       />
     </div>
   )

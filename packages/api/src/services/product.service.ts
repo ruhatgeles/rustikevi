@@ -13,6 +13,7 @@ interface CreateProductInput {
   moq?: string
   price?: number
   swatches?: Array<[string, string]>
+  images?: string[]
   featured?: boolean
   isActive?: boolean
   sortOrder?: number
@@ -174,6 +175,7 @@ export async function createProduct(input: CreateProductInput) {
       moq: input.moq || '',
       price: input.price,
       swatches: input.swatches || [],
+      images: input.images || [],
       featured: input.featured || false,
       isActive: input.isActive !== false,
       sortOrder: input.sortOrder || 0,
