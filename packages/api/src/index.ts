@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
-import helmet from 'helmet'
+import { secureHeaders } from 'hono/secure-headers'
 import { corsMiddleware } from './middleware/cors.js'
 import { errorHandler } from './lib/errors.js'
 import { logger as pinoLogger } from './lib/logger.js'
@@ -19,8 +19,8 @@ import { openApiSpec } from './openapi.js'
 
 const app = new Hono()
 
-// Security headers
-app.use('*', helmet())
+// Security headers (Hono built-in)
+app.use('*', secureHeaders())
 
 // Request ID
 app.use('*', async (c, next) => {
