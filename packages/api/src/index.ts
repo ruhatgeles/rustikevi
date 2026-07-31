@@ -15,6 +15,7 @@ import orderRoutes from './routes/orders.js'
 import productRoutes from './routes/products.js'
 import uploadRoutes from './routes/upload.js'
 import healthRoutes from './routes/health.js'
+import { openApiSpec } from './openapi.js'
 
 const app = new Hono()
 
@@ -76,6 +77,9 @@ app.get('/', (c) =>
 
 // Health check
 app.route('/api/health', healthRoutes)
+
+// API Documentation
+app.get('/api/docs', (c) => c.json(openApiSpec))
 
 // Routes
 app.route('/api/auth', authRoutes)
