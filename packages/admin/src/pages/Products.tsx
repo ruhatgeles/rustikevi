@@ -6,7 +6,7 @@ import ProductDetailModal from '../components/ProductDetailModal'
 import ProductGalleryModal from '../components/ProductGalleryModal'
 import {
   Plus, Search, X, Pencil, Trash2, Eye, EyeOff,
-  Archive, ArchiveRestore, CheckSquare, Loader2, ImageIcon,
+  Archive, ArchiveRestore, CheckSquare, Loader2, ImageIcon, Check,
 } from 'lucide-react'
 
 interface Product {
@@ -30,7 +30,21 @@ interface Product {
 }
 
 const CATEGORIES = ['Rustik', 'Saçak', 'Başlık', 'Dekorink', 'Sarkıt', 'Braçöl']
-const COLORS = ['Beyaz', 'Krem', 'Kahverengi', 'Siyah', 'Altın', 'Gümüş', 'Gri', 'Ahşap', 'Doğal', 'Özel']
+const DEFAULT_COLORS = ['Beyaz', 'Krem', 'Kırık Beyaz', 'Kahverengi', 'Siyah', 'Altın', 'Gümüş', 'Gri', 'Ahşap', 'Doğal']
+
+// Load colors from localStorage or use defaults
+function getColors(): string[] {
+  try {
+    const saved = localStorage.getItem('product_colors')
+    return saved ? JSON.parse(saved) : DEFAULT_COLORS
+  } catch {
+    return DEFAULT_COLORS
+  }
+}
+
+function saveColors(colors: string[]) {
+  localStorage.setItem('product_colors', JSON.stringify(colors))
+}
 
 const emptyForm = {
   productCode: '',
@@ -41,7 +55,6 @@ const emptyForm = {
   shortDescription: '',
   moq: '',
   price: '',
-  swatches: [['#c9a876', '#8a6d43']] as Array<[string, string]>,
   images: [] as string[],
   featured: false,
   isActive: true,
@@ -59,6 +72,11 @@ export default function Products() {
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Dynamic colors
+  const [colors, setColors] = useState<string[]>(getColors)
+  const [customColor, setCustomColor] = useState('')
+  const [showColorInput, setShowColorInput] = useState(false)
 
   // Archive & selection
   const [showArchived, setShowArchived] = useState(false)
@@ -259,7 +277,22 @@ export default function Products() {
     setEditingId(null)
     setShowForm(false)
     setError('')
+    setShowColorInput(false)
+    setCustomColor('')
   }, [])
+
+  const addCustomColor = useCallback(() => {
+    const trimmed = customColor.trim()
+    if (!trimmed) return
+    if (!colors.includes(trimmed)) {
+      const newColors = [...colors, trimmed]
+      setColors(newColors)
+      saveColors(newColors)
+    }
+    setForm({ ...form, color: trimmed })
+    setCustomColor('')
+    setShowColorInput(false)
+  }, [customColor, colors, form])
 
   const openCreate = useCallback(() => {
     setForm(emptyForm)
@@ -279,7 +312,6 @@ export default function Products() {
       shortDescription: product.shortDescription,
       moq: product.moq,
       price: product.price ? String(product.price / 100) : '',
-      swatches: product.swatches.length > 0 ? product.swatches : [['#c9a876', '#8a6d43']],
       images: product.images || [],
       featured: product.featured,
       isActive: product.isActive,
@@ -313,22 +345,6 @@ export default function Products() {
     } finally {
       setSaving(false)
     }
-  }
-
-  const addSwatch = () => {
-    setForm({ ...form, swatches: [...form.swatches, ['#c9a876', '#8a6d43']] })
-  }
-
-  const removeSwatch = (index: number) => {
-    if (form.swatches.length <= 1) return
-    setForm({ ...form, swatches: form.swatches.filter((_, i) => i !== index) })
-  }
-
-  const updateSwatch = (index: number, colorIndex: 0 | 1, value: string) => {
-    const updated = [...form.swatches]
-    updated[index] = [...updated[index]] as [string, string]
-    updated[index][colorIndex] = value
-    setForm({ ...form, swatches: updated })
   }
 
   const formatPrice = (kurus: number | null) => {
@@ -466,12 +482,45 @@ export default function Products() {
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
               {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
-            <select value={form.color}
-              onChange={(e) => setForm({ ...form, color: e.target.value })}
-              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
-              <option value="">Renk Seçin</option>
-              {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            {/* Color Select with Custom Input */}
+            <div className="relative">
+              <select value={form.color}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') {
+                    setShowColorInput(true)
+                  } else {
+                    setForm({ ...form, color: e.target.value })
+                    setShowColorInput(false)
+                  }
+                }}
+                className="w-full rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
+                <option value="">Renk Seçin</option>
+                {colors.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__custom__">+ Yeni Renk Ekle...</option>
+              </select>
+              {showColorInput && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomColor()}
+                    placeholder="Yeni renk adı..."
+                    autoFocus
+                    className="flex-1 rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCustomColor}
+                    disabled={!customColor.trim()}
+                    className="flex items-center justify-center rounded-lg bg-green-500 px-3 py-2 text-white hover:bg-green-600 disabled:opacity-50"
+                    title="Ekle"
+                  >
+                    <Check size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
             <input type="number" placeholder="Fiyat (₺)" step="0.01" value={form.price}
               onChange={(e) => setForm({ ...form, price: e.target.value })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
@@ -484,34 +533,6 @@ export default function Products() {
             <input placeholder="Min. Sipariş (örn: 200 adet)" value={form.moq}
               onChange={(e) => setForm({ ...form, moq: e.target.value })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
-            <div className="sm:col-span-2">
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-[var(--color-ink)]/70">Renk Kartları</label>
-                <button type="button" onClick={addSwatch}
-                  className="flex items-center gap-1 text-xs font-medium text-[var(--color-wood-dark)] hover:underline">
-                  <Plus size={12} /> Renk Ekle
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {form.swatches.map((swatch, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg border border-[var(--color-cream-deep)] p-2">
-                    <div className="h-8 w-8 rounded border border-gray-200"
-                      style={{ background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})` }} />
-                    <input type="color" value={swatch[0]}
-                      onChange={(e) => updateSwatch(i, 0, e.target.value)}
-                      className="h-7 w-7 cursor-pointer rounded border-0 p-0" title="Başlangıç rengi" />
-                    <input type="color" value={swatch[1]}
-                      onChange={(e) => updateSwatch(i, 1, e.target.value)}
-                      className="h-7 w-7 cursor-pointer rounded border-0 p-0" title="Bitiş rengi" />
-                    {form.swatches.length > 1 && (
-                      <button type="button" onClick={() => removeSwatch(i)} className="text-red-400 hover:text-red-600">
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
             {/* Images */}
             <div className="sm:col-span-2">
               <div className="mb-2 flex items-center justify-between">
@@ -577,7 +598,6 @@ export default function Products() {
               <th className="px-4 py-3 font-medium">Kategori</th>
               <th className="px-4 py-3 font-medium">Renk</th>
               <th className="px-4 py-3 font-medium">Fiyat</th>
-              <th className="px-4 py-3 font-medium">Renkler</th>
               <th className="px-4 py-3 font-medium">Durum</th>
               <th className="px-4 py-3 text-right font-medium">İşlem</th>
             </tr>
@@ -656,20 +676,6 @@ export default function Products() {
                         >
                           <ImageIcon size={14} />
                         </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        {product.swatches.slice(0, 3).map((swatch, i) => (
-                          <div key={i} className="h-5 w-5 rounded-full border border-gray-200"
-                            style={{ background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})` }}
-                            title={`${swatch[0]} → ${swatch[1]}`} />
-                        ))}
-                        {product.swatches.length > 3 && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] text-gray-500">
-                            +{product.swatches.length - 3}
-                          </span>
-                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -798,12 +804,6 @@ export default function Products() {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      {product.swatches.slice(0, 3).map((swatch, i) => (
-                        <div key={i} className="h-4 w-4 rounded-full border border-gray-200"
-                          style={{ background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})` }} />
-                      ))}
-                    </div>
                     <div className="flex items-center gap-1">
                       {product.isActive ? (
                         <Eye size={12} className="text-green-600" />

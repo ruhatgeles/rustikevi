@@ -97,15 +97,8 @@ export default function ProductDetailModal({
                   )}
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  {product.swatches.map((swatch, i) => (
-                    <div
-                      key={i}
-                      className="h-12 w-12 rounded-lg border border-gray-200"
-                      style={{ background: `linear-gradient(135deg, ${swatch[0]}, ${swatch[1]})` }}
-                      title={`${swatch[0]} → ${swatch[1]}`}
-                    />
-                  ))}
+                <div className="flex h-32 items-center justify-center rounded-lg bg-[var(--color-cream)]/30">
+                  <ImageIcon size={32} className="text-[var(--color-ink)]/20" />
                 </div>
               )}
               {product.images && product.images.length > 0 && (
