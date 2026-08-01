@@ -170,7 +170,15 @@ export default function Customers() {
     e.preventDefault()
     setError('')
     try {
-      await api.request('/api/customers', { method: 'POST', body: form })
+      // Boş string'leri null'a çevir
+      const cleanedForm = {
+        ...form,
+        email: form.email?.trim() || null,
+        city: form.city?.trim() || null,
+        address: form.address?.trim() || null,
+        notes: form.notes?.trim() || null,
+      }
+      await api.request('/api/customers', { method: 'POST', body: cleanedForm })
       setShowForm(false)
       setForm({ businessName: '', contactName: '', phone: '', email: '', city: '', address: '', notes: '' })
       loadCustomers()
@@ -326,9 +334,17 @@ export default function Customers() {
     setEditLoading(true)
     setError('')
     try {
+      // Boş string'leri null'a çevir
+      const cleanedForm = {
+        ...editForm,
+        email: editForm.email?.trim() || null,
+        city: editForm.city?.trim() || null,
+        address: editForm.address?.trim() || null,
+        notes: editForm.notes?.trim() || null,
+      }
       const updated = await api.request<Customer>(`/api/customers/${selectedCustomer.id}`, {
         method: 'PATCH',
-        body: editForm,
+        body: cleanedForm,
       })
       setSelectedCustomer(updated)
       setEditing(false)
@@ -474,10 +490,10 @@ export default function Customers() {
                 </button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <input required placeholder="İşletme Adı" value={editForm.businessName}
+                <input placeholder="İşletme Adı (opsiyonel)" value={editForm.businessName}
                   onChange={(e) => setEditForm({ ...editForm, businessName: e.target.value })}
                   className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
-                <input required placeholder="Yetkili Adı" value={editForm.contactName}
+                <input placeholder="Yetkili Adı (opsiyonel)" value={editForm.contactName}
                   onChange={(e) => setEditForm({ ...editForm, contactName: e.target.value })}
                   className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
                 <input required placeholder="Telefon" value={editForm.phone}
@@ -919,10 +935,10 @@ export default function Customers() {
             </button>
           </div>
           <form onSubmit={handleCreate} className="grid gap-3 sm:grid-cols-2">
-            <input required placeholder="İşletme Adı" value={form.businessName}
+            <input placeholder="İşletme Adı (opsiyonel)" value={form.businessName}
               onChange={(e) => setForm({ ...form, businessName: e.target.value })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
-            <input required placeholder="Yetkili Adı" value={form.contactName}
+            <input placeholder="Yetkili Adı (opsiyonel)" value={form.contactName}
               onChange={(e) => setForm({ ...form, contactName: e.target.value })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
             <input required placeholder="Telefon" value={form.phone}
