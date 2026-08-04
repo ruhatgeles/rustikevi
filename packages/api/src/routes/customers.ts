@@ -20,13 +20,13 @@ const customers = new Hono()
 customers.use('*', requireManager())
 
 const createCustomerSchema = z.object({
-  businessName: z.string().min(1).max(200),
-  contactName: z.string().min(1).max(100),
-  phone: z.string().min(10).max(20),
-  email: z.string().email().optional(),
-  city: z.string().max(100).optional(),
-  address: z.string().optional(),
-  notes: z.string().optional(),
+  businessName: z.string().max(200).optional().default(''),
+  contactName: z.string().max(100).optional().default(''),
+  phone: z.union([z.string().min(7).max(20), z.literal(''), z.null()]).optional().transform(v => v === '' || v === null ? '' : v).default(''),
+  email: z.union([z.string().email(), z.literal(''), z.null()]).optional().transform(v => v === '' || v === null ? null : v),
+  city: z.union([z.string().max(100), z.literal(''), z.null()]).optional().transform(v => v === '' || v === null ? null : v),
+  address: z.union([z.string(), z.literal(''), z.null()]).optional().transform(v => v === '' || v === null ? null : v),
+  notes: z.union([z.string(), z.literal(''), z.null()]).optional().transform(v => v === '' || v === null ? null : v),
   tags: z.array(z.string()).optional(),
 })
 

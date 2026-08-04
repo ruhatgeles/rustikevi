@@ -21,6 +21,10 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Data examples & backups
+data-examples/
+backup-*.sql
+
 # Logs
 *.log
 npm-debug.log*
