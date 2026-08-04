@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Menu, X } from 'lucide-react'
 
 const navItems = [
@@ -11,7 +11,28 @@ const navItems = [
 
 export function Header() {
   const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [open])
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--color-cream-deep)] bg-[var(--color-linen)]/90 backdrop-blur-md">
@@ -61,7 +82,9 @@ export function Header() {
         </div>
 
         <button
-          aria-label="Menüyü aç"
+          aria-label={open ? 'Menüyü kapat' : 'Menüyü aç'}
+          aria-expanded={open}
+          aria-controls="mobile-menu"
           className="flex h-11 w-11 items-center justify-center rounded-lg text-[var(--color-espresso)] transition-colors active:bg-[var(--color-cream-deep)] md:hidden"
           onClick={() => setOpen((v) => !v)}
         >
@@ -70,7 +93,11 @@ export function Header() {
       </div>
 
       {open && (
-        <nav className="flex flex-col gap-1 border-t border-[var(--color-cream-deep)] bg-[var(--color-linen)] px-5 pb-5 pt-3 md:hidden">
+        <nav
+          id="mobile-menu"
+          ref={menuRef}
+          className="flex flex-col gap-1 border-t border-[var(--color-cream-deep)] bg-[var(--color-linen)] px-5 pb-5 pt-3 md:hidden"
+        >
           {navItems.map((item) => (
             <Link
               key={item.to}

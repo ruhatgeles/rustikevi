@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 export function CatalogQRCode({ path = '/katalog', size = 176 }: { path?: string; size?: number }) {
   const [url, setUrl] = useState<string | null>(null)
+  const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
     setUrl(`${window.location.origin}${path}`)
@@ -17,8 +18,14 @@ export function CatalogQRCode({ path = '/katalog', size = 176 }: { path?: string
         className="flex items-center justify-center overflow-hidden rounded-xl bg-[var(--color-cream)]"
         style={{ width: size, height: size }}
       >
-        {qrSrc ? (
-          <img src={qrSrc} alt="Dijital katalog QR kodu" width={size} height={size} />
+        {qrSrc && !imgError ? (
+          <img
+            src={qrSrc}
+            alt="Dijital katalog QR kodu"
+            width={size}
+            height={size}
+            onError={() => setImgError(true)}
+          />
         ) : (
           <div className="h-full w-full animate-pulse bg-[var(--color-cream-deep)]" />
         )}

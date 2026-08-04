@@ -6,6 +6,11 @@ export interface Product {
   shortDescription: string
   moq: string
   swatches: Array<[string, string]>
+  featured?: boolean
+  isActive?: boolean
+  sortOrder?: number
+  createdAt?: string
+  updatedAt?: string
 }
 
 export const categories = ['Tümü', 'Rustik', 'Saçak', 'Başlık', 'Dekorink', 'Sarkıt', 'Braçöl'] as const
@@ -21,6 +26,7 @@ const products: Array<Product> = [
       'El örgüsü jüt lifinden üretilen kordonlarımız, rustik tarzdaki perde dekorasyonlarıyla mükemmel uyum sağlar. Kopmaya karşı güçlendirilmiş iç örgüsü sayesinde günlük kullanıma uygundur.',
     moq: '200 adet',
     swatches: [['#c9a876', '#8a6d43'], ['#d89e67', '#996334'], ['#baad8a', '#7b7257']],
+    featured: true,
   },
   {
     id: 2,
@@ -66,7 +72,7 @@ const products: Array<Product> = [
     id: 6,
     name: 'Ahşap Perde Çubuğu',
     category: 'Rustik',
-    shortDescription: 'Doğal ahşap perde çubuğu, various çaplarında.',
+    shortDescription: 'Doğal ahşap perde çubuğu, çeşitli çaplarında.',
     description:
       'Doğal ahşaptan üretilen perde çubukları, rustik ve minimal dekorasyonlar için mükemmeldir. Farklı uzunluk ve çap seçenekleri mevcuttur.',
     moq: '100 adet',
@@ -93,6 +99,7 @@ const products: Array<Product> = [
       'Jüt lifinden üretilen saçaklarımız, perde kenarlarına doğal ve rustik bir görünüm kazandırır. Kolay uygulanabilir yapışkanlı bant seçeneği mevcuttur.',
     moq: '100 metre',
     swatches: [['#c2a070', '#8a6d45'], ['#d19661', '#996336'], ['#b3a584', '#7b7259']],
+    featured: true,
   },
   {
     id: 9,
@@ -138,7 +145,7 @@ const products: Array<Product> = [
     id: 13,
     name: 'Çift Katlı Saçak',
     category: 'Saçak',
-    shortDescription: 'Çift katlı密集 dokuma saçak.',
+    shortDescription: 'Çift katlı yoğun dokuma saçak.',
     description:
       'Çift katlı yoğun dokuma tekniğiyle üretilen saçaklarımız, premium görünüm ve yüksek dayanıklılık sunar. Toptan siparişlerde özel renk üretimi yapılabilir.',
     moq: '100 metre',
@@ -252,7 +259,7 @@ const products: Array<Product> = [
     id: 24,
     name: 'Metal Kordon Ucu',
     category: 'Dekorink',
-    shortDescription: 'Metal kordon ucu,Various desenlerde.',
+    shortDescription: 'Metal kordon ucu, çeşitli desenlerde.',
     description:
       'Paslanmaz çelik veya pirinç malzemeden üretilen kordon ucularımız, kordonlara şık bir bitiş kazandırır. Çeşitli desen ve boyutlarda mevcuttur.',
     moq: '300 adet',
@@ -299,6 +306,7 @@ const products: Array<Product> = [
       'Yüksek kaliteli kristal camdan üretilen sarkıtlarımız, ışığı yansıtarak odalara şık bir görünüm kazandırır. Farklı boyutlarda mevcuttur.',
     moq: '100 adet',
     swatches: [['#e8e0d8', '#c8c0b8'], ['#f7d6c9', '#d7b6a9'], ['#d9e5ec', '#b9c5cc']],
+    featured: true,
   },
   {
     id: 29,

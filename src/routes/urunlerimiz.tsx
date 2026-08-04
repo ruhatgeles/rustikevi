@@ -1,23 +1,36 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, QrCode } from 'lucide-react'
-import products, { categories } from '@/data/products'
+import { getProducts } from '@/lib/products'
+import { categories } from '@/data/products'
 import { ProductCard } from '@/components/ProductCard'
 import { CatalogQRCode } from '@/components/CatalogQRCode'
 
 export const Route = createFileRoute('/urunlerimiz')({
+  head: () => ({
+    meta: [
+      { title: 'Ürünlerimiz | Rustik Evi' },
+      {
+        name: 'description',
+        content:
+          'Rustik perde aksesuarları kataloğu. Jüt kordon, ahşap halka, saçak, başlık, sarkıt, braçöl. Kategoriye göre filtreleyin, toptan sipariş verin.',
+      },
+    ],
+  }),
+  loader: async () => await getProducts(),
   component: ProductsPage,
 })
 
 function ProductsPage() {
+  const allProducts = Route.useLoaderData()
   const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>('Tümü')
 
   const filtered = useMemo(
     () =>
       activeCategory === 'Tümü'
-        ? products
-        : products.filter((p) => p.category === activeCategory),
-    [activeCategory],
+        ? allProducts
+        : allProducts.filter((p) => p.category === activeCategory),
+    [activeCategory, allProducts],
   )
 
   return (

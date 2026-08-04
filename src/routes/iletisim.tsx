@@ -1,26 +1,58 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { MapPin, Mail, Phone, Clock, Instagram, Facebook } from 'lucide-react'
+import { getContactIntro, getContactSocial } from '@/lib/content'
 import { siteConfig, buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
 import { WhatsAppOrderForm } from '@/components/WhatsAppOrderForm'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/iletisim')({
+  head: () => ({
+    meta: [
+      { title: 'İletişim | Rustik Evi' },
+      {
+        name: 'description',
+        content:
+          'Rustik Evi ile iletişime geçin. WhatsApp üzerinden hızlı toptan sipariş formu, adres ve sosyal medya bilgileri.',
+      },
+    ],
+  }),
+  loader: async () => {
+    const [intro, social] = await Promise.all([
+      getContactIntro(),
+      getContactSocial(),
+    ])
+    return { intro, social }
+  },
   component: ContactPage,
 })
 
+const fallbackIntro = {
+  badge: 'Sipariş & İletişim',
+  heading: 'İletişim',
+  description:
+    'Toptan sipariş taleplerinizi en hızlı şekilde WhatsApp sipariş hattımızdan alıyoruz. Aşağıdaki formu doldurmanız yeterli.',
+}
+
+const fallbackSocial = {
+  heading: 'Sosyal Medya',
+  description: 'Yeni koleksiyonlarımızı ve toptan kampanyalarımızı takip edin.',
+}
+
 function ContactPage() {
+  const { intro, social } = Route.useLoaderData()
+
+  const introData = (intro?.metadata as typeof fallbackIntro) || fallbackIntro
+  const socialData = (social?.metadata as typeof fallbackSocial) || fallbackSocial
+
   return (
     <div>
       <section className="texture-grain bg-[var(--color-espresso-deep)] px-5 py-16 text-[var(--color-cream)] sm:px-8 sm:py-20">
         <div className="mx-auto max-w-7xl">
           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-brass-bright)]">
-            Sipariş & İletişim
+            {introData.badge}
           </span>
-          <h1 className="mt-3 font-display text-4xl sm:text-5xl">İletişim</h1>
-          <p className="mt-4 max-w-2xl text-[var(--color-cream)]/70">
-            Toptan sipariş taleplerinizi en hızlı şekilde WhatsApp sipariş hattımızdan
-            alıyoruz. Aşağıdaki formu doldurmanız yeterli.
-          </p>
+          <h1 className="mt-3 font-display text-4xl sm:text-5xl">{introData.heading}</h1>
+          <p className="mt-4 max-w-2xl text-[var(--color-cream)]/70">{introData.description}</p>
         </div>
       </section>
 
@@ -72,10 +104,10 @@ function ContactPage() {
 
             <div className="rounded-2xl border border-[var(--color-cream-deep)] bg-[var(--color-linen)] p-6">
               <h3 className="font-display text-lg text-[var(--color-espresso)]">
-                Sosyal Medya
+                {socialData.heading}
               </h3>
               <p className="mt-1.5 text-sm text-[var(--color-ink)]/60">
-                Yeni koleksiyonlarımızı ve toptan kampanyalarımızı takip edin.
+                {socialData.description}
               </p>
               <div className="mt-4 flex gap-3">
                 <a

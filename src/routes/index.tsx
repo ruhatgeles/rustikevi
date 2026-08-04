@@ -1,12 +1,24 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { Truck, PackageCheck, Ruler, Handshake, ArrowRight, QrCode } from 'lucide-react'
-import products from '@/data/products'
+import { getFeaturedProducts } from '@/lib/products'
 import { ProductCard } from '@/components/ProductCard'
 import { CatalogQRCode } from '@/components/CatalogQRCode'
+import { StoryCircles } from '@/components/StoryCircles'
 import { buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/')({
+  head: () => ({
+    meta: [
+      { title: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
+      {
+        name: 'description',
+        content:
+          'Rustik Evi, doğal malzemelerle üretilen perde aksesuarları toptan satış. Jüt kordon, ahşap halka, saçak, braçöl. 23 ilde teslimat.',
+      },
+    ],
+  }),
+  loader: async () => await getFeaturedProducts(),
   component: HomePage,
 })
 
@@ -40,10 +52,13 @@ const highlights = [
 ]
 
 function HomePage() {
-  const featured = products.slice(0, 3)
+  const featured = Route.useLoaderData()
 
   return (
     <div className="overflow-hidden">
+      {/* STORIES */}
+      <StoryCircles />
+
       {/* HERO */}
       <section className="texture-grain relative bg-[var(--color-espresso-deep)] pb-24 pt-20 text-[var(--color-cream)] sm:pt-28">
         <div className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-[var(--color-brass)]/20 blur-3xl" />

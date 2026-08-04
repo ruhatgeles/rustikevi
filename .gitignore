@@ -4,7 +4,6 @@ node_modules/
 # Build output
 dist/
 .output/
-.netlify/
 
 # Environment
 .env
@@ -21,6 +20,10 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Data examples & backups
+data-examples/
+backup-*.sql
 
 # Logs
 *.log

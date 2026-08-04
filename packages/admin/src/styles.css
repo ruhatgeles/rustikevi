@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --color-cream: #f6efe3;
+  --color-cream-deep: #ede1cb;
+  --color-linen: #faf6ee;
+  --color-wood: #9a6b45;
+  --color-wood-dark: #6d4527;
+  --color-espresso: #3a2a1c;
+  --color-brass: #b68a4e;
+  --color-ink: #2b2118;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-linen);
+  color: var(--color-ink);
+}
+
+* {
+  box-sizing: border-box;
+}

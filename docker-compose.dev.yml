@@ -1,0 +1,34 @@
+# Geliştirme override: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Frontend yerelde pnpm dev ile çalıştırılır (hot-reload hızlı)
+# Bu dosya API ve admin'i geliştirme moduna alır
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+      target: base
+    volumes:
+      - ./packages/api/src:/app/packages/api/src
+      - ./packages/api/migrations:/app/packages/api/migrations
+      - ./packages/api/package.json:/app/packages/api/package.json
+      - ./package.json:/app/package.json
+      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+    working_dir: /app/packages/api
+    command: pnpm dev
+
+  admin:
+    build:
+      context: .
+      dockerfile: packages/admin/Dockerfile
+      target: base
+    volumes:
+      - ./packages/admin/src:/app/packages/admin/src
+      - ./packages/admin/index.html:/app/packages/admin/index.html
+      - ./packages/admin/package.json:/app/packages/admin/package.json
+      - ./package.json:/app/package.json
+      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+    working_dir: /app/packages/admin
+    command: pnpm dev

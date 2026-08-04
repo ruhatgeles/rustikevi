@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Link, Scripts, createRootRoute } from '@tanstack/react-router'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { WhatsAppFloatingButton } from '@/components/WhatsAppFloatingButton'
@@ -8,20 +8,50 @@ import '../styles.css'
 export const Route = createRootRoute({
   head: () => ({
     meta: [
-      {
-        charSet: 'utf-8',
-      },
-      {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
-      },
-      {
-        title: 'Rustik Evi | Perde Aksesuarı Toptan Satış',
-      },
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
       {
         name: 'description',
         content:
           'Rustik Evi, Türkiye genelindeki perde mağazaları ve dekorasyon noktaları için perde aksesuarı toptan tedarikçisidir. Dijital kataloğumuzu inceleyin, WhatsApp üzerinden hızlı sipariş oluşturun.',
+      },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: 'Rustik Evi' },
+      { property: 'og:title', content: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
+      {
+        property: 'og:description',
+        content:
+          'Perde aksesuarları toptan satış. Jüt, ahşap, keten rustik perde ürünleri. WhatsApp ile hızlı sipariş.',
+      },
+      { property: 'og:image', content: '/logo.png' },
+      { name: 'twitter:card', content: 'summary' },
+      { name: 'twitter:title', content: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
+      {
+        name: 'twitter:description',
+        content:
+          'Perde aksesuarları toptan satış. WhatsApp ile hızlı sipariş.',
+      },
+    ],
+    links: [
+      { rel: 'canonical', href: 'https://rustikevi.com' },
+      { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
+      { rel: 'icon', href: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { rel: 'icon', href: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+      { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      { rel: 'manifest', href: '/site.webmanifest' },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+      {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap',
       },
     ],
   }),
@@ -56,6 +86,12 @@ function NotFound() {
       <p className="mt-2 text-[var(--color-ink)]/60">
         Bağlantı hatalı olabilir. Ana sayfaya dönerek ürünlerimize göz atabilirsiniz.
       </p>
+      <Link
+        to="/"
+        className="mt-8 inline-flex items-center gap-2 rounded-full bg-[var(--color-wood-dark)] px-6 py-3 text-sm font-semibold text-[var(--color-linen)] transition-colors hover:bg-[var(--color-espresso)]"
+      >
+        Ana Sayfaya Dön
+      </Link>
     </div>
   )
 }
