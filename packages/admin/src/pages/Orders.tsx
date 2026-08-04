@@ -326,30 +326,49 @@ export default function Orders() {
       const contactNames = ['Ahmet Yılmaz', 'Mehmet Kaya', 'Ali Demir', 'Hasan Çelik', 'Fatma Şahin', 'Ayşe Öztürk']
       const cities = ['İstanbul', 'Ankara', 'İzmir', 'Gaziantep', 'Bursa', 'Antalya']
       const sources = ['whatsapp', 'phone', 'website', 'walk-in']
-      const productNames = ['Jüt Kordon', 'Ahşap Halka', 'Keten Bağcık', 'Jüt Saçak', 'Kristal Sarkıt', 'Ahşap Braçol']
 
       const rand = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
+      // Ürünleri API'den çek
+      const productsData = await api.request<{ data: Array<{ id: number; name: string; price: number | null }> }>('/api/products?limit=100')
+      const products = productsData.data || []
+
+      if (products.length === 0) {
+        setError('Ürün bulunamadı! Önce ürün ekleyin.')
+        return
+      }
+
+      // DEBUG müşterisi oluştur
       const customer = await api.request<{ id: string }>('/api/customers', {
         method: 'POST',
         body: {
-          businessName: rand(businessNames),
+          businessName: `[DEBUG] ${rand(businessNames)}`,
           contactName: rand(contactNames),
           phone: '05' + String(Math.floor(Math.random() * 100000000)).padStart(8, '0'),
           city: rand(cities),
         },
       })
 
+      // Rastgele ürün seç (1-3 arası)
       const itemCount = Math.floor(Math.random() * 3) + 1
-      const items = Array.from({ length: itemCount }, () => ({
-        productName: rand(productNames),
+      const selectedProducts = [...products].sort(() => Math.random() - 0.5).slice(0, itemCount)
+
+      const items = selectedProducts.map(p => ({
+        productId: p.id,
+        productName: p.name,
         quantity: Math.floor(Math.random() * 500) + 50,
-        unitPrice: Math.floor(Math.random() * 20000) + 5000,
+        unitPrice: p.price || Math.floor(Math.random() * 20000) + 5000,
       }))
 
+      // DEBUG siparişi oluştur
       await api.request('/api/orders', {
         method: 'POST',
-        body: { customerId: customer.id, items, source: rand(sources) },
+        body: {
+          customerId: customer.id,
+          items,
+          source: rand(sources),
+          notes: '[DEBUG] Test siparişi',
+        },
       })
 
       loadOrders()
@@ -937,16 +956,19 @@ export default function Orders() {
                 const Icon = config.icon
                 const isSelected = selectedOrder?.id === order.id
                 const isChecked = selectedOrders.has(order.id)
+                const isDebug = order.customerName?.startsWith('[DEBUG]') || order.notes?.includes('[DEBUG]')
                 return (
                   <button
                     key={order.id}
                     onClick={() => loadOrderDetail(order.id)}
-                    className={`w-full rounded-xl border p-3 text-left transition-colors sm:p-4 ${
-                      isSelected
-                        ? 'border-[var(--color-brass)] bg-white shadow-sm'
-                        : isChecked
-                          ? 'border-[var(--color-brass)]/50 bg-[var(--color-brass)]/5'
-                          : 'border-[var(--color-cream-deep)] bg-white hover:border-[var(--color-brass)]/50'
+                    className={`w-full rounded-xl border-2 p-3 text-left transition-colors sm:p-4 ${
+                      isDebug
+                        ? 'border-orange-400 bg-orange-50'
+                        : isSelected
+                          ? 'border-[var(--color-brass)] bg-white shadow-sm'
+                          : isChecked
+                            ? 'border-[var(--color-brass)]/50 bg-[var(--color-brass)]/5'
+                            : 'border-[var(--color-cream-deep)] bg-white hover:border-[var(--color-brass)]/50'
                     } ${order.isArchived ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-center justify-between">
@@ -964,6 +986,9 @@ export default function Orders() {
                         <span className="font-mono text-sm font-semibold text-[var(--color-wood-dark)]">
                           {order.orderNumber}
                         </span>
+                        {isDebug && (
+                          <span className="rounded bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">DEBUG</span>
+                        )}
                         <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${config.bgColor} ${config.color}`}>
                           <Icon size={12} />
                           {config.label}
@@ -974,7 +999,9 @@ export default function Orders() {
                       </div>
                       <ChevronRight size={16} className="text-[var(--color-ink)]/30" />
                     </div>
-                    <div className="mt-2 text-sm font-medium">{order.customerName}</div>
+                    <div className="mt-2 text-sm font-medium">
+                      {order.customerName}
+                    </div>
                     <div className="mt-1 flex items-center justify-between text-xs text-[var(--color-ink)]/50">
                       <span>{order.customerCity || '-'} · {SOURCE_LABELS[order.source] || order.source}</span>
                       <span>{new Date(order.createdAt).toLocaleDateString('tr-TR')}</span>
