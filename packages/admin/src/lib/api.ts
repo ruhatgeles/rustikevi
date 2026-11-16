@@ -7,9 +7,21 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
+// Kimlik doğrulama gerektirmeyen uçlar: buradan gelen 401 "oturum süresi doldu"
+// anlamına gelmez (yanlış şifre, kullanılmış link vb.), token yenilemeye çalışılmaz.
+// Not: /api/auth/logout ve /me ile /api/auto-login/generate, /info, DELETE gibi
+// uçlar normal JWT ister; süresi dolmuş token'da yenilenip tekrar denenmelidir
+// (aksi halde çıkışta refresh token sunucuda iptal edilmez).
+const NO_REFRESH_PATHS = ['/api/auth/login', '/api/auth/refresh', '/api/auto-login/verify']
+
+function shouldSkipRefresh(path: string): boolean {
+  const pathname = path.split('?')[0]
+  return NO_REFRESH_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+}
+
 class ApiClient {
-  private refreshAttempts = 0
-  private maxRefreshAttempts = 1
+  // Eşzamanlı 401'ler tek bir yenileme isteğini paylaşır
+  private refreshPromise: Promise<boolean> | null = null
 
   private getToken(): string | null {
     return localStorage.getItem('accessToken')
@@ -22,7 +34,6 @@ class ApiClient {
   private setTokens(access: string, refresh: string) {
     localStorage.setItem('accessToken', access)
     localStorage.setItem('refreshToken', refresh)
-    this.refreshAttempts = 0 // Token yenilendi, sayacı sıfırla
   }
 
   clearTokens() {
@@ -31,12 +42,16 @@ class ApiClient {
     localStorage.removeItem('user')
   }
 
-  private async refreshAccessToken(): Promise<boolean> {
-    if (this.refreshAttempts >= this.maxRefreshAttempts) {
-      return false // Sonsuz döngüyü engelle
+  private refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.doRefresh().finally(() => {
+        this.refreshPromise = null
+      })
     }
+    return this.refreshPromise
+  }
 
-    this.refreshAttempts++
+  private async doRefresh(): Promise<boolean> {
     const refreshToken = this.getRefreshToken()
     if (!refreshToken) return false
 
@@ -47,7 +62,12 @@ class ApiClient {
         body: JSON.stringify({ refreshToken }),
       })
 
-      if (!res.ok) return false
+      if (!res.ok) {
+        // Başka bir sekme aynı refresh token ile önce yenilemiş olabilir:
+        // localStorage'da farklı bir refresh token varsa onu kullan.
+        const current = this.getRefreshToken()
+        return !!current && current !== refreshToken
+      }
 
       const { data } = await res.json()
       this.setTokens(data.accessToken, data.refreshToken)
@@ -57,7 +77,29 @@ class ApiClient {
     }
   }
 
-  async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  /**
+   * 401 sonrası ortak karar: yeniden denenmeli mi?
+   * true → istek yeni token ile bir kez tekrar gönderilir.
+   * Yenileme başarısızsa oturum kapatılır ve hata fırlatılır.
+   */
+  private async handleUnauthorized(sentToken: string): Promise<true> {
+    // Bu istek beklerken başka bir istek token'ı zaten yenilemiş olabilir
+    const current = this.getToken()
+    if (current && current !== sentToken) return true
+
+    const refreshed = await this.refreshAccessToken()
+    if (refreshed) return true
+
+    this.clearTokens()
+    window.location.href = '/login'
+    throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
+  }
+
+  request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    return this.doRequest<T>(path, options, false)
+  }
+
+  private async doRequest<T>(path: string, options: RequestOptions, retried: boolean): Promise<T> {
     const { method = 'GET', body, headers = {} } = options
     const token = this.getToken()
 
@@ -76,15 +118,10 @@ class ApiClient {
       throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.')
     }
 
-    // Try refresh on 401 (max 1 retry)
-    if (res.status === 401 && token && this.refreshAttempts < this.maxRefreshAttempts) {
-      const refreshed = await this.refreshAccessToken()
-      if (refreshed) {
-        return this.request<T>(path, options)
-      }
-      this.clearTokens()
-      window.location.href = '/login'
-      throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
+    // 401 → token yenile ve en fazla bir kez tekrar dene
+    if (res.status === 401 && token && !retried && !shouldSkipRefresh(path)) {
+      await this.handleUnauthorized(token)
+      return this.doRequest<T>(path, options, true)
     }
 
     if (!res.ok) {
@@ -112,7 +149,11 @@ class ApiClient {
     return json.data
   }
 
-  async uploadFile<T>(path: string, formData: FormData): Promise<T> {
+  uploadFile<T>(path: string, formData: FormData): Promise<T> {
+    return this.doUpload<T>(path, formData, false)
+  }
+
+  private async doUpload<T>(path: string, formData: FormData, retried: boolean): Promise<T> {
     const token = this.getToken()
 
     let res: Response
@@ -128,15 +169,10 @@ class ApiClient {
       throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.')
     }
 
-    // Try refresh on 401 (max 1 retry)
-    if (res.status === 401 && token && this.refreshAttempts < this.maxRefreshAttempts) {
-      const refreshed = await this.refreshAccessToken()
-      if (refreshed) {
-        return this.uploadFile<T>(path, formData)
-      }
-      this.clearTokens()
-      window.location.href = '/login'
-      throw new Error('Oturum süreniz doldu. Lütfen tekrar giriş yapın.')
+    // 401 → token yenile ve en fazla bir kez tekrar dene
+    if (res.status === 401 && token && !retried && !shouldSkipRefresh(path)) {
+      await this.handleUnauthorized(token)
+      return this.doUpload<T>(path, formData, true)
     }
 
     if (!res.ok) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useAuth } from '../lib/auth'
 import ConfirmModal from '../components/ConfirmModal'
 import ProductSearch from '../components/ProductSearch'
 import {
@@ -72,6 +73,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function Customers() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  // Müşteri silme uçları API'de requireAdmin()
+  const canDelete = user?.role === 'admin'
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -575,13 +579,15 @@ export default function Customers() {
                   >
                     <Pencil size={16} />
                   </button>
-                  <button
-                    onClick={handleDeleteClick}
-                    className="rounded p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-red-50 hover:text-red-600"
-                    title="Sil"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={handleDeleteClick}
+                      className="rounded p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-red-50 hover:text-red-600"
+                      title="Sil"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -917,14 +923,16 @@ export default function Customers() {
                 {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <ArchiveRestore size={14} />}
                 Geri Al
               </button>
-              <button
-                onClick={handleBulkDeleteClick}
-                disabled={bulkLoading}
-                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                Sil
-              </button>
+              {canDelete && (
+                <button
+                  onClick={handleBulkDeleteClick}
+                  disabled={bulkLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Sil
+                </button>
+              )}
             </>
           )}
           <button

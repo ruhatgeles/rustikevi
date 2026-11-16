@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { api } from '../lib/api'
+import { useAuth } from '../lib/auth'
 import ConfirmModal from '../components/ConfirmModal'
 import ProductDetailModal from '../components/ProductDetailModal'
 import ProductGalleryModal from '../components/ProductGalleryModal'
@@ -68,6 +69,9 @@ const emptyForm = {
 }
 
 export default function Products() {
+  const { user } = useAuth()
+  // Ürün silme uçları API'de requireAdmin()
+  const canDelete = user?.role === 'admin'
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -725,11 +729,13 @@ export default function Products() {
                 {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <ArchiveRestore size={14} />}
                 Geri Al
               </button>
-              <button onClick={handleBulkDeleteClick} disabled={bulkLoading}
-                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
-                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                Sil
-              </button>
+              {canDelete && (
+                <button onClick={handleBulkDeleteClick} disabled={bulkLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                  {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Sil
+                </button>
+              )}
             </>
           )}
           <button onClick={() => setSelectedProducts(new Set())}
@@ -1028,11 +1034,13 @@ export default function Products() {
                           title="Düzenle">
                           <Pencil size={15} />
                         </button>
-                        <button onClick={() => handleDeleteClick(product.id)}
-                          className="rounded-lg p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-red-50 hover:text-red-600"
-                          title="Sil">
-                          <Trash2 size={15} />
-                        </button>
+                        {canDelete && (
+                          <button onClick={() => handleDeleteClick(product.id)}
+                            className="rounded-lg p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-red-50 hover:text-red-600"
+                            title="Sil">
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1106,11 +1114,13 @@ export default function Products() {
                       title="Düzenle">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => handleDeleteClick(product.id)}
-                      className="rounded-lg p-1.5 text-[var(--color-ink)]/60 hover:bg-red-50 hover:text-red-600"
-                      title="Sil">
-                      <Trash2 size={14} />
-                    </button>
+                    {canDelete && (
+                      <button onClick={() => handleDeleteClick(product.id)}
+                        className="rounded-lg p-1.5 text-[var(--color-ink)]/60 hover:bg-red-50 hover:text-red-600"
+                        title="Sil">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
