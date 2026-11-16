@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Printer, ArrowLeft } from 'lucide-react'
 import { getProducts } from '@/lib/products'
-import { categories, getSwatches } from '@/data/products'
-import { siteConfig, buildWhatsAppLink } from '@/lib/site-config'
+import { ALL_CATEGORY, deriveCategories, getSwatches } from '@/data/products'
+import { useSiteConfig, useWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/katalog')({
@@ -25,13 +25,16 @@ export const Route = createFileRoute('/katalog')({
 
 function CatalogPage() {
   const allProducts = Route.useLoaderData()
-  const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>('Tümü')
+  const siteConfig = useSiteConfig()
+  const buildWhatsAppLink = useWhatsAppLink()
+  const categories = useMemo(() => deriveCategories(allProducts), [allProducts])
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY)
 
   const filtered = useMemo(
     () =>
-      activeCategory === 'Tümü'
+      activeCategory === ALL_CATEGORY
         ? allProducts
-        : allProducts.filter((p) => p.category === activeCategory),
+        : allProducts.filter((p) => (p.category ?? '').trim() === activeCategory),
     [activeCategory, allProducts],
   )
 
@@ -73,6 +76,7 @@ function CatalogPage() {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
+              aria-pressed={activeCategory === cat}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                 activeCategory === cat
                   ? 'border-[var(--color-wood-dark)] bg-[var(--color-wood-dark)] text-[var(--color-linen)]'

@@ -4,7 +4,7 @@ import { getFeaturedProducts } from '@/lib/products'
 import { ProductCard } from '@/components/ProductCard'
 import { CatalogQRCode } from '@/components/CatalogQRCode'
 import { StoryCircles } from '@/components/StoryCircles'
-import { buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
+import { defaultWhatsAppMessage, useWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/')({
@@ -55,6 +55,7 @@ const highlights = [
 
 function HomePage() {
   const featured = Route.useLoaderData()
+  const buildWhatsAppLink = useWhatsAppLink()
 
   return (
     <div className="overflow-hidden">

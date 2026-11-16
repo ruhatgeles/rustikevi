@@ -85,15 +85,48 @@ const fallbackCta = {
   buttonText: 'İletişime Geç',
 }
 
+/** API'den gelen items dizisini doğrular; alanları string'e çevirir, bozuksa fallback döner. */
+function toItems<K extends string>(
+  raw: unknown,
+  keys: readonly K[],
+  fallback: Array<Record<K, string>>,
+): Array<Record<K, string>> {
+  if (!Array.isArray(raw)) return fallback
+  const items = raw
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x))
+    .map((x) => {
+      const out = {} as Record<K, string>
+      for (const k of keys) out[k] = x[k] == null ? '' : String(x[k])
+      return out
+    })
+  return items.length > 0 ? items : fallback
+}
+
+/** Metadata nesnesindeki metin alanlarını doğrular; string olmayan/boş alan fallback'ten gelir. */
+function toFields<T extends Record<string, string>>(raw: unknown, fallback: T): T {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback
+  const src = raw as Record<string, unknown>
+  const out = { ...fallback }
+  for (const k of Object.keys(fallback) as Array<keyof T>) {
+    const v = src[k as string]
+    if (typeof v === 'string' && v.trim() !== '') out[k] = v as T[keyof T]
+    else if (typeof v === 'number') out[k] = String(v) as T[keyof T]
+  }
+  return out
+}
+
 function AboutPage() {
   const { hero, values, timeline, cta } = Route.useLoaderData()
 
-  const heroData = (hero?.metadata as typeof fallbackHero) || fallbackHero
-  const valuesData =
-    (values?.metadata as { items: typeof fallbackValues })?.items || fallbackValues
-  const timelineData =
-    (timeline?.metadata as { items: typeof fallbackTimeline })?.items || fallbackTimeline
-  const ctaData = (cta?.metadata as typeof fallbackCta) || fallbackCta
+  const heroData = toFields(hero?.metadata, fallbackHero)
+  // Admin editöründe 'items' string'e dönüşebilir → yalnızca geçerli dizi kabul edilir
+  const valuesData = toItems(values?.metadata?.items, ['icon', 'title', 'text'], fallbackValues)
+  const timelineData = toItems(
+    timeline?.metadata?.items,
+    ['year', 'title', 'text'],
+    fallbackTimeline,
+  )
+  const ctaData = toFields(cta?.metadata, fallbackCta)
 
   return (
     <div>
@@ -109,11 +142,11 @@ function AboutPage() {
 
       <section className="mx-auto max-w-5xl px-5 py-20 sm:px-8">
         <div className="grid gap-6 sm:grid-cols-3">
-          {valuesData.map((v) => {
+          {valuesData.map((v, i) => {
             const Icon = iconMap[v.icon] || Factory
             return (
               <div
-                key={v.title}
+                key={`${v.title}-${i}`}
                 className="rounded-2xl border border-[var(--color-cream-deep)] bg-[var(--color-linen)] p-6"
               >
                 <Icon className="text-[var(--color-wood-dark)]" size={26} strokeWidth={1.6} />
@@ -136,10 +169,10 @@ function AboutPage() {
           </h2>
           <div className="mt-10 flex flex-col gap-0">
             {timelineData.map((item, i) => (
-              <div key={item.year} className="relative flex gap-6 pb-10 last:pb-0">
+              <div key={`${item.year}-${i}`} className="relative flex gap-6 pb-10 last:pb-0">
                 <div className="flex flex-col items-center">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-wood-dark)] text-xs font-bold text-[var(--color-linen)]">
-                    {item.year.slice(2)}
+                    {item.year.slice(-2)}
                   </span>
                   {i !== timelineData.length - 1 && (
                     <span className="mt-1 w-px flex-1 bg-[var(--color-cream-deep)]" />

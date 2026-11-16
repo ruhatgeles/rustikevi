@@ -235,6 +235,14 @@ body {
   to { width: 100%; }
 }
 
+/* Hareket azaltma: otomatik ilerleme kapalı, aktif çubuk animasyonsuz dolu görünür */
+@media (prefers-reduced-motion: reduce) {
+  .story-viewer__progress-fill--active {
+    animation: none;
+    width: 100%;
+  }
+}
+
 /* Header */
 .story-viewer__header {
   display: flex;

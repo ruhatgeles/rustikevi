@@ -29,6 +29,25 @@ export function getSwatches(product: Pick<Product, 'swatches'>): Array<[string, 
 
 export const categories = ['Tümü', 'Rustik', 'Saçak', 'Başlık', 'Dekorink', 'Sarkıt', 'Braçöl'] as const
 
+export const ALL_CATEGORY = 'Tümü'
+
+/**
+ * Filtre butonları ürünlerden türetilir: admin'de eklenen yeni kategoriler de görünür.
+ * Sıralama: bilinen kategoriler sabit sırada, diğerleri alfabetik (tr).
+ */
+export function deriveCategories(items: Array<Pick<Product, 'category'>>): string[] {
+  const present = new Set(
+    items.map((p) => (p.category ?? '').trim()).filter((c) => c && c !== ALL_CATEGORY),
+  )
+  const known = (categories as readonly string[]).filter(
+    (c) => c !== ALL_CATEGORY && present.has(c),
+  )
+  const others = [...present]
+    .filter((c) => !(categories as readonly string[]).includes(c))
+    .sort((a, b) => a.localeCompare(b, 'tr'))
+  return [ALL_CATEGORY, ...known, ...others]
+}
+
 const products: Array<Product> = [
   // ── Rustik ──────────────────────────────────────────────
   {

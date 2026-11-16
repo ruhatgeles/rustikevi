@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { MapPin, Mail, Phone, Clock, Instagram, Facebook } from 'lucide-react'
 import { getContactIntro, getContactSocial } from '@/lib/content'
-import { siteConfig, buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
+import { defaultWhatsAppMessage, useSiteConfig, useWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppOrderForm } from '@/components/WhatsAppOrderForm'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
@@ -42,6 +42,8 @@ const fallbackSocial = {
 
 function ContactPage() {
   const { intro, social } = Route.useLoaderData()
+  const siteConfig = useSiteConfig()
+  const buildWhatsAppLink = useWhatsAppLink()
 
   const introData = (intro?.metadata as typeof fallbackIntro) || fallbackIntro
   const socialData = (social?.metadata as typeof fallbackSocial) || fallbackSocial

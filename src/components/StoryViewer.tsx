@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
 import type { Story } from '@/data/stories'
 
 interface StoryViewerProps {
@@ -11,7 +11,13 @@ interface StoryViewerProps {
 export function StoryViewer({ stories, initialIndex, onClose }: StoryViewerProps) {
   const [storyIdx, setStoryIdx] = useState(initialIndex)
   const [slideIdx, setSlideIdx] = useState(0)
-  const [paused, setPaused] = useState(false)
+  // Basılı tutma (dokunma/fare) ile kullanıcı duraklatması ayrı tutulur
+  const [holdPaused, setHoldPaused] = useState(false)
+  const [userPaused, setUserPaused] = useState(false)
+  const [reducedMotion, setReducedMotion] = useState(false)
+  const paused = holdPaused || userPaused || reducedMotion
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const pauseBtnRef = useRef<HTMLButtonElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
@@ -42,12 +48,36 @@ export function StoryViewer({ stories, initialIndex, onClose }: StoryViewerProps
     }
   }, [slideIdx, storyIdx, stories])
 
-  // Auto-advance timer
+  // prefers-reduced-motion: otomatik ilerleme kapalı (manuel gezinme çalışır)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReducedMotion(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
+  // Odak yönetimi: açılınca diyalog içine al, kapanınca tetikleyen öğeye geri ver
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    pauseBtnRef.current?.focus()
+    return () => previouslyFocused?.focus?.()
+  }, [])
+
+  // Slayt değişince kalan süre sıfırlanır (zamanlayıcı efektinden önce çalışmalı)
+  const remainingRef = useRef(duration)
+  useEffect(() => {
+    remainingRef.current = duration
+  }, [duration, slideIdx, storyIdx])
+
+  // Auto-advance timer — duraklatınca kalan süre korunur, ilerleme çubuğuyla senkron kalır
   useEffect(() => {
     if (paused) return
-    timerRef.current = setTimeout(goNext, duration)
+    const startedAt = Date.now()
+    timerRef.current = setTimeout(goNext, remainingRef.current)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
+      remainingRef.current = Math.max(0, remainingRef.current - (Date.now() - startedAt))
     }
   }, [paused, duration, goNext, slideIdx, storyIdx])
 
@@ -57,6 +87,36 @@ export function StoryViewer({ stories, initialIndex, onClose }: StoryViewerProps
       if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowRight') goNext()
       if (e.key === 'ArrowLeft') goPrev()
+      // Space: duraklat/devam (buton odaktaysa butonun kendi davranışı çalışır)
+      if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) {
+        e.preventDefault()
+        setUserPaused((v) => !v)
+      }
+      // Odak tuzağı: Tab diyalog dışına çıkmasın
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusables = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((el) => !el.hasAttribute('disabled'))
+        if (focusables.length === 0) {
+          e.preventDefault()
+          return
+        }
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        const active = document.activeElement
+        if (!dialogRef.current.contains(active)) {
+          e.preventDefault()
+          first.focus()
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -73,11 +133,11 @@ export function StoryViewer({ stories, initialIndex, onClose }: StoryViewerProps
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
-    setPaused(true)
+    setHoldPaused(true)
   }
 
   const onTouchEnd = (e: React.TouchEvent) => {
-    setPaused(false)
+    setHoldPaused(false)
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = e.changedTouches[0].clientY - touchStartY.current
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
@@ -96,11 +156,16 @@ export function StoryViewer({ stories, initialIndex, onClose }: StoryViewerProps
 
   return (
     <div
+      ref={dialogRef}
       className="story-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${story.title} hikayesi`}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      onMouseDown={() => setPaused(true)}
-      onMouseUp={() => setPaused(false)}
+      onMouseDown={() => setHoldPaused(true)}
+      onMouseUp={() => setHoldPaused(false)}
+      onMouseLeave={() => setHoldPaused(false)}
     >
       {/* Background */}
       <div className="story-viewer__bg" style={{ background: slide.gradient }} />
@@ -136,18 +201,43 @@ export function StoryViewer({ stories, initialIndex, onClose }: StoryViewerProps
             </div>
             <span className="story-viewer__title">{story.title}</span>
           </div>
+          <div className="flex items-center gap-1">
           <button
+            ref={pauseBtnRef}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              // Azaltılmış hareket tercihinde otomatik ilerleme zaten kapalı; düğme yalnızca durumu gösterir
+              if (!reducedMotion) setUserPaused((v) => !v)
+            }}
+            className="story-viewer__close"
+            aria-label={
+              reducedMotion
+                ? 'Otomatik ilerleme kapalı (azaltılmış hareket tercihi)'
+                : userPaused
+                  ? 'Devam ettir'
+                  : 'Duraklat'
+            }
+            aria-pressed={userPaused || reducedMotion}
+            aria-disabled={reducedMotion || undefined}
+            title={reducedMotion ? 'Otomatik ilerleme kapalı' : undefined}
+          >
+            {userPaused || reducedMotion ? <Play size={20} /> : <Pause size={20} />}
+          </button>
+          <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); onClose() }}
             className="story-viewer__close"
             aria-label="Kapat"
           >
             <X size={24} />
           </button>
+          </div>
         </div>
 
         {/* Caption */}
         {slide.caption && (
-          <div className="story-viewer__caption">
+          <div className="story-viewer__caption" aria-live="polite">
             <p>{slide.caption}</p>
           </div>
         )}
