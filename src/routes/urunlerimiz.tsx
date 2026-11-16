@@ -37,7 +37,7 @@ function ProductsPage() {
 
   return (
     <div>
-      <section className="texture-grain bg-[var(--color-espresso-deep)] px-5 py-16 text-[var(--color-cream)] sm:px-8 sm:py-20">
+      <section className="page-hero texture-grain px-5 py-16 text-[var(--color-cream)] sm:px-8 sm:py-24" style={{ '--page-hero-image': 'url(/img/hero-detail-rod.webp)' } as React.CSSProperties}>
         <div className="mx-auto max-w-7xl">
           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-brass-bright)]">
             Ürün Kataloğu

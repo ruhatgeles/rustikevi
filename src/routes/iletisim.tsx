@@ -1,3 +1,4 @@
+import type React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { MapPin, Mail, Phone, Clock, Instagram, Facebook } from 'lucide-react'
 import { getContactIntro, getContactSocial } from '@/lib/content'
@@ -48,7 +49,7 @@ function ContactPage() {
 
   return (
     <div>
-      <section className="texture-grain bg-[var(--color-espresso-deep)] px-5 py-16 text-[var(--color-cream)] sm:px-8 sm:py-20">
+      <section className="page-hero texture-grain px-5 py-16 text-[var(--color-cream)] sm:px-8 sm:py-24" style={{ '--page-hero-image': 'url(/img/hero-cover-900.webp)' } as React.CSSProperties}>
         <div className="mx-auto max-w-7xl">
           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-brass-bright)]">
             {introData.badge}

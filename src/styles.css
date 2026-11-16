@@ -363,3 +363,29 @@ body {
     -webkit-backdrop-filter: blur(4px);
   }
 }
+
+/* İç sayfa başlıkları: ana sayfadaki kapak fotoğrafıyla görsel bütünlük */
+.page-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--color-espresso-deep);
+}
+
+.page-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(42, 29, 19, 0.97) 0%, rgba(42, 29, 19, 0.9) 45%, rgba(42, 29, 19, 0.55) 100%),
+    var(--page-hero-image) right center / cover no-repeat;
+}
+
+@media (max-width: 640px) {
+  .page-hero::after {
+    background:
+      linear-gradient(180deg, rgba(42, 29, 19, 0.92) 0%, rgba(42, 29, 19, 0.96) 100%),
+      var(--page-hero-image) center / cover no-repeat;
+  }
+}
