@@ -3,7 +3,8 @@ import { Send } from 'lucide-react'
 import { buildWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Boş = aynı origin: site sunucusu /api isteklerini API'ye iletir (prod: server.mjs, dev: vite proxy)
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 interface ProductOption {
   id: number

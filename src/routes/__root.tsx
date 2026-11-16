@@ -24,8 +24,14 @@ export const Route = createRootRoute({
         content:
           'Perde aksesuarları toptan satış. Jüt, ahşap, keten rustik perde ürünleri. WhatsApp ile hızlı sipariş.',
       },
-      { property: 'og:image', content: '/logo.png' },
-      { name: 'twitter:card', content: 'summary' },
+      { property: 'og:image', content: 'https://rustikevi.com/img/og-cover.jpg' },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
+      { property: 'og:image:alt', content: 'Rustik Evi perde aksesuarları' },
+      { property: 'og:locale', content: 'tr_TR' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:image', content: 'https://rustikevi.com/img/og-cover.jpg' },
+      { name: 'theme-color', content: '#2b1d14' },
       { name: 'twitter:title', content: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
       {
         name: 'twitter:description',
@@ -34,7 +40,6 @@ export const Route = createRootRoute({
       },
     ],
     links: [
-      { rel: 'canonical', href: 'https://rustikevi.com' },
       { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
       { rel: 'icon', href: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
       { rel: 'icon', href: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },

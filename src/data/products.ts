@@ -6,6 +6,10 @@ export interface Product {
   shortDescription: string
   moq: string
   swatches: Array<[string, string]>
+  /** Admin panelinden yüklenen fotoğraflar (/uploads/...) */
+  images?: string[]
+  productCode?: string | null
+  color?: string | null
   featured?: boolean
   isActive?: boolean
   sortOrder?: number

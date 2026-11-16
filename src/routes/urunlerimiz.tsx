@@ -8,7 +8,9 @@ import { CatalogQRCode } from '@/components/CatalogQRCode'
 
 export const Route = createFileRoute('/urunlerimiz')({
   head: () => ({
+    links: [{ rel: 'canonical', href: 'https://rustikevi.com/urunlerimiz' }],
     meta: [
+      { property: 'og:url', content: 'https://rustikevi.com/urunlerimiz' },
       { title: 'Ürünlerimiz | Rustik Evi' },
       {
         name: 'description',

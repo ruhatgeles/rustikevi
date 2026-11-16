@@ -7,7 +7,9 @@ import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/iletisim')({
   head: () => ({
+    links: [{ rel: 'canonical', href: 'https://rustikevi.com/iletisim' }],
     meta: [
+      { property: 'og:url', content: 'https://rustikevi.com/iletisim' },
       { title: 'İletişim | Rustik Evi' },
       {
         name: 'description',

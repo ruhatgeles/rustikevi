@@ -6,7 +6,9 @@ const iconMap: Record<string, typeof Factory> = { Factory, Hammer, Users2 }
 
 export const Route = createFileRoute('/hakkinda')({
   head: () => ({
+    links: [{ rel: 'canonical', href: 'https://rustikevi.com/hakkinda' }],
     meta: [
+      { property: 'og:url', content: 'https://rustikevi.com/hakkinda' },
       { title: 'Hakkında | Rustik Evi' },
       {
         name: 'description',

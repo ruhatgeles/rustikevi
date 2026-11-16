@@ -2,13 +2,15 @@ import { createServerFn } from '@tanstack/react-start'
 
 const API_URL = process.env.API_URL || 'http://localhost:3001'
 
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
+
 interface ContentBlock {
   id: string
   slug: string
   title: string
   body: string
   type: string
-  metadata: Record<string, unknown>
+  metadata: { [key: string]: Json }
 }
 
 export async function fetchContentBlock(
@@ -25,7 +27,7 @@ export async function fetchContentBlock(
 }
 
 export const getSiteConfig = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<Record<string, unknown>> => {
+  async (): Promise<{ [key: string]: Json }> => {
     const block = await fetchContentBlock('site-config')
     if (block?.metadata) return block.metadata
     return {}

@@ -8,7 +8,9 @@ import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/katalog')({
   head: () => ({
+    links: [{ rel: 'canonical', href: 'https://rustikevi.com/katalog' }],
     meta: [
+      { property: 'og:url', content: 'https://rustikevi.com/katalog' },
       { title: 'Dijital Katalog | Rustik Evi' },
       {
         name: 'description',
@@ -88,12 +90,22 @@ function CatalogPage() {
               key={product.id}
               className="grid gap-5 border-b border-[var(--color-cream-deep)] pb-8 last:border-none sm:grid-cols-[160px_1fr]"
             >
-              <div
-                className="aspect-[4/3] w-full rounded-xl sm:h-full sm:aspect-auto"
-                style={{
-                  background: `linear-gradient(155deg, ${getSwatches(product)[0][0]}, ${getSwatches(product)[0][1]})`,
-                }}
-              />
+              {product.images?.[0] ? (
+                <img
+                  src={product.images[0]}
+                  alt={product.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="aspect-[4/3] w-full rounded-xl bg-[var(--color-cream-deep)] object-cover sm:h-full sm:aspect-auto"
+                />
+              ) : (
+                <div
+                  className="aspect-[4/3] w-full rounded-xl sm:h-full sm:aspect-auto"
+                  style={{
+                    background: `linear-gradient(155deg, ${getSwatches(product)[0][0]}, ${getSwatches(product)[0][1]})`,
+                  }}
+                />
+              )}
               <div>
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-wood)]">
                   {product.category}
@@ -104,9 +116,11 @@ function CatalogPage() {
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-ink)]/65">
                   {product.description}
                 </p>
-                <p className="mt-2 text-xs font-semibold text-[var(--color-wood-dark)]">
-                  Minimum Sipariş: {product.moq}
-                </p>
+                {product.moq && (
+                  <p className="mt-2 text-xs font-semibold text-[var(--color-wood-dark)]">
+                    Minimum Sipariş: {product.moq}
+                  </p>
+                )}
               </div>
             </div>
           ))}

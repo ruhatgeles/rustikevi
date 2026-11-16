@@ -88,7 +88,7 @@ export function Footer() {
 
       <div className="thread-divider mx-5 sm:mx-8" />
 
-      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-6 text-xs text-[var(--color-cream)]/50 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 pb-24 pt-6 text-xs text-[var(--color-cream)]/50 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <span>© 2026 {siteConfig.legalName}. Tüm hakları saklıdır.</span>
         <span>Bu bir tanıtım web sitesidir · Toptan satış için iletişime geçiniz</span>
       </div>

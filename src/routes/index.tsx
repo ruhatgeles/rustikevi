@@ -9,7 +9,9 @@ import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export const Route = createFileRoute('/')({
   head: () => ({
+    links: [{ rel: 'canonical', href: 'https://rustikevi.com' }],
     meta: [
+      { property: 'og:url', content: 'https://rustikevi.com' },
       { title: 'Rustik Evi | Perde Aksesuarı Toptan Satış' },
       {
         name: 'description',
@@ -113,9 +115,35 @@ function HomePage() {
           <div className="relative mx-auto w-full max-w-md animate-fade-up [animation-delay:150ms]">
             <div className="absolute -inset-3 rounded-[2rem] border border-[var(--color-brass)]/20" />
             <div className="grid grid-cols-2 gap-4 rounded-[1.75rem] bg-[var(--color-cream)]/5 p-4">
-              <div className="col-span-2 aspect-[16/10] animate-drift rounded-2xl bg-[linear-gradient(150deg,#c9a876,#6d4527)]" />
-              <div className="aspect-square rounded-2xl bg-[linear-gradient(150deg,#8a5a3a,#3a2a1c)]" />
-              <div className="aspect-square animate-drift rounded-2xl bg-[linear-gradient(150deg,#d8c6a3,#a9825a)] [animation-delay:1.2s]" />
+              <img
+                src="/img/hero-cover-1600.webp"
+                srcSet="/img/hero-cover-900.webp 900w, /img/hero-cover-1600.webp 1600w"
+                sizes="(min-width: 1024px) 560px, 100vw"
+                alt="Rustik Evi pirinç korniş ve keten perde ile döşenmiş ahşap salon"
+                width={1600}
+                height={902}
+                fetchPriority="high"
+                decoding="async"
+                className="col-span-2 aspect-[16/10] w-full rounded-2xl bg-[#6d4527] object-cover"
+              />
+              <img
+                src="/img/hero-detail-rod.webp"
+                alt="Pirinç korniş ve halka detayı"
+                width={600}
+                height={600}
+                loading="lazy"
+                decoding="async"
+                className="aspect-square w-full rounded-2xl bg-[#8a5a3a] object-cover"
+              />
+              <img
+                src="/img/hero-detail-chair.webp"
+                alt="Deri koltuk ve jüt halı ile rustik oturma köşesi"
+                width={600}
+                height={600}
+                loading="lazy"
+                decoding="async"
+                className="aspect-square w-full rounded-2xl bg-[#a9825a] object-cover"
+              />
             </div>
           </div>
         </div>
