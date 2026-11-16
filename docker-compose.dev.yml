@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: packages/api/Dockerfile
-      target: base
+      target: deps
     volumes:
       - ./packages/api/src:/app/packages/api/src
       - ./packages/api/migrations:/app/packages/api/migrations
@@ -16,13 +16,16 @@ services:
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
     working_dir: /app/packages/api
+    environment:
+      NODE_ENV: development
+    # Geliştirmede migration elle: docker compose exec api pnpm db:migrate
     command: pnpm dev
 
   admin:
     build:
       context: .
       dockerfile: packages/admin/Dockerfile
-      target: base
+      target: deps
     volumes:
       - ./packages/admin/src:/app/packages/admin/src
       - ./packages/admin/index.html:/app/packages/admin/index.html
@@ -31,4 +34,6 @@ services:
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
     working_dir: /app/packages/admin
-    command: pnpm dev
+    environment:
+      API_URL: http://api:3001
+    command: pnpm dev --host 0.0.0.0
