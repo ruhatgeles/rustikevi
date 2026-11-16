@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { api } from '../lib/api'
-import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
 import ProductDetailModal from '../components/ProductDetailModal'
 import ProductGalleryModal from '../components/ProductGalleryModal'
@@ -69,7 +68,6 @@ const emptyForm = {
 }
 
 export default function Products() {
-  const { debugMode } = useDebug()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')

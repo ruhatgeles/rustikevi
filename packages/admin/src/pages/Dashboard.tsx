@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { Users, FileText, KeyRound, UserCheck, ShoppingCart, Clock, Package } from 'lucide-react'
+import { Users, UserCheck, ShoppingCart, Clock } from 'lucide-react'
 
 interface Stats {
   users: number

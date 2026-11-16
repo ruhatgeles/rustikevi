@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Package, AlertTriangle } from 'lucide-react'
+import { X, AlertTriangle } from 'lucide-react'
 
 interface OrderItem {
   id: string

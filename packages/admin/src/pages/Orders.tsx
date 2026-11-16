@@ -16,7 +16,6 @@ import {
   Truck,
   CheckCircle,
   XCircle,
-  MessageSquare,
   Bug,
   Loader2,
   Archive,
@@ -27,7 +26,6 @@ import {
   Pencil,
   ImageIcon,
   Lock,
-  ArrowRight,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
-import { useDebug } from '../lib/debug'
 import ConfirmModal from '../components/ConfirmModal'
 import ProductSearch from '../components/ProductSearch'
 import {
@@ -72,7 +71,6 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function Customers() {
-  const { debugMode } = useDebug()
   const navigate = useNavigate()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
@@ -435,7 +433,7 @@ export default function Customers() {
         specifications: item.specifications.trim() || undefined,
       }))
 
-      const order = await api.request<{ id: string; orderNumber: string }>('/api/orders', {
+      await api.request<{ id: string; orderNumber: string }>('/api/orders', {
         method: 'POST',
         body: {
           customerId: selectedCustomer.id,

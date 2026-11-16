@@ -9,7 +9,6 @@ import {
   CheckCircle,
   GripVertical,
   X,
-  Package,
   ArrowLeftRight,
   Lock,
 } from 'lucide-react'
@@ -122,17 +121,6 @@ const ITEM_STATUS_COLORS: Record<string, string> = {
   exchanged: 'bg-pink-100 text-pink-700',
 }
 
-const ITEM_STATUS_LABELS: Record<string, string> = {
-  pending: 'Beklemede',
-  confirmed: 'Onaylandı',
-  in_production: 'Üretimde',
-  atelier: 'Atölyede',
-  ready: 'Hazır',
-  shipped: 'Kargoda',
-  delivered: 'Teslim',
-  returned: 'İade',
-  exchanged: 'Değişim',
-}
 
 export default function Status() {
   const [orders, setOrders] = useState<Order[]>([])

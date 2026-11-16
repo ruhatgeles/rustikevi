@@ -14,15 +14,28 @@ interface Product {
 interface ProductSearchProps {
   onSelect: (product: Product) => void
   placeholder?: string
+  /** Kontrollü kullanım: verilirse input bu değeri gösterir, seçim sonrası temizlenmez */
+  value?: string
+  onChange?: (value: string) => void
 }
 
-export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod, isim, renk, kategori...)' }: ProductSearchProps) {
-  const [query, setQuery] = useState('')
+export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod, isim, renk, kategori...)', value, onChange }: ProductSearchProps) {
+  const [query, setQuery] = useState(value ?? '')
+  const skipSearchRef = useRef(false)
   const [results, setResults] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // Dışarıdan gelen değeri yansıt (arama tetiklemeden)
+  useEffect(() => {
+    if (value !== undefined && value !== query) {
+      skipSearchRef.current = true
+      setQuery(value)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
 
   // Dışarı tıklayınca kapat
   useEffect(() => {
@@ -38,6 +51,11 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
   // Arama
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false
+      return
+    }
 
     if (query.length < 1) {
       setResults([])
@@ -65,7 +83,12 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
 
   const handleSelect = (product: Product) => {
     onSelect(product)
-    setQuery('')
+    if (value === undefined) {
+      setQuery('')
+    } else {
+      skipSearchRef.current = true
+      setQuery(product.name)
+    }
     setResults([])
     setOpen(false)
   }
@@ -77,14 +100,17 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            onChange?.(e.target.value)
+          }}
           onFocus={() => { if (results.length > 0) setOpen(true) }}
           placeholder={placeholder}
           className="w-full rounded-lg border border-[var(--color-cream-deep)] bg-white py-1.5 pl-8 pr-8 text-sm outline-none focus:border-[var(--color-brass)]"
         />
         {query && (
           <button
-            onClick={() => { setQuery(''); setResults([]); setOpen(false) }}
+            onClick={() => { setQuery(''); onChange?.(''); setResults([]); setOpen(false) }}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/30 hover:text-[var(--color-ink)]"
           >
             <X size={14} />

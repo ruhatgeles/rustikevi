@@ -10,7 +10,6 @@ import {
   User,
   RefreshCw,
   AlertTriangle,
-  ArrowRight,
   ImageIcon,
   X,
 } from 'lucide-react'

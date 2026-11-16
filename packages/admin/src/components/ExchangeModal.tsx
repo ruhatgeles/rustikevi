@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Package, ArrowRight, Plus, Trash2 } from 'lucide-react'
+import { X, Plus, Trash2 } from 'lucide-react'
 import ProductSearch from './ProductSearch'
 
 interface OrderItem {
@@ -269,7 +269,7 @@ export default function ExchangeModal({
                       <div className="flex-1 space-y-2">
                         <ProductSearch
                           value={item.productName}
-                          onChange={(value) => updateNewItem(index, 'productName', value)}
+                          onChange={(value: string) => updateNewItem(index, 'productName', value)}
                           onSelect={(product) => handleProductSelect(index, product)}
                           placeholder="Ürün ara..."
                         />
