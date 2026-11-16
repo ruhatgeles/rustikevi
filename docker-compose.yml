@@ -82,7 +82,8 @@ services:
     restart: unless-stopped
     logging: *logging
     ports:
-      - "${ADMIN_PORT:-3002}:3002"
+      # Yalnızca loopback: dışarıdan erişim host'taki reverse proxy (Caddy) üzerinden
+      - "127.0.0.1:${ADMIN_PORT:-3002}:3002"
     depends_on:
       api:
         condition: service_healthy
@@ -94,7 +95,8 @@ services:
     restart: unless-stopped
     logging: *logging
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      # Yalnızca loopback: dışarıdan erişim host'taki reverse proxy (Caddy) üzerinden
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy

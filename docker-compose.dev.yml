@@ -29,6 +29,11 @@ services:
     volumes:
       - ./packages/admin/src:/app/packages/admin/src
       - ./packages/admin/index.html:/app/packages/admin/index.html
+      # deps aşaması yalnızca package.json kopyalar; Vite'ın config'i (React + Tailwind
+      # eklentileri, /api proxy'si), tsconfig ve public/ (favicon) da bağlanmalı
+      - ./packages/admin/vite.config.ts:/app/packages/admin/vite.config.ts
+      - ./packages/admin/tsconfig.json:/app/packages/admin/tsconfig.json
+      - ./packages/admin/public:/app/packages/admin/public
       - ./packages/admin/package.json:/app/packages/admin/package.json
       - ./package.json:/app/package.json
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml

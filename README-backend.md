@@ -29,8 +29,8 @@ docker compose up -d --build
 
 | Servis | Adres | Not |
 |--------|-------|-----|
-| Site | http://localhost:3000 | `/api` ve `/uploads` isteklerini API'ye iletir |
-| Admin | http://localhost:3002 | nginx, `/api` → API |
+| Site | http://localhost:3000 | `/api` ve `/uploads` isteklerini API'ye iletir; yalnızca 127.0.0.1'e bağlı |
+| Admin | http://localhost:3002 | nginx, `/api` → API; yalnızca 127.0.0.1'e bağlı |
 | API | http://127.0.0.1:3001 | yalnızca sunucunun kendisinden erişilir |
 | PostgreSQL | 127.0.0.1:5432 | dışarıya kapalı |
 | Redis | 127.0.0.1:6379 | dışarıya kapalı |
@@ -52,17 +52,50 @@ docker compose exec api node dist/db/seed.js
    Örnek **Caddy** (`/etc/caddy/Caddyfile`, sertifikayı kendisi alır):
 
    ```
+   (gercek_ip) {
+       # Gerçek ziyaretçi IP'sini tek değer olarak ilet (rate limit / brute-force koruması bunu kullanır)
+       header_up X-Forwarded-For {client_ip}
+       header_up X-Real-IP {client_ip}
+   }
    rustikevi.com, www.rustikevi.com {
-       reverse_proxy 127.0.0.1:3000
+       reverse_proxy 127.0.0.1:3000 {
+           import gercek_ip
+       }
    }
    admin.rustikevi.com {
-       reverse_proxy 127.0.0.1:3002
+       reverse_proxy 127.0.0.1:3002 {
+           import gercek_ip
+       }
    }
    ```
 
-   Cloudflare kullanılıyorsa SSL modunu **Full (strict)** yapın veya Cloudflare Tunnel ile
-   aynı iki portu yayınlayın. Sunucu güvenlik duvarında yalnızca 80/443 açık olmalı;
-   3000/3002'yi doğrudan açmayın.
+   Web sunucusu (`server.mjs`) ve admin nginx'i `X-Forwarded-For`'a yalnızca istek
+   loopback/özel ağ adresinden (host'taki Caddy → Docker portu) geliyorsa güvenir; 3000/3002'ye
+   dışarıdan doğrudan gelen isteklerde bu başlık yok sayılır. Caddy varsayılan olarak da
+   `X-Forwarded-For` gönderir, ancak yukarıdaki `{client_ip}` ayarı Cloudflare arkasında da
+   doğru IP'yi verir.
+
+   Cloudflare (turuncu bulut) kullanılıyorsa SSL modunu **Full (strict)** yapın ve Caddy'ye
+   Cloudflare'in adreslerine güvenip gerçek IP'yi `CF-Connecting-IP` başlığından almasını
+   söyleyin; aksi halde tüm ziyaretçiler Cloudflare IP'leriyle görünür (aralıkların güncel listesi:
+   https://www.cloudflare.com/ips/):
+
+   ```
+   {
+       servers {
+           trusted_proxies static 173.245.48.0/20 103.21.244.0/22 ... 2400:cb00::/32 ...
+           client_ip_headers CF-Connecting-IP
+       }
+   }
+   ```
+
+   `CF-Connecting-IP`'ye uygulamada doğrudan güvenilmez (Cloudflare dışından sahte
+   gönderilebilir); Caddy yalnızca güvenilen Cloudflare adreslerinden gelirse dikkate alır.
+   Cloudflare Tunnel (`cloudflared`) ile aynı iki portu yayınlıyorsanız ek ayar gerekmez:
+   tünel gerçek IP'yi `X-Forwarded-For`'un sonuna ekler (`cloudflared` host'ta çalışmalı;
+   portlar yalnızca `127.0.0.1`'e bağlıdır). Site ve admin portları `docker-compose.yml`'de
+   `127.0.0.1`'e bağlıdır, yani dışarıdan yalnızca reverse proxy üzerinden erişilir; yine de
+   sunucu güvenlik duvarında yalnızca 80/443 açık olmalı.
 4. Güncelleme: `git pull && docker compose up -d --build` (migration'lar açılışta uygulanır).
 
 ### Mevcut sunucudan bu sürüme geçiş (bir kerelik)
