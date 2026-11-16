@@ -170,8 +170,11 @@ export function WhatsAppOrderForm() {
               required
               name="telefon"
               type="tel"
-              pattern="[0-9]{10,11}"
-              maxLength={11}
+              inputMode="tel"
+              autoComplete="tel"
+              pattern="(?=(?:\D*\d){10,13}\D*$)[0-9 +\(\)\-]+"
+              title="En az 10 haneli telefon numarası (örn. 0532 123 45 67)"
+              maxLength={20}
               value={fields.telefon}
               onChange={handleChange}
               placeholder="05xx xxx xx xx"
