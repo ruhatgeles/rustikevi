@@ -97,10 +97,10 @@ describe('Order Service', () => {
       expect(VALID_ORDER_TRANSITIONS.cancelled).toEqual([])
     })
 
-    it('should allow delivered to be cancelled', async () => {
+    it('should not allow delivered orders to be cancelled (use return/exchange instead)', async () => {
       const { VALID_ORDER_TRANSITIONS } = await import('../services/order.service.js')
 
-      expect(VALID_ORDER_TRANSITIONS.delivered).toContain('cancelled')
+      expect(VALID_ORDER_TRANSITIONS.delivered).not.toContain('cancelled')
     })
   })
 

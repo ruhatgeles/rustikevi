@@ -22,8 +22,8 @@ interface CreateOrderInput {
 interface UpdateOrderInput {
   notes?: string
   internalNotes?: string
-  assignedTo?: string
-  totalAmount?: number
+  assignedTo?: string | null
+  totalAmount?: number | null
 }
 
 // ── Helpers ─────────────────────────────────────────────
@@ -146,7 +146,7 @@ export async function listOrders(filters?: {
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
   const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)::int` })
     .from(orders)
     .leftJoin(customers, eq(orders.customerId, customers.id))
     .where(where)
@@ -648,14 +648,14 @@ export async function removeOrderItem(orderId: string, itemId: string, userId: s
 
 export async function getOrderStats() {
   const [total] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)::int` })
     .from(orders)
     .where(eq(orders.isArchived, false))
 
   const byStatus = await db
     .select({
       status: orders.status,
-      count: sql<number>`count(*)`,
+      count: sql<number>`count(*)::int`,
     })
     .from(orders)
     .where(eq(orders.isArchived, false))

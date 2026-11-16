@@ -1,5 +1,6 @@
 import { Context, Next } from 'hono'
 import { getRedis } from '../lib/redis.js'
+import { getClientIp } from '../lib/client-ip.js'
 import { AppError } from '../lib/errors.js'
 
 // In-memory fallback
@@ -13,14 +14,14 @@ setInterval(() => {
       memoryStore.delete(key)
     }
   }
-}, 60_000)
+}, 60_000).unref()
 
 const MAX_ATTEMPTS = 5
 const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 dakika
 
 export function bruteForceProtection() {
   return async (c: Context, next: Next) => {
-    const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
+    const ip = getClientIp(c)
     const body = await c.req.json().catch(() => ({}))
     const email = body.email || 'unknown'
     const key = `bruteforce:${ip}:${email}`

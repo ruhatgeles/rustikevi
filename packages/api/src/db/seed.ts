@@ -4,7 +4,16 @@ import { users, products, contentBlocks } from './schema.js'
 import { hashSync } from 'bcryptjs'
 import { eq, sql } from 'drizzle-orm'
 
-const productData = [
+const productData: Array<{
+  name: string
+  category: string
+  description: string
+  shortDescription: string
+  moq: string
+  swatches: Array<[string, string]>
+  featured?: boolean
+  sortOrder?: number
+}> = [
   // ── Rustik ──────────────────────────────────────────────
   {
     name: 'Jüt Kordon',
@@ -421,9 +430,26 @@ const productData = [
   },
 ]
 
+// --admin-only: sadece hiç kullanıcı yoksa ilk admin'i oluşturur (container açılışında güvenle çalışır)
+const ADMIN_ONLY = process.argv.includes('--admin-only')
+const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+
 async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@rustikevi.com'
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123'
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (IS_PRODUCTION ? '' : 'admin123')
+
+  if (ADMIN_ONLY) {
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(users)
+    if (count > 0) {
+      console.log('Kullanıcılar mevcut, admin bootstrap atlandı.')
+      process.exit(0)
+    }
+  }
+
+  if (IS_PRODUCTION && (adminPassword.length < 12 || adminPassword === 'admin123')) {
+    console.error('❌ Production ortamında SEED_ADMIN_PASSWORD en az 12 karakter olmalı (varsayılan şifre kabul edilmez).')
+    process.exit(ADMIN_ONLY ? 0 : 1)
+  }
 
   // ── Seed admin user ───────────────────────────────────────
   const [existing] = await db
@@ -449,16 +475,16 @@ async function main() {
     console.log(`✅ Admin user created: ${admin.email} (id: ${admin.id})`)
   }
 
+  if (ADMIN_ONLY) process.exit(0)
+
   // ── Seed products ─────────────────────────────────────────
   const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)::int` })
     .from(products)
 
   if (countResult.count > 0) {
     console.log(`Products table already has ${countResult.count} rows, skipping.`)
-    process.exit(0)
-  }
-
+  } else {
   for (const p of productData) {
     await db.insert(products).values({
       name: p.name,
@@ -474,10 +500,11 @@ async function main() {
   }
 
   console.log(`✅ ${productData.length} products seeded.`)
+  }
 
   // ── Seed content blocks ────────────────────────────────────
   const [contentCount] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)::int` })
     .from(contentBlocks)
 
   if (contentCount.count > 0) {

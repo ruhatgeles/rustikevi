@@ -17,6 +17,7 @@ import uploadRoutes from './routes/upload.js'
 import healthRoutes from './routes/health.js'
 import autoLoginRoutes from './routes/auto-login.js'
 import { openApiSpec } from './openapi.js'
+import { getClientIp } from './lib/client-ip.js'
 
 const app = new Hono()
 
@@ -41,7 +42,7 @@ app.use('*', async (c, next) => {
     method: c.req.method,
     url: c.req.url,
     userAgent: c.req.header('user-agent'),
-    ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown',
+    ip: getClientIp(c),
   }, 'Request started')
 
   await next()
@@ -94,6 +95,11 @@ app.route('/api/products', productRoutes)
 app.route('/api/upload', uploadRoutes)
 
 // Static file serving for uploads
+// Dosya adları benzersiz (yeniden yazılmaz) — uzun süre önbelleklenebilir
+app.use('/uploads/*', async (c, next) => {
+  await next()
+  if (c.res.status === 200) c.header('Cache-Control', 'public, max-age=2592000, immutable')
+})
 app.use('/uploads/*', serveStatic({ root: './', index: '' }))
 
 // Error handler
@@ -105,6 +111,15 @@ app.notFound((c) => c.json({ error: 'Not found' }, 404))
 const port = Number(process.env.API_PORT || 3001)
 const host = process.env.API_HOST || '0.0.0.0'
 
-serve({ fetch: app.fetch, port, host }, (info) => {
+const server = serve({ fetch: app.fetch, port, hostname: host }, (info) => {
   console.log(`🚀 Rustik Evi API running on http://${host}:${info.port}`)
 })
+
+// Graceful shutdown: Docker SIGTERM gönderdiğinde açık istekleri bitir
+function shutdown(signal: string) {
+  console.log(`${signal} alındı, API kapatılıyor...`)
+  server.close(() => process.exit(0))
+  setTimeout(() => process.exit(1), 10_000).unref()
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))

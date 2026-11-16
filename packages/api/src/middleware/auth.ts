@@ -1,4 +1,4 @@
-import { Context, Next } from 'hono'
+import { createMiddleware } from 'hono/factory'
 import { verifyToken, JwtPayload } from '../lib/jwt.js'
 import { AppError } from '../lib/errors.js'
 
@@ -6,11 +6,12 @@ import { AppError } from '../lib/errors.js'
 declare module 'hono' {
   interface ContextVariableMap {
     user: JwtPayload
+    requestId: string
   }
 }
 
 export function authMiddleware(requiredRoles?: string[]) {
-  return async (c: Context, next: Next) => {
+  return createMiddleware(async (c, next) => {
     const authHeader = c.req.header('Authorization')
 
     if (!authHeader?.startsWith('Bearer ')) {
@@ -26,13 +27,18 @@ export function authMiddleware(requiredRoles?: string[]) {
       throw new AppError(401, 'Invalid or expired token')
     }
 
+    // Refresh token (7 gün) erişim token'ı yerine kullanılamaz
+    if (payload.type === 'refresh') {
+      throw new AppError(401, 'Invalid or expired token')
+    }
+
     if (requiredRoles && !requiredRoles.includes(payload.role)) {
       throw new AppError(403, 'Insufficient permissions')
     }
 
     c.set('user', payload)
     await next()
-  }
+  })
 }
 
 // Shorthand guards

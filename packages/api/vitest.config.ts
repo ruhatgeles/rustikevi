@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.spec.ts', 'src/__tests__/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+    // Entegrasyon testleri Docker ister: pnpm test:integration
+    exclude: ['src/__tests__/integration/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

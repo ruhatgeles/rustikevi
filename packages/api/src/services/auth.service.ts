@@ -1,7 +1,7 @@
 import { db } from '../db/index.js'
 import { users, refreshTokens } from '../db/schema.js'
 import { eq, and, gt } from 'drizzle-orm'
-import { comparePassword, hashPassword } from '../lib/password.js'
+import { comparePassword, burnPasswordCheck } from '../lib/password.js'
 import { signAccessToken, signRefreshToken, getTokenHash, JwtPayload } from '../lib/jwt.js'
 import { AppError } from '../lib/errors.js'
 import { LoginResponse } from '../types/index.js'
@@ -14,6 +14,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
     .limit(1)
 
   if (!user) {
+    await burnPasswordCheck(password)
     throw new AppError(401, 'Invalid email or password')
   }
 
@@ -22,7 +23,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
     throw new AppError(403, 'Hesabınıza giriş engeli konulmuştur. Yöneticiniz ile iletişime geçin.')
   }
 
-  const valid = comparePassword(password, user.passwordHash)
+  const valid = await comparePassword(password, user.passwordHash)
   if (!valid) {
     throw new AppError(401, 'Invalid email or password')
   }
@@ -70,6 +71,9 @@ export async function refresh(refreshTokenStr: string): Promise<{ accessToken: s
   } catch {
     throw new AppError(401, 'Invalid refresh token')
   }
+  if (payload.type !== 'refresh') {
+    throw new AppError(401, 'Invalid refresh token')
+  }
 
   const tokenHash = getTokenHash(refreshTokenStr)
 
@@ -89,11 +93,22 @@ export async function refresh(refreshTokenStr: string): Promise<{ accessToken: s
     throw new AppError(401, 'Refresh token not found or expired')
   }
 
+  // Kullanıcının GÜNCEL durumunu kullan: pasife alınan / engellenen / rolü değişen kullanıcı eski yetkiyle devam edemez
+  const [user] = await db.select().from(users).where(eq(users.id, payload.sub)).limit(1)
+  if (!user || !user.isActive || user.isLoginBlocked) {
+    await db.delete(refreshTokens).where(eq(refreshTokens.userId, payload.sub))
+    throw new AppError(401, 'Session expired')
+  }
+
   // Delete old token
   await db.delete(refreshTokens).where(eq(refreshTokens.id, stored.id))
 
   // Issue new pair
-  const newPayload: JwtPayload = { sub: payload.sub, email: payload.email, role: payload.role }
+  const newPayload: JwtPayload = {
+    sub: user.id,
+    email: user.email,
+    role: user.isViewOnly ? 'viewer' : user.role,
+  }
   const newAccess = signAccessToken(newPayload)
   const newRefresh = signRefreshToken(newPayload)
 

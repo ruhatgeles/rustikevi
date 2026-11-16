@@ -97,7 +97,7 @@ describe('Auth Service', () => {
         limit: vi.fn().mockResolvedValue([blockedUser]),
       }
       vi.mocked(db).select.mockReturnValue(mockChain as any)
-      vi.mocked(comparePassword).mockReturnValue(true)
+      vi.mocked(comparePassword).mockResolvedValue(true)
 
       await expect(login('blocked@example.com', 'password123')).rejects.toThrow('Hesabınıza giriş engeli konulmuştur')
     })
@@ -125,7 +125,7 @@ describe('Auth Service', () => {
         limit: vi.fn().mockResolvedValue([user]),
       }
       vi.mocked(db).select.mockReturnValue(mockChain as any)
-      vi.mocked(comparePassword).mockReturnValue(false)
+      vi.mocked(comparePassword).mockResolvedValue(false)
 
       await expect(login('user@example.com', 'wrongpassword')).rejects.toThrow('Invalid email or password')
     })
@@ -154,7 +154,7 @@ describe('Auth Service', () => {
         limit: vi.fn().mockResolvedValue([user]),
       }
       vi.mocked(db).select.mockReturnValue(mockSelectChain as any)
-      vi.mocked(comparePassword).mockReturnValue(true)
+      vi.mocked(comparePassword).mockResolvedValue(true)
       vi.mocked(signAccessToken).mockReturnValue('access-token')
       vi.mocked(signRefreshToken).mockReturnValue('refresh-token')
 
@@ -196,7 +196,7 @@ describe('Auth Service', () => {
         limit: vi.fn().mockResolvedValue([viewOnlyUser]),
       }
       vi.mocked(db).select.mockReturnValue(mockSelectChain as any)
-      vi.mocked(comparePassword).mockReturnValue(true)
+      vi.mocked(comparePassword).mockResolvedValue(true)
 
       const mockInsertChain = {
         values: vi.fn().mockResolvedValue(undefined),
@@ -221,6 +221,15 @@ describe('Auth Service', () => {
       await expect(refresh('invalid-token')).rejects.toThrow('Invalid refresh token')
     })
 
+    it('should reject an access token used as refresh token', async () => {
+      const { refresh } = await import('../services/auth.service.js')
+      const { verifyToken } = await import('../lib/jwt.js')
+
+      vi.mocked(verifyToken).mockReturnValue({ sub: 'user-1', email: 'user@example.com', role: 'viewer' })
+
+      await expect(refresh('access-token')).rejects.toThrow('Invalid refresh token')
+    })
+
     it('should throw 401 when refresh token not found in DB', async () => {
       const { refresh } = await import('../services/auth.service.js')
       const { verifyToken } = await import('../lib/jwt.js')
@@ -230,6 +239,7 @@ describe('Auth Service', () => {
         sub: 'user-1',
         email: 'user@example.com',
         role: 'viewer',
+        type: 'refresh',
       })
 
       const mockSelectChain = {

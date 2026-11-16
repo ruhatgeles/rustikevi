@@ -27,7 +27,7 @@ export async function listUsers(
   page = 1,
   limit = 20,
   search?: string
-): Promise<PaginatedResponse<typeof users.$inferSelect>> {
+): Promise<PaginatedResponse<Omit<typeof users.$inferSelect, 'passwordHash' | 'inviteCodeId'>>> {
   const offset = (page - 1) * limit
 
   const where = search
@@ -35,7 +35,7 @@ export async function listUsers(
     : undefined
 
   const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)::int` })
     .from(users)
     .where(where)
 
@@ -108,7 +108,7 @@ export async function createUser(input: CreateUserInput, createdById?: string) {
       .where(eq(inviteCodes.id, code.id))
   }
 
-  const passwordHash = hashPassword(input.password)
+  const passwordHash = await hashPassword(input.password)
 
   const [user] = await db
     .insert(users)
@@ -136,7 +136,7 @@ export async function updateUser(id: string, input: UpdateUserInput) {
 
   // Şifre değiştiriliyorsa hashle
   if (input.password) {
-    updateData.passwordHash = hashPassword(input.password)
+    updateData.passwordHash = await hashPassword(input.password)
     delete updateData.password
   }
 

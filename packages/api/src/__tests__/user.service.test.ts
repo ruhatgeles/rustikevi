@@ -23,7 +23,7 @@ vi.mock('../db/schema.js', () => ({
 }))
 
 vi.mock('../lib/password.js', () => ({
-  hashPassword: vi.fn().mockReturnValue('hashed-password'),
+  hashPassword: vi.fn().mockResolvedValue('hashed-password'),
   comparePassword: vi.fn(),
 }))
 
@@ -210,7 +210,7 @@ describe('User Service', () => {
         }]),
       }
       vi.mocked(db).update.mockReturnValue(mockUpdateChain as any)
-      vi.mocked(hashPassword).mockReturnValue('new-hashed-password')
+      vi.mocked(hashPassword).mockResolvedValue('new-hashed-password')
 
       await updateUser('user-1', { password: 'newpassword123' })
 

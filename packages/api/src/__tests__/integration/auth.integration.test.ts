@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { setupTestContainers, teardownTestContainers, getTestDb, getTestRedis } from './setup.js'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { getTestDb } from './setup.js'
 import { login, refresh, logout, getMe } from '../../services/auth.service.js'
 import { hashPassword } from '../../lib/password.js'
 import { users } from '../../db/schema.js'
@@ -10,7 +10,6 @@ describe('Auth Service Integration', () => {
   let testUserId: string
 
   beforeAll(async () => {
-    await setupTestContainers()
     db = getTestDb()
 
     // Create test user
@@ -27,10 +26,6 @@ describe('Auth Service Integration', () => {
       .returning()
 
     testUserId = user.id
-  }, 60000) // 60s timeout for container setup
-
-  afterAll(async () => {
-    await teardownTestContainers()
   })
 
   describe('login', () => {

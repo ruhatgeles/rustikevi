@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock the dependencies
 vi.mock('../lib/jwt.js', () => ({
@@ -135,6 +135,18 @@ describe('Auth Middleware', () => {
       expect(mockNext).toHaveBeenCalled()
     })
 
+    it('should reject refresh tokens used as access tokens', async () => {
+      const { requireAuth } = await import('../middleware/auth.js')
+      const { verifyToken } = await import('../lib/jwt.js')
+      vi.mocked(verifyToken).mockReturnValue({ sub: 'user-1', email: 'a@b.c', role: 'admin', type: 'refresh' })
+
+      const mockContext = { req: { header: vi.fn().mockReturnValue('Bearer refresh-token') }, set: vi.fn() }
+      const mockNext = vi.fn()
+
+      await expect(requireAuth()(mockContext as any, mockNext)).rejects.toThrow()
+      expect(mockNext).not.toHaveBeenCalled()
+    })
+
     it('should allow admin role', async () => {
       const { requireManager } = await import('../middleware/auth.js')
       const { verifyToken } = await import('../lib/jwt.js')
@@ -199,6 +211,8 @@ describe('Auth Middleware', () => {
     })
   })
 })
+
+vi.mock('../lib/redis.js', () => ({ getRedis: () => null }))
 
 describe('Rate Limit Middleware', () => {
   beforeEach(() => {

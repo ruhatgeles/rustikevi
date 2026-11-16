@@ -8,11 +8,11 @@ interface CreateCustomerInput {
   businessName: string
   contactName: string
   phone: string
-  email?: string
-  city?: string
-  address?: string
-  notes?: string
-  tags?: string[]
+  email?: string | null
+  city?: string | null
+  address?: string | null
+  notes?: string | null
+  tags?: string[] | null
 }
 
 interface UpdateCustomerInput extends Partial<CreateCustomerInput> {}
@@ -98,6 +98,7 @@ export async function listCustomers(
       notes: customers.notes,
       tags: customers.tags,
       createdBy: customers.createdBy,
+      isArchived: customers.isArchived,
       createdAt: customers.createdAt,
       updatedAt: customers.updatedAt,
       orderCount: sql<number>`COALESCE(order_counts.order_count, 0)::int`,

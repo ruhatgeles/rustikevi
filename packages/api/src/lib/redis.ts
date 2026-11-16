@@ -10,11 +10,12 @@ export function getRedis(): Redis | null {
   try {
     redis = new Redis(REDIS_URL, {
       maxRetriesPerRequest: 1,
+      // Bağlantı yokken komutları kuyrukta bekletme: hemen hata ver, in-memory fallback devreye girsin
+      enableOfflineQueue: false,
+      // Redis yeniden başlarsa bağlantıyı kendiliğinden toparla (eskiden 3 denemeden sonra kalıcı ölüyordu)
       retryStrategy(times) {
-        if (times > 3) return null // Stop retrying
-        return Math.min(times * 200, 1000)
+        return Math.min(times * 500, 5000)
       },
-      lazyConnect: true,
     })
 
     redis.on('error', () => {

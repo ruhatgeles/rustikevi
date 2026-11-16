@@ -4,6 +4,7 @@ import { login, refresh, logout, getMe } from '../services/auth.service.js'
 import { requireAuth } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rate-limit.js'
 import { bruteForceProtection, recordFailedAttempt, clearFailedAttempts } from '../middleware/brute-force.js'
+import { getClientIp } from '../lib/client-ip.js'
 
 const auth = new Hono()
 
@@ -18,7 +19,7 @@ const refreshSchema = z.object({
 
 // POST /api/auth/login
 auth.post('/login', rateLimit(10, 60_000), bruteForceProtection(), async (c) => {
-  const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown'
+  const ip = getClientIp(c)
   const body = await c.req.json()
   const { email, password } = loginSchema.parse(body)
 
