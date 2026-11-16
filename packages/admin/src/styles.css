@@ -7,17 +7,28 @@
   --color-wood: #9a6b45;
   --color-wood-dark: #6d4527;
   --color-espresso: #3a2a1c;
+  --color-espresso-deep: #2a1d13;
+  --color-brass-bright: #d1a463;
   --color-brass: #b68a4e;
   --color-ink: #2b2118;
 }
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Manrope', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
   background-color: var(--color-linen);
   color: var(--color-ink);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Marka tutarlılığı: sayfa başlıkları sitedeki serif yazı tipiyle */
+h1,
+h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }

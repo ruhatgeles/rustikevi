@@ -47,18 +47,16 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   const sidebarContent = (
     <>
-      <div className="flex items-center gap-3 border-b border-[var(--color-cream-deep)] px-4 py-4 sm:px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-wood)] text-sm font-bold text-white">
-          RE
-        </div>
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+        <img src="/logo.png" alt="" className="h-10 w-10 shrink-0 rounded-full" />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-[var(--color-espresso)]">Rustik Evi</p>
-          <p className="text-xs text-[var(--color-ink)]/65">Admin Panel</p>
+          <p className="font-['Fraunces'] text-lg font-semibold leading-tight text-[var(--color-cream)]">Rustik Evi</p>
+          <p className="text-xs text-[var(--color-cream)]/60">Admin Panel</p>
         </div>
         {/* Close button - mobile only */}
         <button
           onClick={() => setSidebarOpen(false)}
-          className="rounded-lg p-1.5 text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)] lg:hidden"
+          className="rounded-lg p-1.5 text-[var(--color-cream)]/70 hover:bg-white/10 hover:text-[var(--color-cream)] lg:hidden"
         >
           <X size={20} />
         </button>
@@ -74,8 +72,8 @@ export default function Layout({ children }: { children: ReactNode }) {
               to={item.to}
               className={`mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-[var(--color-wood)]/10 text-[var(--color-wood-dark)]'
-                  : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]'
+                  ? 'bg-[var(--color-brass)]/20 text-[var(--color-brass-bright)]'
+                  : 'text-[var(--color-cream)]/70 hover:bg-white/5 hover:text-[var(--color-cream)]'
               }`}
             >
               <Icon size={18} />
@@ -85,15 +83,15 @@ export default function Layout({ children }: { children: ReactNode }) {
         })}
       </nav>
 
-      <div className="border-t border-[var(--color-cream-deep)] p-4">
+      <div className="border-t border-white/10 p-4">
         {/* Debug Toggle - Sadece admin kullanıcılar görebilir */}
         {isAdmin && (
           <button
             onClick={toggleDebug}
             className={`mb-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
               debugMode
-                ? 'bg-orange-50 text-orange-700'
-                : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)]'
+                ? 'bg-orange-500/15 text-orange-200'
+                : 'text-[var(--color-cream)]/70 hover:bg-white/5'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -102,7 +100,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </span>
             <span
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                debugMode ? 'bg-orange-500' : 'bg-gray-300'
+                debugMode ? 'bg-orange-500' : 'bg-white/20'
               }`}
             >
               <span
@@ -115,17 +113,17 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
 
         <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-cream-deep)] text-xs font-bold text-[var(--color-wood-dark)]">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-brass)]/25 text-xs font-bold text-[var(--color-brass-bright)]">
             {user?.name?.charAt(0)?.toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{user?.name}</p>
-            <p className="truncate text-xs text-[var(--color-ink)]/65">{user?.role}</p>
+            <p className="truncate text-sm font-medium text-[var(--color-cream)]">{user?.name}</p>
+            <p className="truncate text-xs text-[var(--color-cream)]/60">{user?.role}</p>
           </div>
         </div>
         <button
           onClick={logout}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50"
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-300 transition-colors hover:bg-red-500/10"
         >
           <LogOut size={16} />
           Çıkış
@@ -137,7 +135,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-[var(--color-cream-deep)] lg:bg-white">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:bg-[var(--color-espresso-deep)]">
         {sidebarContent}
       </aside>
 
@@ -151,7 +149,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Mobile Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[var(--color-cream-deep)] bg-white transition-transform duration-300 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-[var(--color-espresso-deep)] transition-transform duration-300 lg:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -169,9 +167,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-wood)] text-[10px] font-bold text-white">
-              RE
-            </div>
+            <img src="/logo.png" alt="" className="h-8 w-8 rounded-full" />
             <span className="text-sm font-semibold text-[var(--color-espresso)]">Rustik Evi</span>
           </div>
         </header>
