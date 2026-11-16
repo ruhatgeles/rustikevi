@@ -29,12 +29,9 @@ interface UpdateOrderInput {
 // ── Helpers ─────────────────────────────────────────────
 
 async function generateOrderNumber(): Promise<string> {
-  // MAX kullan — count+1 yerine. Daha güvenli.
-  const [result] = await db
-    .select({ maxNum: sql<string>`COALESCE(MAX(CAST(SUBSTRING(order_number FROM 5) AS INTEGER)), 0)` })
-    .from(orders)
-  const nextNum = (parseInt(result.maxNum, 10) || 0) + 1
-  return `RVE-${String(nextNum).padStart(7, '0')}`
+  // Postgres sequence: eşzamanlı siparişlerde bile benzersiz (bkz. migration 0003)
+  const [result] = await db.execute<{ n: string }>(sql`SELECT nextval('order_number_seq')::text AS n`)
+  return `RVE-${String(result.n).padStart(7, '0')}`
 }
 
 async function addActivity(
