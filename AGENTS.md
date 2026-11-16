@@ -130,26 +130,39 @@ rustikevi-web/
   Davet kodu ile kullanıcı kaydı, her kod belirli bir rol atar.
 - **JWT akışı**: Access token (15dk) + refresh token (7gün). Refresh token hash'i
   `refresh_tokens` tablosunda saklanır. Otomatik yenileme admin paneli `api.ts`'de yapılır.
-- **Docker**: 4 servis (api, admin, postgres, redis). `docker compose up -d` ile tek komutla
-  çalışır. Volume'lar veri persistansı sağlar.
+- **Docker**: 5 servis (web, api, admin, postgres, redis). `docker compose up -d --build` ile
+  tek komutla çalışır. API açılışta migration'ları ve ilk admin bootstrap'ini çalıştırır
+  (`docker-entrypoint.sh`). Postgres/Redis/API yalnızca 127.0.0.1'e açıktır; dış dünyaya
+  sadece web (3000) ve admin (3002) çıkar, önlerine HTTPS reverse proxy konur.
+- **Aynı origin API**: Site (`server.mjs`) ve admin (nginx) `/api` + `/uploads` isteklerini
+  API'ye iletir; tarayıcı kodu API'ye göreli adresle (`/api/...`) gider, CORS gerekmez.
+  Geliştirmede aynı işi Vite proxy'si yapar. `VITE_API_URL` artık kullanılmaz.
+- **Migration**: Şema değişikliği → `pnpm db:generate` → `migrations/` commit. Elle SQL yok.
+- **Görseller**: Yüklemeler magic-byte ile doğrulanır, sharp ile WebP/max 1600px yapılır.
+- **Güvenlik**: İstemci IP'si yalnızca `TRUST_PROXY=true` iken başlıklardan okunur; refresh
+  token erişim token'ı olarak kullanılamaz; token yenilemede kullanıcı durumu DB'den okunur.
 - **Gelecek genişleme**: WhatsApp webhook → Redis queue (BullMQ). Sipariş/ödeme → yeni
   tablolar + route'lar. CRM export → customer service'den CSV/JSON endpoint.
 
 ### Frontend
 
-- **Ürün görselleri yok**: Gerçek fotoğraf sağlanmadığından, ürün kartlarında marka
-  paletiyle uyumlu CSS gradyanları kullanılıyor (`Product.swatch` alanı). Gerçek görseller
-  eklendiğinde `ProductCard.tsx` ve `katalog.tsx` içindeki gradyan `div`ler `<img>` ile
-  değiştirilmeli.
+- **Ürün görselleri**: Admin'den yüklenen fotoğraflar (`Product.images`) kartta ve katalogda
+  gösterilir; fotoğrafı olmayan ürünlerde marka paletiyle uyumlu gradyan (`swatches`,
+  boşsa `getSwatches()` varsayılanı) kullanılır.
 - **Ürün verisi API'den**: Ürünler `createServerFn` ile SSR sırasında `GET /api/products`'tan çekilir. API yoksa `src/data/products.ts` fallback olarak kullanılır. Admin panelinden ürün ekleme/düzenleme/silme yapılır.
-- **WhatsApp sipariş akışı**: `WhatsAppOrderForm` form verisini `POST /api/orders` ile
+- **WhatsApp sipariş akışı**: `WhatsAppOrderForm` form verisini `POST /api/orders/inquiry` ile
   backend API'ye gönderir. API müşteri kaydı oluşturur. Başarılı olursa `wa.me` linki
   yeni sekmede açılır.
 - **QR kod**: Üçüncü parti bir servise (`api.qrserver.com`) bağımlıdır, ek bir npm paketi
   gerektirmez. Çalışma zamanında `window.location.origin` kullanılarak mutlak URL üretilir.
 - **Renk paleti**: `styles.css` içindeki CSS değişkenleri (`--color-wood`, `--color-cream`,
   `--color-espresso`, `--color-brass` vb.) tüm bileşenlerde kullanılır; yeni bileşenler bu
-  değişkenlerle tutarlı kalmalı.
+  değişkenlerle tutarlı kalmalı. Beyaz metinli WhatsApp butonları `--color-whatsapp`
+  (#15803d, WCAG AA) kullanır; #25D366 yalnızca açık tonlu arka plan/çerçevede.
+- **İki versiyon**: `developer` mevcut tasarım + tüm düzeltmeler; `alternatif` aynı
+  düzeltmeler + tasarım tercihleri (tam genişlik hero, markalı admin). Hata/altyapı
+  düzeltmesi `developer`'a yapılıp `alternatif`'e merge edilir; tasarım değişikliği
+  yalnızca `alternatif`'e.
 - **Yazı tipleri**: Başlıklarda `Fraunces` (serif, `font-display` sınıfı), gövde metninde
   `Manrope` kullanılır — Google Fonts üzerinden `styles.css` içinde import edilir.
 

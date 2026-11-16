@@ -93,9 +93,9 @@ docker compose up postgres redis api admin -d
 
 ## İlk Giriş (Admin Panel)
 
-Seed sonrası oluşan admin hesabı:
-- E-posta: `admin@rustikevi.com`
-- Şifre: `admin123`
+İlk açılışta API, hiç kullanıcı yoksa `.env`'deki `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`
+ile admin hesabını oluşturur (production'da en az 12 karakter). Sunucu kurulumu, HTTPS ve
+yedekleme için [README-backend.md](./README-backend.md) dosyasına bakın.
 
 ## API Endpointleri
 
@@ -106,6 +106,7 @@ Detaylı dokümantasyon için [README-backend.md](./README-backend.md) dosyasın
 - **admin**: Tüm endpointlere erişim, kullanıcı yönetimi
 - **manager**: Müşteri + içerik CRUD
 - **viewer**: Sadece okuma
+- **atolye**: Atölye ekranı (kilitli/hazır ürün akışı)
 
 ## Mimari
 
