@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, QrCode } from 'lucide-react'
 import { getProducts } from '@/lib/products'
-import { categories } from '@/data/products'
+import { ALL_CATEGORY, deriveCategories } from '@/data/products'
 import { ProductCard } from '@/components/ProductCard'
 import { CatalogQRCode } from '@/components/CatalogQRCode'
 
@@ -25,13 +25,14 @@ export const Route = createFileRoute('/urunlerimiz')({
 
 function ProductsPage() {
   const allProducts = Route.useLoaderData()
-  const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>('Tümü')
+  const categories = useMemo(() => deriveCategories(allProducts), [allProducts])
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORY)
 
   const filtered = useMemo(
     () =>
-      activeCategory === 'Tümü'
+      activeCategory === ALL_CATEGORY
         ? allProducts
-        : allProducts.filter((p) => p.category === activeCategory),
+        : allProducts.filter((p) => (p.category ?? '').trim() === activeCategory),
     [activeCategory, allProducts],
   )
 
@@ -57,6 +58,7 @@ function ProductsPage() {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
+              aria-pressed={activeCategory === cat}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
                 activeCategory === cat
                   ? 'border-[var(--color-wood-dark)] bg-[var(--color-wood-dark)] text-[var(--color-linen)]'

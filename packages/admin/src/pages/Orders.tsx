@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
+import { useAuth } from '../lib/auth'
 import ConfirmModal from '../components/ConfirmModal'
 import ProductSearch from '../components/ProductSearch'
 import ReturnModal from '../components/ReturnModal'
@@ -213,8 +214,15 @@ function DebouncedNumberInput({
 
 export default function Orders() {
   const { debugMode } = useDebug()
+  const { user } = useAuth()
+  // Silme uçları API'de requireAdmin(); manager'a buton gösterme
+  const canDelete = user?.role === 'admin'
   const location = useLocation()
   const [orders, setOrders] = useState<Order[]>([])
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [totalCount, setTotalCount] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -281,18 +289,29 @@ export default function Orders() {
   // Load orders
   const loadOrders = async () => {
     try {
-      const params = new URLSearchParams({ limit: '100' })
+      const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
       if (filterStatus) params.set('status', filterStatus)
       if (search) params.set('search', search)
       if (showArchived) params.set('archived', 'true')
-      const result = await api.request<{ data: Order[] }>(`/api/orders?${params}`)
+      const result = await api.request<{ data: Order[]; total: number }>(`/api/orders?${params}`)
+      // Son sayfadaki kayıtlar silinince/arşivlenince boş sayfada kalma
+      if (result.data.length === 0 && page > 1) {
+        setPage(Math.max(1, Math.ceil((result.total ?? 0) / pageSize)))
+        return
+      }
       setOrders(result.data)
+      setTotalCount(result.total ?? 0)
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
   }
+
+  // Filtre değişince ilk sayfaya dön
+  useEffect(() => {
+    setPage(1)
+  }, [search, filterStatus, showArchived, pageSize])
 
   // Debounced search
   useEffect(() => {
@@ -301,7 +320,7 @@ export default function Orders() {
       setSelectedOrders(new Set())
     }, 250)
     return () => clearTimeout(timer)
-  }, [search, filterStatus, showArchived])
+  }, [search, filterStatus, showArchived, page, pageSize])
 
   // Load order detail
   const loadOrderDetail = async (id: string) => {
@@ -389,8 +408,9 @@ export default function Orders() {
       const rand = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
       // Ürünleri API'den çek
-      const productsData = await api.request<{ data: Array<{ id: number; name: string; price: number | null }> }>('/api/products?limit=100')
-      const products = productsData.data || []
+      // api.request zaten `.data`yı açar → dizi döner
+      const products =
+        (await api.request<Array<{ id: number; name: string; price: number | null }>>('/api/products')) ?? []
 
       if (products.length === 0) {
         setError('Ürün bulunamadı! Önce ürün ekleyin.')
@@ -978,14 +998,16 @@ export default function Orders() {
                 {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <ArchiveRestore size={14} />}
                 Geri Al
               </button>
-              <button
-                onClick={handleBulkDeleteClick}
-                disabled={bulkLoading}
-                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                Sil
-              </button>
+              {canDelete && (
+                <button
+                  onClick={handleBulkDeleteClick}
+                  disabled={bulkLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {bulkLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Sil
+                </button>
+              )}
             </>
           )}
           <button
@@ -1086,6 +1108,58 @@ export default function Orders() {
                   </button>
                 )
               })
+            )}
+
+            {/* Pagination */}
+            {!loading && totalCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm text-[var(--color-ink)]/60">
+                <div className="flex items-center gap-2">
+                  <span>{totalCount} sipariş</span>
+                  <span>·</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="rounded border border-[var(--color-cream-deep)] bg-white px-2 py-1 text-sm outline-none"
+                  >
+                    <option value={25}>25 / sayfa</option>
+                    <option value={50}>50 / sayfa</option>
+                    <option value={100}>100 / sayfa</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(1)}
+                    disabled={page <= 1}
+                    className="rounded-lg px-2 py-1 hover:bg-[var(--color-cream)] disabled:opacity-30"
+                  >
+                    «
+                  </button>
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page <= 1}
+                    className="rounded-lg px-2 py-1 hover:bg-[var(--color-cream)] disabled:opacity-30"
+                  >
+                    ‹
+                  </button>
+                  <span className="px-2 font-medium text-[var(--color-ink)]/80">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    disabled={page >= totalPages}
+                    className="rounded-lg px-2 py-1 hover:bg-[var(--color-cream)] disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    disabled={page >= totalPages}
+                    className="rounded-lg px-2 py-1 hover:bg-[var(--color-cream)] disabled:opacity-30"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

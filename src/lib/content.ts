@@ -17,7 +17,10 @@ export async function fetchContentBlock(
   slug: string,
 ): Promise<ContentBlock | null> {
   try {
-    const res = await fetch(`${API_URL}/api/content/public/${slug}`)
+    // API asılı kalırsa SSR'ı bloklamasın → zaman aşımında fallback
+    const res = await fetch(`${API_URL}/api/content/public/${slug}`, {
+      signal: AbortSignal.timeout(5000),
+    })
     if (!res.ok) return null
     const json = await res.json()
     return json.data

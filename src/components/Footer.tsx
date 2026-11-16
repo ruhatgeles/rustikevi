@@ -1,9 +1,10 @@
 import { Link } from '@tanstack/react-router'
 import { Instagram, Facebook, MapPin, Mail, Phone, Clock } from 'lucide-react'
-import { siteConfig, buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
+import { buildWhatsAppLink, defaultWhatsAppMessage, useSiteConfig } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export function Footer() {
+  const siteConfig = useSiteConfig()
   return (
     <footer className="texture-grain relative overflow-hidden bg-[var(--color-espresso-deep)] text-[var(--color-cream)]">
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:px-8 md:grid-cols-[1.3fr_1fr_1fr]">
@@ -37,7 +38,7 @@ export function Footer() {
               <Facebook size={18} />
             </a>
             <a
-              href={buildWhatsAppLink(defaultWhatsAppMessage)}
+              href={buildWhatsAppLink(defaultWhatsAppMessage, siteConfig.whatsappNumber)}
               target="_blank"
               rel="noreferrer"
               aria-label="WhatsApp Sipariş Hattı"

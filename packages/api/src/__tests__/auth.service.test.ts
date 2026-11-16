@@ -102,6 +102,27 @@ describe('Auth Service', () => {
       await expect(login('blocked@example.com', 'password123')).rejects.toThrow('Hesabınıza giriş engeli konulmuştur')
     })
 
+    it('returns generic 401 (not the blocked message) for a blocked user with a wrong password', async () => {
+      const { login } = await import('../services/auth.service.js')
+      const { db } = await import('../db/index.js')
+      const { comparePassword } = await import('../lib/password.js')
+
+      const blockedUser = {
+        id: 'user-1', email: 'blocked@example.com', passwordHash: 'hash', name: 'Blocked',
+        role: 'viewer', isActive: true, isLoginBlocked: true, isViewOnly: false,
+      }
+      const mockChain = {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue([blockedUser]),
+      }
+      vi.mocked(db).select.mockReturnValue(mockChain as any)
+      vi.mocked(comparePassword).mockResolvedValue(false)
+
+      await expect(login('blocked@example.com', 'wrongpass')).rejects.toThrow('Invalid email or password')
+    })
+
     it('should throw 401 when password is invalid', async () => {
       const { login } = await import('../services/auth.service.js')
       const { db } = await import('../db/index.js')

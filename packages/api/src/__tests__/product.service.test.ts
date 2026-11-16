@@ -96,6 +96,31 @@ describe('Product Service', () => {
       // Saçak(4) + seq 5 + Altın(5) = 40055
       expect(String((4 * 10000) + (5 * 10) + 5).padStart(5, '0')).toBe('40055')
     })
+
+    it('parses the full 3-digit sequence block (no collision after 9 products)', async () => {
+      const { nextSequenceFromCodes } = await import('../services/product.service.js')
+
+      // 10101 = Kordon + sıra 010 + Beyaz → sonraki 11 olmalı (eski kod 1 diyordu)
+      expect(nextSequenceFromCodes(['10011', '10094', '10101'], 1)).toBe(11)
+      expect(nextSequenceFromCodes(['19991'], 1)).toBe(1000)
+      expect(nextSequenceFromCodes([], 1)).toBe(1)
+    })
+
+    it('only counts codes with the same category prefix and 5-digit format', async () => {
+      const { nextSequenceFromCodes } = await import('../services/product.service.js')
+
+      expect(nextSequenceFromCodes(['20051', '10021', null, 'ABCDE', '9001'], 2)).toBe(6)
+      expect(nextSequenceFromCodes(['20051', '10021'], 9)).toBe(1)
+    })
+
+    it('detects Postgres unique violations (direct or wrapped)', async () => {
+      const { isUniqueViolation } = await import('../services/product.service.js')
+
+      expect(isUniqueViolation({ code: '23505' })).toBe(true)
+      expect(isUniqueViolation({ cause: { code: '23505' } })).toBe(true)
+      expect(isUniqueViolation({ code: '23503' })).toBe(false)
+      expect(isUniqueViolation(null)).toBe(false)
+    })
   })
 
   describe('getProductById', () => {

@@ -20,7 +20,43 @@ vi.mock('../db/index.js', () => ({
 vi.mock('../db/schema.js', () => ({
   users: { id: 'id', email: 'email', passwordHash: 'passwordHash', name: 'name', role: 'role', isActive: 'isActive', isLoginBlocked: 'isLoginBlocked', isViewOnly: 'isViewOnly', inviteCodeId: 'inviteCodeId', createdAt: 'createdAt', updatedAt: 'updatedAt' },
   inviteCodes: { id: 'id', code: 'code', role: 'role', maxUses: 'maxUses', useCount: 'useCount', expiresAt: 'expiresAt', createdBy: 'createdBy', createdAt: 'createdAt' },
+  refreshTokens: { id: 'rt.id', userId: 'rt.userId', tokenHash: 'rt.tokenHash', expiresAt: 'rt.expiresAt' },
+  autoLoginTokens: { id: 'al.id', userId: 'al.userId', tokenHash: 'al.tokenHash', expiresAt: 'al.expiresAt' },
 }))
+
+// updateUser önce mevcut durumu okur; select zinciri için yardımcı
+function mockCurrentUser(db: any, current: any[] | Array<any>, extra: any[][] = []) {
+  const results = [current, ...extra]
+  let i = 0
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockImplementation(() => Promise.resolve(results[Math.min(i++, results.length - 1)])),
+  }
+  db.select.mockReturnValue(chain as any)
+}
+
+function mockUpdateReturning(db: any, rows: any[]) {
+  const chain = {
+    set: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockResolvedValue(rows),
+  }
+  db.update.mockReturnValue(chain as any)
+}
+
+function mockDelete(db: any) {
+  const where = vi.fn().mockResolvedValue(undefined)
+  db.delete.mockReturnValue({ where } as any)
+  return where
+}
+
+const CURRENT = { role: 'manager', isActive: true, isLoginBlocked: false, isViewOnly: false }
+const UPDATED = {
+  id: 'user-1', email: 'user@example.com', name: 'U', role: 'manager',
+  isActive: true, isLoginBlocked: false, isViewOnly: false, updatedAt: new Date(),
+}
 
 vi.mock('../lib/password.js', () => ({
   hashPassword: vi.fn().mockResolvedValue('hashed-password'),
@@ -160,13 +196,7 @@ describe('User Service', () => {
       const { updateUser } = await import('../services/user.service.js')
       const { db } = await import('../db/index.js')
 
-      const mockSelectChain = {
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue([{ id: 'other-user' }]),
-      }
-      vi.mocked(db).select.mockReturnValue(mockSelectChain as any)
+      mockCurrentUser(vi.mocked(db), [CURRENT], [[{ id: 'other-user' }]])
 
       await expect(updateUser('user-1', {
         email: 'taken@example.com',
@@ -177,13 +207,7 @@ describe('User Service', () => {
       const { updateUser } = await import('../services/user.service.js')
       const { db } = await import('../db/index.js')
 
-      // No email change, so no select call
-      const mockUpdateChain = {
-        set: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        returning: vi.fn().mockResolvedValue([]),
-      }
-      vi.mocked(db).update.mockReturnValue(mockUpdateChain as any)
+      mockCurrentUser(vi.mocked(db), [])
 
       await expect(updateUser('nonexistent-id', {
         name: 'New Name',
@@ -195,6 +219,8 @@ describe('User Service', () => {
       const { db } = await import('../db/index.js')
       const { hashPassword } = await import('../lib/password.js')
 
+      mockCurrentUser(vi.mocked(db), [CURRENT])
+      mockDelete(vi.mocked(db))
       const mockUpdateChain = {
         set: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
@@ -216,6 +242,65 @@ describe('User Service', () => {
 
       expect(hashPassword).toHaveBeenCalledWith('newpassword123')
     })
+
+    it('revokes refresh tokens (not auto-login links) when password changes', async () => {
+      const { updateUser } = await import('../services/user.service.js')
+      const { db } = await import('../db/index.js')
+      const { refreshTokens, autoLoginTokens } = await import('../db/schema.js')
+
+      mockCurrentUser(vi.mocked(db), [CURRENT])
+      mockUpdateReturning(vi.mocked(db), [UPDATED])
+      mockDelete(vi.mocked(db))
+
+      await updateUser('user-1', { password: 'newpassword123' })
+
+      expect(vi.mocked(db).delete).toHaveBeenCalledWith(refreshTokens)
+      expect(vi.mocked(db).delete).not.toHaveBeenCalledWith(autoLoginTokens)
+    })
+
+    it('revokes refresh tokens and auto-login links when user is blocked', async () => {
+      const { updateUser } = await import('../services/user.service.js')
+      const { db } = await import('../db/index.js')
+      const { refreshTokens, autoLoginTokens } = await import('../db/schema.js')
+
+      mockCurrentUser(vi.mocked(db), [CURRENT])
+      mockUpdateReturning(vi.mocked(db), [{ ...UPDATED, isLoginBlocked: true }])
+      mockDelete(vi.mocked(db))
+
+      await updateUser('user-1', { isLoginBlocked: true, isViewOnly: false })
+
+      expect(vi.mocked(db).delete).toHaveBeenCalledWith(refreshTokens)
+      expect(vi.mocked(db).delete).toHaveBeenCalledWith(autoLoginTokens)
+    })
+
+    it('revokes refresh tokens when role changes', async () => {
+      const { updateUser } = await import('../services/user.service.js')
+      const { db } = await import('../db/index.js')
+      const { refreshTokens, autoLoginTokens } = await import('../db/schema.js')
+
+      mockCurrentUser(vi.mocked(db), [CURRENT])
+      mockUpdateReturning(vi.mocked(db), [{ ...UPDATED, role: 'viewer' }])
+      mockDelete(vi.mocked(db))
+
+      await updateUser('user-1', { role: 'viewer' })
+
+      expect(vi.mocked(db).delete).toHaveBeenCalledWith(refreshTokens)
+      expect(vi.mocked(db).delete).not.toHaveBeenCalledWith(autoLoginTokens)
+    })
+
+    it('does not revoke sessions when only name/email change (role sent unchanged)', async () => {
+      const { updateUser } = await import('../services/user.service.js')
+      const { db } = await import('../db/index.js')
+
+      // Admin düzenleme formu rolü her zaman gönderir; değişmediyse oturum kapanmamalı
+      mockCurrentUser(vi.mocked(db), [CURRENT], [[]])
+      mockUpdateReturning(vi.mocked(db), [UPDATED])
+      mockDelete(vi.mocked(db))
+
+      await updateUser('user-1', { name: 'Yeni', email: 'new@example.com', role: 'manager' })
+
+      expect(vi.mocked(db).delete).not.toHaveBeenCalled()
+    })
   })
 
   describe('deactivateUser', () => {
@@ -231,6 +316,20 @@ describe('User Service', () => {
       vi.mocked(db).update.mockReturnValue(mockUpdateChain as any)
 
       await expect(deactivateUser('nonexistent-id')).rejects.toThrow('User not found')
+    })
+
+    it('revokes refresh tokens and auto-login links on deactivate', async () => {
+      const { deactivateUser } = await import('../services/user.service.js')
+      const { db } = await import('../db/index.js')
+      const { refreshTokens, autoLoginTokens } = await import('../db/schema.js')
+
+      mockUpdateReturning(vi.mocked(db), [{ id: 'user-1' }])
+      mockDelete(vi.mocked(db))
+
+      await deactivateUser('user-1')
+
+      expect(vi.mocked(db).delete).toHaveBeenCalledWith(refreshTokens)
+      expect(vi.mocked(db).delete).toHaveBeenCalledWith(autoLoginTokens)
     })
   })
 })

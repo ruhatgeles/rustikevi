@@ -36,7 +36,7 @@ interface ExchangeModalProps {
 interface NewItem {
   productName: string
   quantity: number
-  unitPrice: number | undefined
+  unitPrice: number | undefined // TL (gönderirken kuruşa çevrilir)
   specifications: string
 }
 
@@ -114,7 +114,8 @@ export default function ExchangeModal({
   const handleProductSelect = (index: number, product: Product) => {
     updateNewItem(index, 'productName', product.name)
     if (product.price) {
-      updateNewItem(index, 'unitPrice', product.price)
+      // Ürün fiyatı kuruş; form alanı TL gösterir
+      updateNewItem(index, 'unitPrice', product.price / 100)
     }
   }
 
@@ -134,7 +135,11 @@ export default function ExchangeModal({
       newItems: validNewItems.map((item) => ({
         productName: item.productName,
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
+        // Form TL tutar, API kuruş bekler
+        unitPrice:
+          item.unitPrice !== undefined && Number.isFinite(item.unitPrice)
+            ? Math.round(item.unitPrice * 100)
+            : undefined,
         specifications: item.specifications || undefined,
       })),
       note: note || undefined,
@@ -292,7 +297,7 @@ export default function ExchangeModal({
                               type="number"
                               min={0}
                               step={0.01}
-                              value={item.unitPrice || ''}
+                              value={item.unitPrice ?? ''}
                               onChange={(e) =>
                                 updateNewItem(
                                   index,

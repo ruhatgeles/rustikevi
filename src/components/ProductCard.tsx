@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { getSwatches, type Product } from '@/data/products'
-import { buildWhatsAppLink } from '@/lib/site-config'
+import { useWhatsAppLink } from '@/lib/site-config'
 
 function ProductArt({ swatch }: { swatch: [string, string] }) {
   return (
@@ -130,6 +130,7 @@ function ImageCarousel({ slides, alt }: { slides: Slide[]; alt: string }) {
 }
 
 export function ProductCard({ product }: { product: Product }) {
+  const buildWhatsAppLink = useWhatsAppLink()
   const orderLink = buildWhatsAppLink(
     `Merhaba Rustik Evi, "${product.name}"${product.productCode ? ` (${product.productCode})` : ''} ürünü için toptan fiyat ve stok bilgisi almak istiyorum.`,
   )

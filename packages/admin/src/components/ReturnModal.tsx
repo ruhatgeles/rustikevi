@@ -88,7 +88,10 @@ export default function ReturnModal({
 
     onConfirm({
       items,
-      returnShippingCost: returnShippingCost ? parseInt(returnShippingCost, 10) * 100 : undefined,
+      // TL → kuruş; parseInt ondalığı kesiyordu (12.50 → 1200)
+      returnShippingCost: returnShippingCost
+        ? Math.round(parseFloat(returnShippingCost) * 100) || undefined
+        : undefined,
       note: note || undefined,
     })
   }

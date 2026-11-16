@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import { db } from '../db/index.js'
 import { sql } from 'drizzle-orm'
 import { getRedis, isRedisAvailable } from '../lib/redis.js'
+import { requireAdmin } from '../middleware/auth.js'
+import { logger } from '../lib/logger.js'
 
 const health = new Hono()
 
@@ -22,8 +24,8 @@ health.get('/', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// Detailed health check
-health.get('/detailed', async (c) => {
+// Detailed health check — yalnızca admin (iç altyapı bilgisi içerir)
+health.get('/detailed', requireAdmin(), async (c) => {
   const startTime = Date.now()
   const checks: HealthCheck['checks'] = {
     database: { status: 'down' },
@@ -40,9 +42,11 @@ health.get('/detailed', async (c) => {
       latency: Date.now() - dbStart,
     }
   } catch (err: any) {
+    // Ham hata mesajı (host adı, DB kullanıcısı vb.) yanıtta değil, sunucu logunda kalır
+    logger.error({ err: err?.message }, 'Health check: database down')
     checks.database = {
       status: 'down',
-      error: err.message,
+      error: 'Veritabanına erişilemiyor',
     }
   }
 
@@ -60,9 +64,10 @@ health.get('/detailed', async (c) => {
       checks.redis = { status: 'down', error: 'Redis not configured' }
     }
   } catch (err: any) {
+    logger.error({ err: err?.message }, 'Health check: redis down')
     checks.redis = {
       status: 'down',
-      error: err.message,
+      error: "Redis'e erişilemiyor",
     }
   }
 

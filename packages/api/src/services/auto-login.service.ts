@@ -1,5 +1,5 @@
 import { db } from '../db/index.js'
-import { users, autoLoginTokens } from '../db/schema.js'
+import { users, autoLoginTokens, refreshTokens } from '../db/schema.js'
 import { eq, and, gt, sql } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 import { signAccessToken, signRefreshToken, getTokenHash, JwtPayload } from '../lib/jwt.js'
@@ -29,7 +29,7 @@ function generateShortToken(): string {
 export async function createAutoLoginToken(userId: string): Promise<{ token: string; url: string; expiresAt: Date; useCount: number }> {
   // Kullanıcıyı kontrol et
   const [user] = await db
-    .select({ id: users.id, role: users.role, isActive: users.isActive })
+    .select({ id: users.id, role: users.role, isActive: users.isActive, isLoginBlocked: users.isLoginBlocked })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
@@ -40,6 +40,10 @@ export async function createAutoLoginToken(userId: string): Promise<{ token: str
 
   if (!user.isActive) {
     throw new AppError(400, 'Bu kullanıcı aktif değil')
+  }
+
+  if (user.isLoginBlocked) {
+    throw new AppError(400, 'Bu kullanıcının giriş engeli var')
   }
 
   // Mevcut token var mı kontrol et
@@ -138,6 +142,7 @@ export async function autoLogin(token: string): Promise<{
       role: users.role,
       isActive: users.isActive,
       isViewOnly: users.isViewOnly,
+      isLoginBlocked: users.isLoginBlocked,
     })
     .from(users)
     .where(eq(users.id, stored.userId))
@@ -145,6 +150,11 @@ export async function autoLogin(token: string): Promise<{
 
   if (!user || !user.isActive) {
     throw new AppError(401, 'Kullanıcı bulunamadı veya aktif değil')
+  }
+
+  // Şifreli girişle aynı kural: engelli kullanıcı linkle de giremez
+  if (user.isLoginBlocked) {
+    throw new AppError(403, 'Hesabınıza giriş engeli konulmuştur. Yöneticiniz ile iletişime geçin.')
   }
 
   // Kullanım sayısını artır
@@ -163,6 +173,13 @@ export async function autoLogin(token: string): Promise<{
 
   const accessToken = signAccessToken(payload)
   const refreshToken = signRefreshToken(payload)
+
+  // Refresh token hash'ini sakla — aksi halde /auth/refresh 401 döner ve oturum 15 dk'da biter
+  await db.insert(refreshTokens).values({
+    userId: user.id,
+    tokenHash: getTokenHash(refreshToken),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 gün
+  })
 
   return {
     accessToken,

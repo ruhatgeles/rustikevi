@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Send } from 'lucide-react'
-import { buildWhatsAppLink } from '@/lib/site-config'
+import { useWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 // Boş = aynı origin: site sunucusu /api isteklerini API'ye iletir (prod: server.mjs, dev: vite proxy)
 const API_URL = import.meta.env.VITE_API_URL ?? ''
+
+// Ürün listesi boş/yüklenmemişken de API'nin zorunlu 'urun' alanı dolu gitsin
+const GENERAL_CATALOG = 'Genel Katalog'
 
 interface ProductOption {
   id: number
@@ -13,13 +16,14 @@ interface ProductOption {
 }
 
 export function WhatsAppOrderForm() {
+  const buildWhatsAppLink = useWhatsAppLink()
   const [products, setProducts] = useState<ProductOption[]>([])
   const [fields, setFields] = useState({
     isletme: '',
     yetkili: '',
     telefon: '',
     sehir: '',
-    urun: '',
+    urun: GENERAL_CATALOG,
     adet: '',
     mesaj: '',
   })
@@ -27,14 +31,21 @@ export function WhatsAppOrderForm() {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
+  const [whatsappLink, setWhatsappLink] = useState('')
+  // Kullanıcı ürün alanını bizzat değiştirdiyse (Genel Katalog dahil) liste gelince ezilmez
+  const urunTouched = useRef(false)
 
   useEffect(() => {
     fetch(`${API_URL}/api/products`)
       .then((r) => r.json())
       .then((d) => {
-        setProducts(d.data || [])
-        if (d.data?.length > 0) {
-          setFields((prev) => ({ ...prev, urun: d.data[0].name }))
+        const list: ProductOption[] = Array.isArray(d?.data) ? d.data : []
+        setProducts(list)
+        // Kullanıcı henüz seçim yapmadıysa ilk ürünü öner
+        if (list.length > 0 && !urunTouched.current) {
+          setFields((prev) =>
+            prev.urun === GENERAL_CATALOG ? { ...prev, urun: list[0].name } : prev,
+          )
         }
       })
       .catch(() => {})
@@ -42,20 +53,25 @@ export function WhatsAppOrderForm() {
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
-  ) => setFields((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  ) => {
+    const { name, value } = e.target
+    if (name === 'urun') urunTouched.current = true
+    setFields((prev) => ({ ...prev, [name]: value }))
+  }
 
-  const buildMessage = () => {
+  // Sipariş numarası state'ten değil parametreden alınır (setState sonrası closure eski değeri görür)
+  const buildMessage = (orderNo: string) => {
     const lines = [
       `Merhaba Rustik Evi, toptan sipariş talebim var.`,
       `İşletme: ${fields.isletme || '-'}`,
       `Yetkili: ${fields.yetkili || '-'}`,
       `Telefon: ${fields.telefon || '-'}`,
       `Şehir: ${fields.sehir || '-'}`,
-      `Ürün: ${fields.urun}`,
+      `Ürün: ${fields.urun || GENERAL_CATALOG}`,
       `Adet / Metraj: ${fields.adet || '-'}`,
     ]
     if (fields.mesaj) lines.push(`Not: ${fields.mesaj}`)
-    if (orderNumber) lines.push(`Sipariş No: ${orderNumber}`)
+    if (orderNo) lines.push(`Sipariş No: ${orderNo}`)
     return lines.join('\n')
   }
 
@@ -67,13 +83,17 @@ export function WhatsAppOrderForm() {
       const res = await fetch(`${API_URL}/api/orders/inquiry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fields),
+        body: JSON.stringify({ ...fields, urun: fields.urun || GENERAL_CATALOG }),
       })
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
-      setOrderNumber(data.data?.orderNumber || '')
+      const no: string = data.data?.orderNumber || ''
+      const link = buildWhatsAppLink(buildMessage(no))
+      setOrderNumber(no)
+      setWhatsappLink(link)
       setSent(true)
-      window.open(buildWhatsAppLink(buildMessage()), '_blank', 'noreferrer')
+      // await sonrası açılan pencere engellenebilir; başarı ekranında manuel link de var
+      window.open(link, '_blank', 'noreferrer')
     } catch {
       setError(true)
     } finally {
@@ -108,7 +128,7 @@ export function WhatsAppOrderForm() {
       {sent ? (
         <div className="rounded-2xl border border-[#25D366]/30 bg-[#25D366]/10 p-6 text-center">
           <p className="font-display text-lg text-[var(--color-espresso)]">
-            WhatsApp açıldı, teşekkürler!
+            Talebiniz alındı, teşekkürler!
           </p>
           {orderNumber && (
             <p className="mt-2 text-sm font-semibold text-[var(--color-wood-dark)]">
@@ -117,8 +137,20 @@ export function WhatsAppOrderForm() {
           )}
           <p className="mt-1 text-sm text-[var(--color-ink)]/65">
             Açılan sohbette mesajı gönderdiğinizde talebiniz çalışma saatlerimiz içinde
-            değerlendirilir. Yeni bir talep için formu tekrar doldurabilirsiniz.
+            değerlendirilir. WhatsApp açılmadıysa aşağıdaki butonu kullanın.
           </p>
+          <div className="mt-4 flex flex-col items-center gap-3">
+          {whatsappLink && (
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--color-whatsapp)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--color-whatsapp-hover)]"
+            >
+              <WhatsAppIcon size={18} />
+              WhatsApp'ı Aç
+            </a>
+          )}
           <button
             onClick={() => {
               setFields({
@@ -126,17 +158,19 @@ export function WhatsAppOrderForm() {
                 yetkili: '',
                 telefon: '',
                 sehir: '',
-                urun: products[0]?.name || '',
+                urun: products[0]?.name || GENERAL_CATALOG,
                 adet: '',
                 mesaj: '',
               })
               setOrderNumber('')
+              setWhatsappLink('')
               setSent(false)
             }}
-            className="mt-4 rounded-full border border-[var(--color-wood-dark)] px-5 py-2 text-sm font-semibold text-[var(--color-wood-dark)] transition-colors hover:bg-[var(--color-wood-dark)] hover:text-[var(--color-linen)]"
+            className="rounded-full border border-[var(--color-wood-dark)] px-5 py-2 text-sm font-semibold text-[var(--color-wood-dark)] transition-colors hover:bg-[var(--color-wood-dark)] hover:text-[var(--color-linen)]"
           >
             Yeni Talep Oluştur
           </button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
@@ -207,7 +241,7 @@ export function WhatsAppOrderForm() {
                   {p.name} ({p.category})
                 </option>
               ))}
-              <option value="Genel Katalog">Genel Katalog / Emin Değilim</option>
+              <option value={GENERAL_CATALOG}>Genel Katalog / Emin Değilim</option>
             </select>
           </label>
 

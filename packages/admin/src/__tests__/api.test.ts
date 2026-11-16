@@ -140,3 +140,150 @@ describe('API Client', () => {
     })
   })
 })
+
+// ── Gerçek ApiClient: 401 / token yenileme davranışı ──────────────
+describe('ApiClient refresh flow', () => {
+  type ApiModule = typeof import('../lib/api')
+  let api: ApiModule['api']
+
+  const jsonRes = (status: number, body: unknown) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+  })
+
+  const authHeader = (call: unknown[]) =>
+    ((call[1] as RequestInit).headers as Record<string, string>).Authorization
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    mockFetch.mockReset()
+    localStorageMock.clear()
+    vi.resetModules()
+    api = (await import('../lib/api')).api
+  })
+
+  it('concurrent 401s share a single refresh and each request retries once', async () => {
+    localStorage.setItem('accessToken', 'old-access')
+    localStorage.setItem('refreshToken', 'old-refresh')
+
+    let refreshCalls = 0
+    mockFetch.mockImplementation(async (url: string, init: RequestInit) => {
+      if (url === '/api/auth/refresh') {
+        refreshCalls++
+        await new Promise((r) => setTimeout(r, 10))
+        return jsonRes(200, { data: { accessToken: 'new-access', refreshToken: 'new-refresh' } })
+      }
+      const auth = (init.headers as Record<string, string>).Authorization
+      if (auth === 'Bearer new-access') return jsonRes(200, { data: { url } })
+      return jsonRes(401, { error: 'Invalid or expired token' })
+    })
+
+    const results = await Promise.all([
+      api.request<{ url: string }>('/api/a'),
+      api.request<{ url: string }>('/api/b'),
+      api.request<{ url: string }>('/api/c'),
+      api.request<{ url: string }>('/api/d'),
+    ])
+
+    expect(results.map((r) => r.url)).toEqual(['/api/a', '/api/b', '/api/c', '/api/d'])
+    expect(refreshCalls).toBe(1)
+    // 4 ilk deneme + 1 refresh + 4 tekrar
+    expect(mockFetch).toHaveBeenCalledTimes(9)
+    expect(localStorage.getItem('accessToken')).toBe('new-access')
+  })
+
+  it('login 401 does not trigger refresh or retry loop even with stored tokens', async () => {
+    localStorage.setItem('accessToken', 'valid-access')
+    localStorage.setItem('refreshToken', 'valid-refresh')
+    mockFetch.mockResolvedValue(jsonRes(401, { error: 'Invalid email or password' }))
+
+    await expect(
+      api.request('/api/auth/login', { method: 'POST', body: { email: 'a@b.c', password: 'x' } }),
+    ).rejects.toThrow('E-posta veya şifre hatalı')
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls.some((c) => c[0] === '/api/auth/refresh')).toBe(false)
+    // Mevcut oturum silinmemeli
+    expect(localStorage.getItem('accessToken')).toBe('valid-access')
+  })
+
+  it('auto-login verify 401 does not trigger refresh', async () => {
+    localStorage.setItem('accessToken', 'valid-access')
+    localStorage.setItem('refreshToken', 'valid-refresh')
+    mockFetch.mockResolvedValue(jsonRes(401, { error: 'Link expired' }))
+
+    await expect(
+      api.request('/api/auto-login/verify', { method: 'POST', body: { token: 't' } }),
+    ).rejects.toThrow('Link expired')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('logout with an expired access token refreshes once and then revokes', async () => {
+    localStorage.setItem('accessToken', 'old-access')
+    localStorage.setItem('refreshToken', 'old-refresh')
+    mockFetch.mockImplementation(async (url: string, init: RequestInit) => {
+      if (url === '/api/auth/refresh') {
+        return jsonRes(200, { data: { accessToken: 'new-access', refreshToken: 'new-refresh' } })
+      }
+      const auth = (init.headers as Record<string, string>).Authorization
+      if (auth === 'Bearer new-access') return jsonRes(200, { data: { success: true } })
+      return jsonRes(401, { error: 'Invalid or expired token' })
+    })
+
+    await api.request('/api/auth/logout', { method: 'POST' })
+
+    expect(mockFetch.mock.calls.map((c) => c[0])).toEqual([
+      '/api/auth/logout',
+      '/api/auth/refresh',
+      '/api/auth/logout',
+    ])
+    expect(authHeader(mockFetch.mock.calls[2])).toBe('Bearer new-access')
+  })
+
+  it('retries at most once when the retried request still returns 401', async () => {
+    localStorage.setItem('accessToken', 'old-access')
+    localStorage.setItem('refreshToken', 'old-refresh')
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url === '/api/auth/refresh') {
+        return jsonRes(200, { data: { accessToken: 'new-access', refreshToken: 'new-refresh' } })
+      }
+      return jsonRes(401, { error: 'Invalid or expired token' })
+    })
+
+    await expect(api.request('/api/x')).rejects.toThrow('Oturum süreniz doldu')
+    // ilk deneme + refresh + tek tekrar
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(authHeader(mockFetch.mock.calls[2])).toBe('Bearer new-access')
+  })
+
+  it('clears tokens when refresh fails', async () => {
+    localStorage.setItem('accessToken', 'old-access')
+    localStorage.setItem('refreshToken', 'old-refresh')
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url === '/api/auth/refresh') return jsonRes(401, { error: 'Invalid refresh token' })
+      return jsonRes(401, { error: 'Invalid or expired token' })
+    })
+
+    await expect(api.request('/api/x')).rejects.toThrow('Oturum süreniz doldu')
+    expect(localStorage.getItem('accessToken')).toBeNull()
+    expect(localStorage.getItem('refreshToken')).toBeNull()
+  })
+
+  it('uploadFile refreshes and retries on 401', async () => {
+    localStorage.setItem('accessToken', 'old-access')
+    localStorage.setItem('refreshToken', 'old-refresh')
+    mockFetch.mockImplementation(async (url: string, init: RequestInit) => {
+      if (url === '/api/auth/refresh') {
+        return jsonRes(200, { data: { accessToken: 'new-access', refreshToken: 'new-refresh' } })
+      }
+      const auth = (init.headers as Record<string, string>).Authorization
+      if (auth === 'Bearer new-access') return jsonRes(200, { data: { url: '/uploads/a.jpg' } })
+      return jsonRes(401, { error: 'Invalid or expired token' })
+    })
+
+    const result = await api.uploadFile<{ url: string }>('/api/upload/image', new FormData())
+    expect(result.url).toBe('/uploads/a.jpg')
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+  })
+})

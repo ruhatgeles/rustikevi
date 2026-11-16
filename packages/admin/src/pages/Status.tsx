@@ -121,6 +121,10 @@ const ITEM_STATUS_COLORS: Record<string, string> = {
   exchanged: 'bg-pink-100 text-pink-700',
 }
 
+// Kanban için çekilecek en fazla sipariş sayısı (her 30 sn'de yenilenir).
+// GET /api/orders limit'i 500 ile sınırlar (packages/api/src/routes/orders.ts);
+// bu değer o üst sınırı aşmamalı. Daha fazlası varsa sayfada uyarı gösterilir.
+const ORDERS_LIMIT = 500
 
 export default function Status() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -131,12 +135,19 @@ export default function Status() {
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [exchangeLoading, setExchangeLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // API toplam sipariş sayısı; yüklenenden fazlaysa uyarı gösterilir
+  const [totalOrders, setTotalOrders] = useState(0)
   const dragItem = useRef<string | null>(null)
 
   const loadOrders = async () => {
     try {
-      const result = await api.request<{ data: Order[] }>('/api/orders?limit=200')
+      // API sadece tek durum filtresi destekliyor ve kanban sütunları kalem
+      // durumlarına göre; bu yüzden en yeni ORDERS_LIMIT sipariş çekilir.
+      const result = await api.request<{ data: Order[]; total: number }>(
+        `/api/orders?limit=${ORDERS_LIMIT}`,
+      )
       setOrders(result.data)
+      setTotalOrders(result.total ?? result.data.length)
       setError(null)
     } catch (err: any) {
       setError(err.message || 'Siparişler yüklenemedi')
@@ -147,8 +158,19 @@ export default function Status() {
 
   useEffect(() => {
     loadOrders()
-    const interval = setInterval(loadOrders, 30000)
-    return () => clearInterval(interval)
+    // Sekme arka plandayken 500 siparişlik sorguyu her 30 sn'de tekrarlama;
+    // sekmeye dönüldüğünde hemen yenile.
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadOrders()
+    }, 30000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') loadOrders()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [])
 
   const loadOrderDetail = async (id: string) => {
@@ -283,6 +305,13 @@ export default function Status() {
           Ürünleri sürükle-bırak ile durumlandırın
         </p>
       </div>
+
+      {totalOrders > orders.length && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Toplam {totalOrders} siparişten en yeni {orders.length} tanesi gösteriliyor. Eski
+          siparişleri Siparişler sayfasından arşivleyebilirsiniz.
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -1,11 +1,31 @@
-import { HeadContent, Link, Scripts, createRootRoute } from '@tanstack/react-router'
+import { useMemo } from 'react'
+import {
+  HeadContent,
+  Link,
+  Scripts,
+  createRootRoute,
+  rootRouteId,
+  useRouterState,
+} from '@tanstack/react-router'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { WhatsAppFloatingButton } from '@/components/WhatsAppFloatingButton'
+import { getSiteConfig } from '@/lib/content'
+import { SiteConfigContext, mergeSiteConfig } from '@/lib/site-config'
 
 import '../styles.css'
 
 export const Route = createRootRoute({
+  // Admin panelindeki 'site-config' bloğu; API kapalıysa {} döner → varsayılanlar kullanılır
+  loader: async () => {
+    try {
+      return await getSiteConfig()
+    } catch {
+      return {}
+    }
+  },
+  // Her sayfa geçişinde tekrar çekmeye gerek yok
+  staleTime: 5 * 60_000,
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -65,16 +85,30 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // shellComponent hata/404 durumunda da render edilir; loader verisi olmayabilir
+  const apiConfig = useRouterState({
+    select: (s): Record<string, unknown> | undefined =>
+      (
+        s.matches as Array<{ routeId: string; loaderData?: Record<string, unknown> }>
+      ).find((m) => m.routeId === rootRouteId)?.loaderData,
+  })
+  const config = useMemo(
+    () => mergeSiteConfig(apiConfig),
+    [apiConfig],
+  )
+
   return (
     <html lang="tr">
       <head>
         <HeadContent />
       </head>
       <body>
-        <Header />
-        <main>{children}</main>
-        <Footer />
-        <WhatsAppFloatingButton />
+        <SiteConfigContext.Provider value={config}>
+          <Header />
+          <main>{children}</main>
+          <Footer />
+          <WhatsAppFloatingButton />
+        </SiteConfigContext.Provider>
         <Scripts />
       </body>
     </html>

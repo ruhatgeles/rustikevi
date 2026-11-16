@@ -1,7 +1,8 @@
 import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { join, extname, normalize, sep } from 'node:path'
-import { Readable } from 'node:stream'
+import { isIP } from 'node:net'
+import { Readable, pipeline } from 'node:stream'
 import { gzipSync } from 'node:zlib'
 
 const { default: fetchHandler } = await import('./dist/server/server.js')
@@ -110,16 +111,70 @@ const HOP_BY_HOP = new Set([
   'te', 'trailer', 'transfer-encoding', 'upgrade', 'host',
 ])
 
+// Loopback / özel ağ adresi mi? (host reverse proxy'si ve Docker gateway buradan gelir)
+function isPrivateAddress(addr) {
+  if (!addr) return false
+  let ip = addr.toLowerCase()
+  if (ip.startsWith('::ffff:') && isIP(ip.slice(7)) === 4) ip = ip.slice(7)
+  if (isIP(ip) === 4) {
+    const [a, b] = ip.split('.').map(Number)
+    return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
+  }
+  if (isIP(ip) === 6) {
+    return ip === '::1' || /^f[cd][0-9a-f]{0,2}:/.test(ip) || /^fe[89ab][0-9a-f]?:/.test(ip)
+  }
+  return false
+}
+
+function normalizeIp(addr) {
+  const ip = (addr || '').trim()
+  return ip.toLowerCase().startsWith('::ffff:') && isIP(ip.slice(7)) === 4 ? ip.slice(7) : ip
+}
+
+// İstemci IP'si: soket özel ağdan geliyorsa (Caddy/cloudflared → yayınlanan port → konteyner)
+// proxy'nin X-Forwarded-For'una güvenilir; sağdan sola ilk özel olmayan adres alınır
+// (admin nginx'teki real_ip_recursive ile aynı mantık). Soket genel bir adresse port doğrudan
+// çağrılmıştır; gelen başlıklar yok sayılır, böylece sahte IP ile rate-limit atlatılamaz.
+// CF-Connecting-IP bilerek kullanılmaz: Cloudflare dışından gelen istekte sahte gönderilebilir.
+function getClientIp(req) {
+  const remote = normalizeIp(req.socket.remoteAddress)
+  if (!isPrivateAddress(remote)) return remote
+
+  const xff = req.headers['x-forwarded-for']
+  const chain = (Array.isArray(xff) ? xff.join(',') : xff || '')
+    .split(',')
+    .map(normalizeIp)
+    .filter((ip) => isIP(ip))
+  if (chain.length) {
+    for (let i = chain.length - 1; i >= 0; i--) {
+      if (!isPrivateAddress(chain[i])) return chain[i]
+    }
+    return chain[0]
+  }
+  const realIp = normalizeIp(String(req.headers['x-real-ip'] || ''))
+  if (isIP(realIp)) return realIp
+  return remote
+}
+
+// Web akışını Node yanıtına aktar; akış hatası (API yeniden başladı, istemci koptu) süreci düşürmesin
+function pipeBody(body, res, label) {
+  pipeline(Readable.fromWeb(body), res, (err) => {
+    if (err && err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+      console.error(`${label} stream error:`, err.message)
+    }
+  })
+}
+
 // /api ve /uploads isteklerini API'ye ilet: tarayıcı aynı origin'le konuşur, CORS gerekmez
 async function proxyToApi(req, res, url) {
   const headers = {}
   for (const [key, value] of Object.entries(req.headers)) {
     if (!HOP_BY_HOP.has(key) && value !== undefined) headers[key] = Array.isArray(value) ? value.join(', ') : value
   }
-  // İstemcinin gönderdiği IP başlıklarını ezip gerçek soket adresini yaz (sahte IP ile rate-limit atlatılamasın)
-  const remote = req.socket.remoteAddress || ''
-  headers['x-real-ip'] = remote
-  headers['x-forwarded-for'] = remote
+  // İstemcinin gönderdiği IP başlıklarını ez; API (TRUST_PROXY=true) yalnızca bu değeri görür
+  const clientIp = getClientIp(req)
+  headers['x-real-ip'] = clientIp
+  headers['x-forwarded-for'] = clientIp
   headers['x-forwarded-proto'] = req.headers['x-forwarded-proto'] || 'http'
   headers['x-forwarded-host'] = req.headers.host || ''
 
@@ -148,7 +203,7 @@ async function proxyToApi(req, res, url) {
   if (setCookies.length) outHeaders['set-cookie'] = setCookies
   res.writeHead(upstream.status, outHeaders)
   if (upstream.body && req.method !== 'HEAD') {
-    Readable.fromWeb(upstream.body).pipe(res)
+    pipeBody(upstream.body, res, 'API proxy')
   } else {
     res.end()
   }
@@ -178,7 +233,7 @@ async function handleSsr(req, res, url) {
   res.writeHead(response.status, outHeaders)
 
   if (response.body && req.method !== 'HEAD') {
-    Readable.fromWeb(response.body).pipe(res)
+    pipeBody(response.body, res, 'SSR')
   } else {
     res.end()
   }
@@ -228,3 +283,7 @@ function shutdown(signal) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
+// Yakalanmamış promise reddi tüm siteyi düşürmesin; logla ve devam et
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason)
+})

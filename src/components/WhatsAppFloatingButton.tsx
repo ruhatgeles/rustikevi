@@ -1,7 +1,8 @@
-import { buildWhatsAppLink, defaultWhatsAppMessage } from '@/lib/site-config'
+import { defaultWhatsAppMessage, useWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
 export function WhatsAppFloatingButton() {
+  const buildWhatsAppLink = useWhatsAppLink()
   return (
     <a
       href={buildWhatsAppLink(defaultWhatsAppMessage)}
