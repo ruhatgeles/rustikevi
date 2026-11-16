@@ -1,5 +1,5 @@
 import { db } from '../db/index.js'
-import { users, inviteCodes } from '../db/schema.js'
+import { users, inviteCodes, refreshTokens, autoLoginTokens } from '../db/schema.js'
 import { eq, and, ilike, sql, desc } from 'drizzle-orm'
 import { hashPassword } from '../lib/password.js'
 import { AppError } from '../lib/errors.js'
@@ -131,8 +131,35 @@ export async function createUser(input: CreateUserInput, createdById?: string) {
   return user
 }
 
+/**
+ * Kullanıcının tüm oturumlarını sonlandır (refresh token'lar).
+ * includeAutoLogin: otomatik giriş linklerini de geçersiz kıl (engelleme / pasife alma).
+ */
+async function revokeUserSessions(userId: string, includeAutoLogin: boolean) {
+  await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId))
+  if (includeAutoLogin) {
+    await db.delete(autoLoginTokens).where(eq(autoLoginTokens.userId, userId))
+  }
+}
+
 export async function updateUser(id: string, input: UpdateUserInput) {
   const updateData: any = { ...input, updatedAt: new Date() }
+
+  // Mevcut yetki durumunu al: oturumların sonlandırılması gerekip gerekmediğine karar vermek için
+  const [current] = await db
+    .select({
+      role: users.role,
+      isActive: users.isActive,
+      isLoginBlocked: users.isLoginBlocked,
+      isViewOnly: users.isViewOnly,
+    })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1)
+
+  if (!current) {
+    throw new AppError(404, 'Kullanıcı bulunamadı')
+  }
 
   // Şifre değiştiriliyorsa hashle
   if (input.password) {
@@ -172,6 +199,21 @@ export async function updateUser(id: string, input: UpdateUserInput) {
     throw new AppError(404, 'Kullanıcı bulunamadı')
   }
 
+  // Şifre / rol / yetki değiştiyse açık oturumlar eski yetkiyle devam etmesin
+  const blockedOrDeactivated =
+    (input.isLoginBlocked === true && !current.isLoginBlocked) ||
+    (input.isActive === false && current.isActive)
+  const privilegesChanged =
+    !!input.password ||
+    (input.role !== undefined && input.role !== current.role) ||
+    (input.isViewOnly !== undefined && input.isViewOnly !== current.isViewOnly) ||
+    (input.isLoginBlocked !== undefined && input.isLoginBlocked !== current.isLoginBlocked) ||
+    (input.isActive !== undefined && input.isActive !== current.isActive)
+
+  if (privilegesChanged) {
+    await revokeUserSessions(id, blockedOrDeactivated)
+  }
+
   return user
 }
 
@@ -185,6 +227,9 @@ export async function deactivateUser(id: string) {
   if (!user) {
     throw new AppError(404, 'User not found')
   }
+
+  // Pasife alınan kullanıcının tüm oturumları ve otomatik giriş linkleri iptal edilir
+  await revokeUserSessions(id, true)
 
   return user
 }

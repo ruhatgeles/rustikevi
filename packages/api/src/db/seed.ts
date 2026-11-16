@@ -446,8 +446,10 @@ async function main() {
     }
   }
 
-  if (IS_PRODUCTION && (adminPassword.length < 12 || adminPassword === 'admin123')) {
-    console.error('❌ Production ortamında SEED_ADMIN_PASSWORD en az 12 karakter olmalı (varsayılan şifre kabul edilmez).')
+  // .env.example'daki / bilinen yer tutucu şifreler public repoda yer aldığı için reddedilir
+  const PLACEHOLDER_PASSWORD = /degistir|change_?me|admin123/i
+  if (IS_PRODUCTION && (adminPassword.length < 12 || PLACEHOLDER_PASSWORD.test(adminPassword))) {
+    console.error('❌ Production ortamında SEED_ADMIN_PASSWORD en az 12 karakter olmalı ve örnek/varsayılan şifre olamaz.')
     process.exit(ADMIN_ONLY ? 0 : 1)
   }
 

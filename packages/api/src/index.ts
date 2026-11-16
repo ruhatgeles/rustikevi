@@ -38,9 +38,10 @@ app.use('*', async (c, next) => {
   const requestId = c.get('requestId')
   const reqLogger = pinoLogger.child({ requestId })
 
+  // Sorgu dizesi loglanmaz: arama parametrelerinde müşteri telefon/isim bilgisi olabilir
   reqLogger.info({
     method: c.req.method,
-    url: c.req.url,
+    path: c.req.path,
     userAgent: c.req.header('user-agent'),
     ip: getClientIp(c),
   }, 'Request started')
@@ -50,7 +51,7 @@ app.use('*', async (c, next) => {
   const duration = Date.now() - start
   reqLogger.info({
     method: c.req.method,
-    url: c.req.url,
+    path: c.req.path,
     status: c.res.status,
     duration: `${duration}ms`,
   }, 'Request completed')

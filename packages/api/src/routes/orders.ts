@@ -30,7 +30,7 @@ import {
   STATUS_LABELS,
   ITEM_STATUS_LABELS,
 } from '../services/order.service.js'
-import { requireAuth, requireManager, requireAdmin } from '../middleware/auth.js'
+import { requireAuth, requireManager, requireAdmin, authMiddleware } from '../middleware/auth.js'
 import { rateLimit } from '../middleware/rate-limit.js'
 import { cacheMiddleware, CACHE_TTL } from '../middleware/cache.js'
 
@@ -133,10 +133,11 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
 
 ordersRoutes.use('*', requireAuth())
 
-// GET /api/orders — list orders
-ordersRoutes.get('/', async (c) => {
-  const page = Number(c.req.query('page') || 1)
-  const limit = Number(c.req.query('limit') || 20)
+// GET /api/orders — list orders (manager+: müşteri iletişim bilgisi içerir)
+ordersRoutes.get('/', requireManager(), async (c) => {
+  const page = Math.max(1, Number(c.req.query('page')) || 1)
+  // Üst sınır: tek istekte tüm sipariş/müşteri verisinin çekilmesini engelle (Status sayfası 500 ister)
+  const limit = Math.min(500, Math.max(1, Number(c.req.query('limit')) || 20))
   const status = c.req.query('status')
   const customerId = c.req.query('customerId')
   const assignedTo = c.req.query('assignedTo')
@@ -147,8 +148,8 @@ ordersRoutes.get('/', async (c) => {
   return c.json({ data: result })
 })
 
-// GET /api/orders/stats — dashboard stats
-ordersRoutes.get('/stats', async (c) => {
+// GET /api/orders/stats — dashboard stats (Dashboard'u gören roller; atolye hariç)
+ordersRoutes.get('/stats', authMiddleware(['admin', 'manager', 'viewer']), async (c) => {
   const stats = await getOrderStats()
   return c.json({ data: stats })
 })
@@ -211,8 +212,8 @@ ordersRoutes.post('/bulk/delete', requireAdmin(), async (c) => {
 
 // ── Single order routes (AFTER bulk routes) ─────────────
 
-// GET /api/orders/:id — single order with items and activities
-ordersRoutes.get('/:id', async (c) => {
+// GET /api/orders/:id — single order with items and activities (manager+)
+ordersRoutes.get('/:id', requireManager(), async (c) => {
   const id = c.req.param('id')
   const order = await getOrderById(id)
   return c.json({ data: order })

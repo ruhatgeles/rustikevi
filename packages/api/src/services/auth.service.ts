@@ -18,14 +18,15 @@ export async function login(email: string, password: string): Promise<LoginRespo
     throw new AppError(401, 'Invalid email or password')
   }
 
-  // Giriş engeli kontrolü
-  if (user.isLoginBlocked) {
-    throw new AppError(403, 'Hesabınıza giriş engeli konulmuştur. Yöneticiniz ile iletişime geçin.')
-  }
-
   const valid = await comparePassword(password, user.passwordHash)
   if (!valid) {
     throw new AppError(401, 'Invalid email or password')
+  }
+
+  // Giriş engeli kontrolü — şifre doğrulandıktan SONRA: aksi halde şifresiz
+  // istekle hangi hesapların var/engelli olduğu öğrenilebilir
+  if (user.isLoginBlocked) {
+    throw new AppError(403, 'Hesabınıza giriş engeli konulmuştur. Yöneticiniz ile iletişime geçin.')
   }
 
   // isViewOnly ise rolü viewer olarak düşür
