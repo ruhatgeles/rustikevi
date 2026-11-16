@@ -98,6 +98,12 @@ export default function Customers() {
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
 
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const [totalCount, setTotalCount] = useState(0)
+  const totalPages = Math.ceil(totalCount / pageSize)
+
   // Detail view
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([])
@@ -133,20 +139,27 @@ export default function Customers() {
   const loadCustomers = async (query?: string) => {
     try {
       const params = new URLSearchParams({
-        limit: '100',
+        page: String(page),
+        limit: String(pageSize),
         sortBy,
         sortOrder,
       })
       if (query) params.set('search', query)
       if (showArchived) params.set('archived', 'true')
-      const result = await api.request<{ data: Customer[] }>(`/api/customers?${params}`)
+      const result = await api.request<{ data: Customer[]; total: number }>(`/api/customers?${params}`)
       setCustomers(result.data)
+      setTotalCount(result.total ?? 0)
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
   }
+
+  // Reset page when search or filters change
+  useEffect(() => {
+    setPage(1)
+  }, [search, sortBy, sortOrder, showArchived, pageSize])
 
   // Debounced search
   useEffect(() => {
@@ -155,7 +168,7 @@ export default function Customers() {
       setSelectedCustomers(new Set())
     }, 250)
     return () => clearTimeout(timer)
-  }, [search, sortBy, sortOrder, showArchived])
+  }, [search, sortBy, sortOrder, showArchived, page, pageSize])
 
   const toggleSort = (field: string) => {
     if (sortBy === field) {
@@ -1122,6 +1135,82 @@ export default function Customers() {
           })
         )}
       </div>
+
+      {/* Pagination */}
+      {totalCount > 0 && (
+        <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-lg border border-[var(--color-cream-deep)] bg-white px-4 py-3 sm:flex-row">
+          <div className="flex items-center gap-2 text-sm text-[var(--color-ink)]/60">
+            <span>{totalCount} müşteri</span>
+            <span>·</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
+              className="rounded border border-[var(--color-cream-deep)] bg-white px-2 py-1 text-sm outline-none"
+            >
+              <option value={10}>10 / sayfa</option>
+              <option value={25}>25 / sayfa</option>
+              <option value={50}>50 / sayfa</option>
+              <option value={100}>100 / sayfa</option>
+              <option value={500}>500 / sayfa</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              className="rounded-lg px-2 py-1 text-sm text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] disabled:opacity-30"
+            >
+              «
+            </button>
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="rounded-lg px-2 py-1 text-sm text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] disabled:opacity-30"
+            >
+              ‹
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum: number
+              if (totalPages <= 5) {
+                pageNum = i + 1
+              } else if (page <= 3) {
+                pageNum = i + 1
+              } else if (page >= totalPages - 2) {
+                pageNum = totalPages - 4 + i
+              } else {
+                pageNum = page - 2 + i
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  className={`rounded-lg px-3 py-1 text-sm font-medium transition-colors ${
+                    page === pageNum
+                      ? 'bg-[var(--color-wood-dark)] text-white'
+                      : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)]'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              )
+            })}
+            <button
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="rounded-lg px-2 py-1 text-sm text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] disabled:opacity-30"
+            >
+              ›
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+              className="rounded-lg px-2 py-1 text-sm text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] disabled:opacity-30"
+            >
+              »
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Delete Confirmation Modal */}
       <ConfirmModal

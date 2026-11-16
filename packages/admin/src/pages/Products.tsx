@@ -8,6 +8,7 @@ import ImageUpload from '../components/ImageUpload'
 import {
   Plus, Search, X, Pencil, Trash2, Eye, EyeOff,
   Archive, ArchiveRestore, CheckSquare, Loader2, ImageIcon, Check,
+  Tags,
 } from 'lucide-react'
 
 interface Product {
@@ -28,6 +29,12 @@ interface Product {
   sortOrder: number
   createdAt: string
   updatedAt: string
+}
+
+interface Category {
+  id: number
+  name: string
+  sortOrder: number
 }
 
 const DEFAULT_COLORS = ['Beyaz', 'Krem', 'Kırık Beyaz', 'Kahverengi', 'Siyah', 'Altın', 'Gümüş', 'Gri', 'Ahşap', 'Doğal']
@@ -75,11 +82,29 @@ export default function Products() {
 
   // Dynamic categories from API
   const [categories, setCategories] = useState<string[]>([])
+  const [managedCategories, setManagedCategories] = useState<Category[]>([])
+  const [showCategoryManager, setShowCategoryManager] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [categoryLoading, setCategoryLoading] = useState(false)
 
   // Dynamic colors
   const [colors, setColors] = useState<string[]>(getColors)
   const [customColor, setCustomColor] = useState('')
   const [showColorInput, setShowColorInput] = useState(false)
+  const [newColorName, setNewColorName] = useState('')
+
+  // Bulk create
+  const [showBulkForm, setShowBulkForm] = useState(false)
+  const [bulkForm, setBulkForm] = useState({
+    name: '',
+    category: '',
+    description: '',
+    shortDescription: '',
+    moq: '',
+    price: '',
+    selectedColors: [] as string[],
+  })
+  const [bulkSaving, setBulkSaving] = useState(false)
 
   // Archive & selection
   const [showArchived, setShowArchived] = useState(false)
@@ -119,11 +144,128 @@ export default function Products() {
     }
   }
 
+  const loadManagedCategories = async () => {
+    try {
+      const data = await api.request<Category[]>('/api/products/categories/manage')
+      setManagedCategories(data)
+    } catch {
+      setManagedCategories([])
+    }
+  }
+
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim()
+    if (!name) return
+    setCategoryLoading(true)
+    try {
+      await api.request('/api/products/categories', {
+        method: 'POST',
+        body: { name },
+      })
+      setNewCategoryName('')
+      loadCategories()
+      loadManagedCategories()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setCategoryLoading(false)
+    }
+  }
+
+  const handleDeleteCategory = async (id: number) => {
+    setCategoryLoading(true)
+    try {
+      await api.request(`/api/products/categories/${id}`, { method: 'DELETE' })
+      loadCategories()
+      loadManagedCategories()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setCategoryLoading(false)
+    }
+  }
+
+  const handleAddColor = useCallback(() => {
+    const trimmed = newColorName.trim()
+    if (!trimmed) return
+    if (!colors.includes(trimmed)) {
+      const newColors = [...colors, trimmed]
+      setColors(newColors)
+      saveColors(newColors)
+    }
+    setNewColorName('')
+  }, [newColorName, colors])
+
+  const handleDeleteColor = useCallback((colorToDelete: string) => {
+    const newColors = colors.filter(c => c !== colorToDelete)
+    setColors(newColors)
+    saveColors(newColors)
+    // If the deleted color was selected in form, clear it
+    if (form.color === colorToDelete) {
+      setForm({ ...form, color: '' })
+    }
+  }, [colors, form])
+
+  const handleBulkColorToggle = useCallback((color: string) => {
+    setBulkForm(prev => ({
+      ...prev,
+      selectedColors: prev.selectedColors.includes(color)
+        ? prev.selectedColors.filter(c => c !== color)
+        : [...prev.selectedColors, color],
+    }))
+  }, [])
+
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (bulkForm.selectedColors.length === 0) {
+      setError('En az bir renk seçmelisiniz')
+      return
+    }
+    setError('')
+    setBulkSaving(true)
+
+    try {
+      await api.request('/api/products/bulk', {
+        method: 'POST',
+        body: {
+          name: bulkForm.name,
+          category: bulkForm.category,
+          colors: bulkForm.selectedColors,
+          description: bulkForm.description || undefined,
+          shortDescription: bulkForm.shortDescription || undefined,
+          moq: bulkForm.moq || undefined,
+          price: bulkForm.price ? Math.round(Number(bulkForm.price) * 100) : undefined,
+        },
+      })
+      setShowBulkForm(false)
+      setBulkForm({
+        name: '',
+        category: '',
+        description: '',
+        shortDescription: '',
+        moq: '',
+        price: '',
+        selectedColors: [],
+      })
+      loadProducts()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
   useEffect(() => {
     loadProducts()
     loadCategories()
     setSelectedProducts(new Set())
   }, [showArchived])
+
+  useEffect(() => {
+    if (showCategoryManager) {
+      loadManagedCategories()
+    }
+  }, [showCategoryManager])
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -379,13 +521,22 @@ export default function Products() {
             {showArchived ? 'Arşivlenmiş ürünler' : 'Ürün listesi'}
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center justify-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
-        >
-          <Plus size={16} />
-          Ürün Ekle
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowBulkForm(true)}
+            className="flex items-center justify-center gap-2 rounded-lg border border-[var(--color-brass)] bg-[var(--color-brass)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-wood-dark)] transition-colors hover:bg-[var(--color-brass)]/20"
+          >
+            <Plus size={16} />
+            Toplu Ekle
+          </button>
+          <button
+            onClick={openCreate}
+            className="flex items-center justify-center gap-2 rounded-lg bg-[var(--color-wood-dark)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-espresso)]"
+          >
+            <Plus size={16} />
+            Ürün Ekle
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -405,16 +556,29 @@ export default function Products() {
           />
         </div>
         <div className="flex gap-2">
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="flex-1 rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)] sm:flex-none"
-          >
-            <option value="">Tüm Kategoriler</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="flex-1 rounded-lg border border-[var(--color-cream-deep)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)] sm:flex-none"
+            >
+              <option value="">Tüm Kategoriler</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setShowCategoryManager(!showCategoryManager)}
+              className={`flex items-center gap-1 rounded-lg border px-2.5 py-2 text-sm font-medium transition-colors ${
+                showCategoryManager
+                  ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                  : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60 hover:border-[var(--color-brass)]'
+              }`}
+              title="Kategorileri Yönet"
+            >
+              <Tags size={14} />
+            </button>
+          </div>
           <button
             onClick={() => setShowArchived(!showArchived)}
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
@@ -439,6 +603,109 @@ export default function Products() {
           </button>
         </div>
       </div>
+
+      {/* Category & Color Manager */}
+      {showCategoryManager && (
+        <div className="mb-4 rounded-xl border border-[var(--color-cream-deep)] bg-white p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-wood-dark)]">
+              <Tags size={16} />
+              Kategori & Renk Yönetimi
+            </h3>
+            <button onClick={() => setShowCategoryManager(false)} className="text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Categories Section */}
+          <div className="mb-4">
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink)]/50">Kategoriler</h4>
+            <div className="mb-2 flex gap-2">
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                placeholder="Yeni kategori adı..."
+                className="flex-1 rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)]"
+              />
+              <button
+                onClick={handleAddCategory}
+                disabled={!newCategoryName.trim() || categoryLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+              >
+                {categoryLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                Ekle
+              </button>
+            </div>
+            {managedCategories.length === 0 ? (
+              <p className="text-xs text-[var(--color-ink)]/40">Henüz kategori eklenmemiş</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {managedCategories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="flex items-center gap-1.5 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50 px-2.5 py-1.5 text-sm"
+                  >
+                    <span className="font-medium text-[var(--color-wood-dark)]">{cat.name}</span>
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      disabled={categoryLoading}
+                      className="rounded p-0.5 text-[var(--color-ink)]/30 transition-colors hover:bg-red-50 hover:text-red-600"
+                      title="Sil"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="mb-4 border-t border-[var(--color-cream-deep)]" />
+
+          {/* Colors Section */}
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink)]/50">Renkler</h4>
+            <div className="mb-2 flex gap-2">
+              <input
+                type="text"
+                value={newColorName}
+                onChange={(e) => setNewColorName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddColor()}
+                placeholder="Yeni renk adı..."
+                className="flex-1 rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 text-sm outline-none focus:border-[var(--color-brass)]"
+              />
+              <button
+                onClick={handleAddColor}
+                disabled={!newColorName.trim()}
+                className="flex items-center gap-1.5 rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+              >
+                <Plus size={14} />
+                Ekle
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {colors.map((color) => (
+                <div
+                  key={color}
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--color-cream-deep)] bg-[var(--color-cream)]/50 px-2.5 py-1.5 text-sm"
+                >
+                  <span className="font-medium text-[var(--color-wood-dark)]">{color}</span>
+                  <button
+                    onClick={() => handleDeleteColor(color)}
+                    className="rounded p-0.5 text-[var(--color-ink)]/30 transition-colors hover:bg-red-50 hover:text-red-600"
+                    title="Sil"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Actions Bar */}
       {selectedProducts.size > 0 && (
@@ -489,9 +756,16 @@ export default function Products() {
               onChange={(e) => setForm({ ...form, productCode: e.target.value.replace(/[^0-9]/g, '') })}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 font-mono outline-none focus:border-[var(--color-brass)]" />
             <select value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              onChange={(e) => {
+                if (e.target.value === '__manage_categories__') {
+                  setShowCategoryManager(true)
+                } else {
+                  setForm({ ...form, category: e.target.value })
+                }
+              }}
               className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
               {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              <option value="__manage_categories__">+ Kategorileri Yönet...</option>
             </select>
             {/* Color Select with Custom Input */}
             <div className="relative">
@@ -570,6 +844,74 @@ export default function Products() {
             <button type="submit" disabled={saving}
               className="rounded-lg bg-[var(--color-wood-dark)] py-2 text-sm font-semibold text-white hover:bg-[var(--color-espresso)] disabled:opacity-50 sm:col-span-2">
               {saving ? 'Kaydediliyor...' : editingId ? 'Güncelle' : 'Oluştur'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Bulk Create Form */}
+      {showBulkForm && (
+        <div className="mb-6 rounded-xl border border-[var(--color-brass)] bg-white p-4 sm:p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Toplu Ürün Oluştur</h2>
+            <button onClick={() => setShowBulkForm(false)}><X size={18} /></button>
+          </div>
+          <p className="mb-4 text-xs text-[var(--color-ink)]/50">
+            Aynı ürünün farklı renk varyasyonlarını tek seferde oluşturun. Örn: "Dekorink" için 8 farklı renk seçin, 8 ayrı ürün oluşsun.
+          </p>
+          <form onSubmit={handleBulkSubmit} className="grid gap-3 sm:grid-cols-2">
+            <input required placeholder="Ürün Adı (örn: Dekorink)" value={bulkForm.name}
+              onChange={(e) => setBulkForm({ ...bulkForm, name: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
+            <select required value={bulkForm.category}
+              onChange={(e) => setBulkForm({ ...bulkForm, category: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]">
+              <option value="">Kategori Seçin</option>
+              {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+            <input type="number" placeholder="Fiyat (₺)" step="0.01" value={bulkForm.price}
+              onChange={(e) => setBulkForm({ ...bulkForm, price: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
+            <input placeholder="Min. Sipariş (örn: 200 adet)" value={bulkForm.moq}
+              onChange={(e) => setBulkForm({ ...bulkForm, moq: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)]" />
+            <input placeholder="Kısa Açıklama" value={bulkForm.shortDescription}
+              onChange={(e) => setBulkForm({ ...bulkForm, shortDescription: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)] sm:col-span-2" />
+            <textarea placeholder="Detaylı Açıklama" value={bulkForm.description} rows={2}
+              onChange={(e) => setBulkForm({ ...bulkForm, description: e.target.value })}
+              className="rounded-lg border border-[var(--color-cream-deep)] px-3 py-2 outline-none focus:border-[var(--color-brass)] sm:col-span-2" />
+
+            {/* Color Selection */}
+            <div className="sm:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-[var(--color-ink)]/70">
+                Renkler <span className="text-[var(--color-ink)]/40">({bulkForm.selectedColors.length} seçili)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {colors.map((color) => {
+                  const isSelected = bulkForm.selectedColors.includes(color)
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => handleBulkColorToggle(color)}
+                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                        isSelected
+                          ? 'border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-wood-dark)]'
+                          : 'border-[var(--color-cream-deep)] text-[var(--color-ink)]/60 hover:border-[var(--color-brass)]'
+                      }`}
+                    >
+                      {isSelected && <Check size={14} />}
+                      {color}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <button type="submit" disabled={bulkSaving || bulkForm.selectedColors.length === 0}
+              className="rounded-lg bg-[var(--color-wood-dark)] py-2 text-sm font-semibold text-white hover:bg-[var(--color-espresso)] disabled:opacity-50 sm:col-span-2">
+              {bulkSaving ? 'Oluşturuluyor...' : `${bulkForm.selectedColors.length} Ürün Oluştur`}
             </button>
           </form>
         </div>

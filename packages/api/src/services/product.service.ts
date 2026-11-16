@@ -1,5 +1,5 @@
 import { db } from '../db/index.js'
-import { products } from '../db/schema.js'
+import { products, productCategories } from '../db/schema.js'
 import { eq, and, sql, desc, asc, ilike, or, inArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
@@ -92,7 +92,6 @@ export async function listProducts(filters?: {
   activeOnly?: boolean
   search?: string
   archived?: boolean
-  tag?: string
 }) {
   const conditions = []
 
@@ -109,11 +108,6 @@ export async function listProducts(filters?: {
 
   if (filters?.featured !== undefined) {
     conditions.push(eq(products.featured, filters.featured))
-  }
-
-  if (filters?.tag) {
-    // JSON array içinde tag ara
-    conditions.push(sql`${products.tags}::jsonb ? ${filters.tag}`)
   }
 
   if (filters?.search) {
@@ -279,4 +273,113 @@ export async function bulkUnarchiveProducts(ids: number[]) {
 export async function bulkDeleteProducts(ids: number[]) {
   await db.delete(products).where(inArray(products.id, ids))
   return { success: true, count: ids.length }
+}
+
+// ── Bulk Create ──────────────────────────────────────────
+
+interface BulkCreateProductInput {
+  name: string
+  category: string
+  colors: string[]
+  description?: string
+  shortDescription?: string
+  moq?: string
+  price?: number
+  featured?: boolean
+  isActive?: boolean
+}
+
+export async function bulkCreateProducts(input: BulkCreateProductInput) {
+  const created = []
+
+  for (const color of input.colors) {
+    const productCode = await generateProductCode(input.category, color)
+
+    const [product] = await db
+      .insert(products)
+      .values({
+        productCode,
+        name: input.name,
+        category: input.category,
+        color,
+        description: input.description || '',
+        shortDescription: input.shortDescription || '',
+        moq: input.moq || '',
+        price: input.price,
+        swatches: [],
+        images: [],
+        featured: input.featured || false,
+        isActive: input.isActive !== false,
+        sortOrder: 0,
+      })
+      .returning()
+
+    created.push(product)
+  }
+
+  return created
+}
+
+// ── Category Management ──────────────────────────────────
+
+export async function listCategories() {
+  const result = await db
+    .select()
+    .from(productCategories)
+    .orderBy(asc(productCategories.sortOrder), asc(productCategories.name))
+  return result
+}
+
+export async function createCategory(name: string, sortOrder?: number) {
+  const trimmed = name.trim()
+  if (!trimmed) throw new AppError(400, 'Kategori adı boş olamaz')
+
+  // Check for duplicates
+  const existing = await db
+    .select()
+    .from(productCategories)
+    .where(eq(productCategories.name, trimmed))
+    .limit(1)
+
+  if (existing.length > 0) {
+    throw new AppError(409, 'Bu kategori zaten mevcut')
+  }
+
+  const [category] = await db
+    .insert(productCategories)
+    .values({ name: trimmed, sortOrder: sortOrder ?? 0 })
+    .returning()
+
+  return category
+}
+
+export async function deleteCategory(id: number) {
+  const [category] = await db
+    .delete(productCategories)
+    .where(eq(productCategories.id, id))
+    .returning()
+
+  if (!category) {
+    throw new AppError(404, 'Kategori bulunamadı')
+  }
+
+  return category
+}
+
+export async function getCategoriesWithFallback(): Promise<string[]> {
+  // Try dedicated table first
+  const dedicated = await db.select().from(productCategories).orderBy(asc(productCategories.sortOrder), asc(productCategories.name))
+
+  if (dedicated.length > 0) {
+    return dedicated.map(c => c.name)
+  }
+
+  // Fallback: distinct categories from products
+  const result = await db
+    .selectDistinct({ category: products.category })
+    .from(products)
+    .where(and(eq(products.isActive, true), eq(products.isArchived, false)))
+    .orderBy(asc(products.category))
+
+  return result.map(r => r.category).filter(Boolean)
 }

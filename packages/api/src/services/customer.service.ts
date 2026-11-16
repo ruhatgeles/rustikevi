@@ -53,7 +53,7 @@ export async function listCustomers(
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
   const [countResult] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)::int` })
     .from(customers)
     .where(where)
 
@@ -161,7 +161,7 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput) {
 export async function deleteCustomer(id: string) {
   // Sipariş varsa silmeyi engelle
   const [orderCount] = await db
-    .select({ count: sql<number>`count(*)` })
+    .select({ count: sql<number>`count(*)::int` })
     .from(orders)
     .where(eq(orders.customerId, id))
 

@@ -279,3 +279,12 @@ export const orderReturnItemsRelations = relations(orderReturnItems, ({ one }) =
   return: one(orderReturns, { fields: [orderReturnItems.returnId], references: [orderReturns.id] }),
   orderItem: one(orderItems, { fields: [orderReturnItems.orderItemId], references: [orderItems.id] }),
 }))
+
+// ── Product Categories ───────────────────────────────────
+
+export const productCategories = pgTable('product_categories', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})

@@ -15,6 +15,13 @@
       "when": 1785407154392,
       "tag": "0001_grey_whirlwind",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794858364074,
+      "tag": "0002_sync_atolye_autologin_categories",
+      "breakpoints": true
     }
   ]
 }

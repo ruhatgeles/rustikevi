@@ -13,6 +13,16 @@ export interface Product {
   updatedAt?: string
 }
 
+const DEFAULT_SWATCH: [string, string] = ['#c9a876', '#8a6d43']
+
+/** API'den swatches boş/eksik gelebilir (admin'den eklenen ürünler) — her zaman en az bir gradyan döndür. */
+export function getSwatches(product: Pick<Product, 'swatches'>): Array<[string, string]> {
+  const valid = (product.swatches ?? []).filter(
+    (s): s is [string, string] => Array.isArray(s) && s.length >= 2,
+  )
+  return valid.length > 0 ? valid : [DEFAULT_SWATCH]
+}
+
 export const categories = ['Tümü', 'Rustik', 'Saçak', 'Başlık', 'Dekorink', 'Sarkıt', 'Braçöl'] as const
 
 const products: Array<Product> = [

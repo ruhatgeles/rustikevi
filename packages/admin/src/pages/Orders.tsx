@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useDebug } from '../lib/debug'
@@ -148,6 +148,67 @@ const SOURCE_LABELS: Record<string, string> = {
 function formatPrice(amount: number | null) {
   if (!amount) return '-'
   return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(amount / 100)
+}
+
+// Debounced number input - only commits on blur or Enter
+function DebouncedNumberInput({
+  value,
+  min,
+  max,
+  step,
+  className,
+  placeholder,
+  onCommit,
+}: {
+  value: number
+  min?: number
+  max?: number
+  step?: number
+  className?: string
+  placeholder?: string
+  onCommit: (value: number) => void
+}) {
+  const [localValue, setLocalValue] = useState(String(value))
+  const commitRef = useRef(false)
+
+  // Sync external value changes only when not editing
+  useEffect(() => {
+    if (!commitRef.current) {
+      setLocalValue(String(value))
+    }
+  }, [value])
+
+  const handleBlur = () => {
+    commitRef.current = false
+    const parsed = parseFloat(localValue)
+    const finalValue = isNaN(parsed) ? (min ?? 0) : Math.max(min ?? 0, Math.min(max ?? Infinity, parsed))
+    if (finalValue !== value) {
+      onCommit(finalValue)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      ;(e.target as HTMLInputElement).blur()
+    }
+  }
+
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={localValue}
+      placeholder={placeholder}
+      onFocus={() => { commitRef.current = true }}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      className={className}
+    />
+  )
 }
 
 // ── Component ──────────────────────────────────────────
@@ -1217,12 +1278,11 @@ export default function Orders() {
                               </div>
                               {editMode ? (
                                 <div className="mt-1 flex items-center gap-2">
-                                  <input
-                                    type="number"
-                                    min={1}
+                                  <DebouncedNumberInput
                                     value={item.quantity}
-                                    onChange={async (e) => {
-                                      const newQty = parseInt(e.target.value, 10) || 1
+                                    min={1}
+                                    className="w-16 rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
+                                    onCommit={async (newQty) => {
                                       try {
                                         await api.request(`/api/orders/${selectedOrder.id}/items/${item.id}`, {
                                           method: 'PATCH',
@@ -1234,20 +1294,21 @@ export default function Orders() {
                                         setError(err.message)
                                       }
                                     }}
-                                    className="w-16 rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
                                   />
                                   <span className="text-xs text-[var(--color-ink)]/50">adet</span>
                                   <span className="text-xs text-[var(--color-ink)]/30">·</span>
-                                  <input
-                                    type="number"
+                                  <DebouncedNumberInput
+                                    value={item.unitPrice ? item.unitPrice / 100 : 0}
                                     min={0}
-                                    value={item.unitPrice ? item.unitPrice / 100 : ''}
-                                    onChange={async (e) => {
-                                      const newPrice = e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null
+                                    step={0.01}
+                                    className="w-20 rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
+                                    placeholder="Fiyat"
+                                    onCommit={async (newPrice) => {
+                                      const priceInKurus = newPrice ? Math.round(newPrice * 100) : null
                                       try {
                                         await api.request(`/api/orders/${selectedOrder.id}/items/${item.id}`, {
                                           method: 'PATCH',
-                                          body: { unitPrice: newPrice },
+                                          body: { unitPrice: priceInKurus },
                                         })
                                         loadOrderDetail(selectedOrder.id)
                                         loadOrders()
@@ -1255,8 +1316,6 @@ export default function Orders() {
                                         setError(err.message)
                                       }
                                     }}
-                                    placeholder="Fiyat"
-                                    className="w-20 rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
                                   />
                                   <span className="text-xs text-[var(--color-ink)]/50">₺</span>
                                 </div>

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { Product } from '@/data/products'
+import { getSwatches, type Product } from '@/data/products'
 
 function ProductArt({ swatch }: { swatch: [string, string] }) {
   return (
@@ -107,7 +107,7 @@ export function ProductCard({ product }: { product: Product }) {
     <div
       className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--color-cream-deep)] bg-[var(--color-linen)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_-12px_rgba(58,42,28,0.25)]"
     >
-      <ImageCarousel swatches={product.swatches} />
+      <ImageCarousel swatches={getSwatches(product)} />
       <div className="flex flex-1 flex-col gap-2 px-5 pb-5 pt-1">
         <span className="w-fit rounded-full bg-[var(--color-cream-deep)] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-wood-dark)]">
           {product.category}

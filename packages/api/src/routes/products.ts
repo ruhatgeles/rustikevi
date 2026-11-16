@@ -12,8 +12,13 @@ import {
   bulkArchiveProducts,
   bulkUnarchiveProducts,
   bulkDeleteProducts,
+  bulkCreateProducts,
   generateProductCode,
   getDistinctCategories,
+  getCategoriesWithFallback,
+  listCategories,
+  createCategory,
+  deleteCategory,
   COLOR_CODES,
   COLOR_NAMES,
   CATEGORY_CODES,
@@ -27,8 +32,32 @@ const products = new Hono()
 
 // GET /api/products/categories — distinct categories (public, cached)
 products.get('/categories', cacheMiddleware({ ttl: CACHE_TTL.CATEGORIES, keyPrefix: 'products' }), async (c) => {
-  const categories = await getDistinctCategories()
+  const categories = await getCategoriesWithFallback()
   return c.json({ data: categories })
+})
+
+// GET /api/products/categories/manage — list categories with metadata (manager+)
+products.get('/categories/manage', requireManager(), async (c) => {
+  const categories = await listCategories()
+  return c.json({ data: categories })
+})
+
+// POST /api/products/categories — add new category (manager+)
+products.post('/categories', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const schema = z.object({ name: z.string().min(1).max(100), sortOrder: z.number().optional() })
+  const input = schema.parse(body)
+  const category = await createCategory(input.name, input.sortOrder)
+  await invalidateCache('products:*')
+  return c.json({ data: category }, 201)
+})
+
+// DELETE /api/products/categories/:id — delete category (manager+)
+products.delete('/categories/:id', requireManager(), async (c) => {
+  const id = Number(c.req.param('id'))
+  const category = await deleteCategory(id)
+  await invalidateCache('products:*')
+  return c.json({ data: category })
 })
 
 // GET /api/products — list active products (public, cached)
@@ -36,14 +65,12 @@ products.get('/', cacheMiddleware({ ttl: CACHE_TTL.PRODUCTS, keyPrefix: 'product
   const category = c.req.query('category')
   const featured = c.req.query('featured')
   const search = c.req.query('search')
-  const tag = c.req.query('tag')
   const archived = c.req.query('archived') === 'true'
 
-  const filters: { category?: string; featured?: boolean; search?: string; archived?: boolean; tag?: string } = {}
+  const filters: { category?: string; featured?: boolean; search?: string; archived?: boolean } = {}
   if (category) filters.category = category
   if (featured === 'true') filters.featured = true
   if (search) filters.search = search
-  if (tag) filters.tag = tag
   if (archived) filters.archived = true
 
   const data = await listProducts(filters)
@@ -101,6 +128,26 @@ products.post('/bulk/delete', requireAdmin(), async (c) => {
   const input = bulkSchema.parse(body)
   const result = await bulkDeleteProducts(input.ids)
   return c.json({ data: result })
+})
+
+// POST /api/products/bulk — bulk create products (manager+)
+products.post('/bulk', requireManager(), async (c) => {
+  const body = await c.req.json()
+  const bulkCreateSchema = z.object({
+    name: z.string().min(1).max(200),
+    category: z.string().min(1).max(100),
+    colors: z.array(z.string().min(1)).min(1).max(20),
+    description: z.string().optional(),
+    shortDescription: z.string().optional(),
+    moq: z.string().optional(),
+    price: z.number().optional(),
+    featured: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+  })
+  const input = bulkCreateSchema.parse(body)
+  const result = await bulkCreateProducts(input)
+  await invalidateCache('products:*')
+  return c.json({ data: result }, 201)
 })
 
 // GET /api/products/all — all products including inactive (manager+)

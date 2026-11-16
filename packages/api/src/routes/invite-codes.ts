@@ -44,7 +44,7 @@ inviteCodesRoutes.post('/verify', async (c) => {
 inviteCodesRoutes.use('*', requireAdmin())
 
 const createCodeSchema = z.object({
-  role: z.enum(['admin', 'manager', 'viewer']).default('viewer'),
+  role: z.enum(['admin', 'manager', 'viewer', 'atolye']).default('viewer'),
   maxUses: z.number().int().positive().nullable().optional(),
   expiresAt: z.string().datetime().nullable().optional(),
 })

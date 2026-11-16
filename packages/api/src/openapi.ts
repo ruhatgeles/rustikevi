@@ -182,7 +182,6 @@ export const openApiSpec = {
         summary: 'Ürünleri listele',
         parameters: [
           { name: 'category', in: 'query', schema: { type: 'string' } },
-          { name: 'tag', in: 'query', schema: { type: 'string' } },
           { name: 'search', in: 'query', schema: { type: 'string' } },
           { name: 'featured', in: 'query', schema: { type: 'boolean' } },
           { name: 'archived', in: 'query', schema: { type: 'boolean' } },
@@ -392,7 +391,7 @@ export const openApiSpec = {
           id: { type: 'string', format: 'uuid' },
           email: { type: 'string', format: 'email' },
           name: { type: 'string' },
-          role: { type: 'string', enum: ['admin', 'manager', 'viewer'] },
+          role: { type: 'string', enum: ['admin', 'manager', 'viewer', 'atolye'] },
           isActive: { type: 'boolean' },
           isLoginBlocked: { type: 'boolean' },
           isViewOnly: { type: 'boolean' },

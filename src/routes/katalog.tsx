@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Printer, ArrowLeft } from 'lucide-react'
 import { getProducts } from '@/lib/products'
-import { categories } from '@/data/products'
+import { categories, getSwatches } from '@/data/products'
 import { siteConfig, buildWhatsAppLink } from '@/lib/site-config'
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon'
 
@@ -91,7 +91,7 @@ function CatalogPage() {
               <div
                 className="aspect-[4/3] w-full rounded-xl sm:h-full sm:aspect-auto"
                 style={{
-                  background: `linear-gradient(155deg, ${product.swatches[0][0]}, ${product.swatches[0][1]})`,
+                  background: `linear-gradient(155deg, ${getSwatches(product)[0][0]}, ${getSwatches(product)[0][1]})`,
                 }}
               />
               <div>
