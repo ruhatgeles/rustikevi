@@ -1,41 +1,57 @@
+# Production: docker compose up -d --build
+# Gerekli değişkenler .env dosyasında (bkz. .env.example). Eksikse compose başlamaz.
+#
+# Dışa açık portlar sadece web (3000) ve admin (3002). Postgres, Redis ve API yalnızca
+# 127.0.0.1'e bağlanır; sunucuda önüne reverse proxy (Caddy/nginx/Cloudflare Tunnel) koyun.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     volumes:
       - pgdata:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-rustikevi}
       POSTGRES_USER: ${POSTGRES_USER:-rustikevi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env içinde tanımlı olmalı}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rustikevi}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rustikevi} -d ${POSTGRES_DB:-rustikevi}"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *logging
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redisdata:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
   api:
     build:
       context: .
       dockerfile: packages/api/Dockerfile
     restart: unless-stopped
+    logging: *logging
     ports:
-      - "${API_PORT:-3001}:3001"
+      - "127.0.0.1:${API_PORT:-3001}:3001"
     volumes:
       - uploads:/app/packages/api/uploads
     depends_on:
@@ -44,40 +60,46 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://rustikevi:change_me_in_production@postgres:5432/rustikevi}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      JWT_SECRET: ${JWT_SECRET:-dev_secret_change_me}
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rustikevi}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rustikevi}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env içinde tanımlı olmalı}
       JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
       JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
       API_PORT: 3001
       API_HOST: "0.0.0.0"
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3002}
+      # API'ye dışarıdan yalnızca web ve admin proxy'leri üzerinden gelinir
+      TRUST_PROXY: "true"
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3002,http://localhost:3000}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@rustikevi.com}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
 
   admin:
     build:
       context: .
       dockerfile: packages/admin/Dockerfile
     restart: unless-stopped
+    logging: *logging
     ports:
       - "${ADMIN_PORT:-3002}:3002"
     depends_on:
-      - api
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+      api:
+        condition: service_healthy
 
   web:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *logging
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
-      API_URL: ${API_URL:-http://api:3001}
+      API_URL: http://api:3001
 
 volumes:
   pgdata:

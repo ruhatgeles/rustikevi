@@ -7,6 +7,11 @@ import tailwindcss from '@tailwindcss/vite'
 const config = defineConfig({
   server: {
     allowedHosts: ['.ngrok-free.app'],
+    // Geliştirmede /api ve /uploads isteklerini lokal API'ye ilet (prod'da server.mjs yapar)
+    proxy: {
+      '/api': process.env.API_URL || 'http://localhost:3001',
+      '/uploads': process.env.API_URL || 'http://localhost:3001',
+    },
   },
   plugins: [
     viteTsConfigPaths({

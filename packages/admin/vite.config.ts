@@ -7,10 +7,10 @@ export default defineConfig({
   server: {
     port: 3002,
     host: '0.0.0.0',
-  },
-  define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify(
-      process.env.VITE_API_URL || 'http://localhost:3001'
-    ),
+    // Admin API'ye aynı origin üzerinden konuşur (prod: nginx, dev: bu proxy)
+    proxy: {
+      '/api': process.env.API_URL || 'http://localhost:3001',
+      '/uploads': process.env.API_URL || 'http://localhost:3001',
+    },
   },
 })
