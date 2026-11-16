@@ -65,6 +65,21 @@ docker compose exec api node dist/db/seed.js
    3000/3002'yi doğrudan açmayın.
 4. Güncelleme: `git pull && docker compose up -d --build` (migration'lar açılışta uygulanır).
 
+### Mevcut sunucudan bu sürüme geçiş (bir kerelik)
+
+1. **Önce yedek alın** (aşağıdaki Yedekleme komutları).
+2. `.env`'i yeni şablona göre güncelleyin. Kritik: `POSTGRES_USER`, `POSTGRES_DB` ve
+   `POSTGRES_PASSWORD` mevcut veritabanının değerleriyle **aynı** olmalı (eski kurulumda
+   `DATABASE_URL` içindeki kullanıcı/şifre). Compose artık `DATABASE_URL`'i bunlardan üretir.
+   Eski kurulum varsayılan `change_me_in_production` şifresini kullandıysa önce onu yazın,
+   sistem çalıştıktan sonra şifreyi değiştirin.
+3. Repo klasörünün adını değiştirmeyin: Docker volume adları klasör adından gelir
+   (`<klasör>_pgdata`). Farklı klasörde çalıştırmak boş bir veritabanıyla açılır.
+4. `JWT_SECRET` (≥32 karakter) ve `SEED_ADMIN_PASSWORD` (≥12) zorunludur.
+5. `git pull && docker compose up -d --build`. API loglarında
+   `baseline oluşturuluyor` ve `Migrations complete!` görülmeli:
+   `docker compose logs api | head -20`
+
 ### Yedekleme
 
 ```bash
