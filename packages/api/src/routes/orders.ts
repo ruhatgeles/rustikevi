@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { AppError } from '../lib/errors.js'
 import {
   listOrders,
   getOrderById,
@@ -38,27 +39,39 @@ const ordersRoutes = new Hono()
 // ── Public: Sipariş talebi oluştur (form) ───────────────
 
 const publicOrderSchema = z.object({
-  isletme: z.string().min(1),
-  yetkili: z.string().min(1),
-  telefon: z.string().min(10),
-  sehir: z.string().optional(),
-  urun: z.string().min(1),
-  adet: z.string().optional(),
-  mesaj: z.string().optional(),
+  isletme: z.string().trim().min(1).max(200),
+  yetkili: z.string().trim().min(1).max(100),
+  telefon: z.string().trim().min(10).max(20),
+  sehir: z.string().trim().max(100).optional(),
+  urun: z.string().trim().min(1).max(200),
+  adet: z.string().trim().max(100).optional(),
+  mesaj: z.string().trim().max(2000).optional(),
 })
+
+/** Türkiye cep/sabit hat: rakamları al, son 10 haneyi kullan → "05xxxxxxxxx" */
+function normalizePhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length < 10) return null
+  return '0' + digits.slice(-10)
+}
 
 ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
   const body = await c.req.json()
   const input = publicOrderSchema.parse(body)
+  const phone = normalizePhone(input.telefon)
+  if (!phone) {
+    throw new AppError(400, 'Geçerli bir telefon numarası girin')
+  }
 
   const { db } = await import('../db/index.js')
   const { customers: customersTable } = await import('../db/schema.js')
-  const { eq } = await import('drizzle-orm')
+  const { eq, sql } = await import('drizzle-orm')
 
+  // Aynı numara farklı biçimlerde kayıtlı olabilir ("+90 555 ...", "0555...", "555...")
   const [existing] = await db
     .select()
     .from(customersTable)
-    .where(eq(customersTable.phone, input.telefon))
+    .where(sql`right(regexp_replace(${customersTable.phone}, '[^0-9]', '', 'g'), 10) = ${phone.slice(-10)}`)
     .limit(1)
 
   let customerId: string
@@ -80,7 +93,7 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
       .values({
         businessName: input.isletme,
         contactName: input.yetkili,
-        phone: input.telefon,
+        phone,
         city: input.sehir,
       })
       .returning()
@@ -93,7 +106,9 @@ ordersRoutes.post('/inquiry', rateLimit(20, 60_000), async (c) => {
       items: [
         {
           productName: input.urun,
-          quantity: parseInt(input.adet || '1', 10) || 1,
+          quantity: Math.max(1, parseInt((input.adet || '1').replace(/[.\s]/g, ''), 10) || 1),
+          // Müşterinin yazdığı ifade ("150 metre", "1.000 adet") kaybolmasın
+          specifications: input.adet ? `Talep: ${input.adet}` : undefined,
         },
       ],
       notes: input.mesaj,
