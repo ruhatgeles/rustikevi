@@ -25,9 +25,13 @@ ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "is_locked" boolean DEFAULT f
 ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "is_ready_in_workshop" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "images" jsonb DEFAULT '[]'::jsonb;--> statement-breakpoint
 DO $$ BEGIN
-	ALTER TABLE "auto_login_tokens" ADD CONSTRAINT "auto_login_tokens_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
-	WHEN duplicate_object THEN null;
+	-- Production'da aynı FK farklı adla (auto_login_tokens_user_id_fkey) zaten var; ikinci kez ekleme
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint
+		WHERE conrelid = 'public.auto_login_tokens'::regclass AND contype = 'f'
+	) THEN
+		ALTER TABLE "auto_login_tokens" ADD CONSTRAINT "auto_login_tokens_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+	END IF;
 END $$;--> statement-breakpoint
 -- Mevcut ürün kategorilerini yeni tabloya aktar
 INSERT INTO "product_categories" ("name", "sort_order")
