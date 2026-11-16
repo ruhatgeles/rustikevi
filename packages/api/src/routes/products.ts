@@ -109,6 +109,7 @@ products.post('/bulk/archive', requireManager(), async (c) => {
   const bulkSchema = z.object({ ids: z.array(z.number()).min(1) })
   const input = bulkSchema.parse(body)
   const result = await bulkArchiveProducts(input.ids)
+  await invalidateCache('products:*')
   return c.json({ data: result })
 })
 
@@ -118,6 +119,7 @@ products.post('/bulk/unarchive', requireManager(), async (c) => {
   const bulkSchema = z.object({ ids: z.array(z.number()).min(1) })
   const input = bulkSchema.parse(body)
   const result = await bulkUnarchiveProducts(input.ids)
+  await invalidateCache('products:*')
   return c.json({ data: result })
 })
 
@@ -127,6 +129,7 @@ products.post('/bulk/delete', requireAdmin(), async (c) => {
   const bulkSchema = z.object({ ids: z.array(z.number()).min(1) })
   const input = bulkSchema.parse(body)
   const result = await bulkDeleteProducts(input.ids)
+  await invalidateCache('products:*')
   return c.json({ data: result })
 })
 

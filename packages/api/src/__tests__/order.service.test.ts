@@ -189,6 +189,37 @@ describe('Order Service', () => {
     })
   })
 
+  describe('calculateOrderStatus', () => {
+    const mockItems = async (statuses: string[]) => {
+      const { db } = await import('../db/index.js')
+      vi.mocked(db).select.mockReturnValue({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(statuses.map((itemStatus) => ({ itemStatus }))),
+      } as any)
+    }
+
+    it('ignores exchanged items so the order follows the replacement items', async () => {
+      const { calculateOrderStatus } = await import('../services/order.service.js')
+
+      await mockItems(['exchanged', 'ready', 'delivered'])
+      expect(await calculateOrderStatus('o1')).toBe('ready')
+    })
+
+    it('ignores returned items', async () => {
+      const { calculateOrderStatus } = await import('../services/order.service.js')
+
+      await mockItems(['returned', 'shipped'])
+      expect(await calculateOrderStatus('o1')).toBe('shipped')
+    })
+
+    it('treats an order whose items are all returned/exchanged as delivered', async () => {
+      const { calculateOrderStatus } = await import('../services/order.service.js')
+
+      await mockItems(['returned', 'exchanged'])
+      expect(await calculateOrderStatus('o1')).toBe('delivered')
+    })
+  })
+
   describe('getOrderById', () => {
     it('should throw 404 when order not found', async () => {
       const { getOrderById } = await import('../services/order.service.js')
@@ -283,6 +314,170 @@ describe('Order Service', () => {
       vi.mocked(db).select.mockReturnValue(mockSelectChain as any)
 
       await expect(bulkDeleteOrders(['order-1', 'order-2'], 'user-1')).rejects.toThrow('Silinecek arşivlenmiş sipariş bulunamadı')
+    })
+  })
+
+  // ── Kuyruk tabanlı zincir mock'u: her select/insert/update çağrısı sıradaki sonucu döner ──
+  const makeChain = (result: unknown) => {
+    const c: any = {}
+    for (const m of ['from', 'where', 'limit', 'leftJoin', 'innerJoin', 'orderBy', 'for', 'set', 'values', 'returning']) {
+      c[m] = vi.fn(() => c)
+    }
+    c.then = (res: any, rej: any) => Promise.resolve(result).then(res, rej)
+    return c
+  }
+
+  const setupDb = async (selectResults: unknown[]) => {
+    const { db } = await import('../db/index.js')
+    const queue = [...selectResults]
+    const updates: any[] = []
+    const inserts: any[] = []
+    vi.mocked(db).select.mockImplementation((() => makeChain(queue.shift() ?? [])) as any)
+    vi.mocked(db).update.mockImplementation((() => {
+      const c = makeChain(undefined)
+      updates.push(c)
+      return c
+    }) as any)
+    vi.mocked(db).insert.mockImplementation((() => {
+      const c = makeChain([{ id: 1 }])
+      inserts.push(c)
+      return c
+    }) as any)
+    const transaction = vi.fn(async (cb: (tx: unknown) => unknown) => cb(db))
+    ;(db as any).transaction = transaction
+    return { updates, inserts, transaction }
+  }
+
+  describe('updateOrderStatus', () => {
+    it('rejects an order-level move that would pull a locked item out of the atelier', async () => {
+      const { updateOrderStatus } = await import('../services/order.service.js')
+      const { transaction } = await setupDb([
+        [{ id: 'o1', status: 'atelier', customerId: 'c1' }],
+        [{ id: 'i1', itemStatus: 'atelier', isLocked: true, productName: 'Kordon' }],
+        [],
+        [{ id: 'c1' }],
+      ])
+
+      await expect(updateOrderStatus('o1', 'in_production', 'u1')).rejects.toThrow('Kilitli kalem')
+      expect(transaction).not.toHaveBeenCalled()
+    })
+
+    it('does not touch returned/exchanged items on an order-level change', async () => {
+      const { updateOrderStatus } = await import('../services/order.service.js')
+      const order = [{ id: 'o1', status: 'delivered', customerId: 'c1' }]
+      const items = [
+        { id: 'i1', itemStatus: 'delivered', isLocked: false, productName: 'A' },
+        { id: 'i2', itemStatus: 'returned', isLocked: false, productName: 'B' },
+        { id: 'i3', itemStatus: 'exchanged', isLocked: false, productName: 'C' },
+      ]
+      const { updates } = await setupDb([order, items, [], [{ id: 'c1' }], order, items, [], [{ id: 'c1' }]])
+
+      await updateOrderStatus('o1', 'shipped', 'u1')
+
+      const itemSets = updates.flatMap((u) => u.set.mock.calls.map((call: any[]) => call[0]))
+        .filter((data: any) => 'itemStatus' in data)
+      expect(itemSets).toEqual([{ itemStatus: 'shipped' }])
+    })
+  })
+
+  describe('processReturn', () => {
+    const delivered = [{ id: 'o1', status: 'delivered' }]
+    const item = { id: 'i1', orderId: 'o1', productId: null, productName: 'Kordon', quantity: 10, unitPrice: 100, totalPrice: 1000, specifications: null, itemStatus: 'delivered' }
+
+    it('rejects a quantity larger than the item quantity', async () => {
+      const { processReturn } = await import('../services/order.service.js')
+      await setupDb([delivered, [item]])
+
+      await expect(processReturn('o1', { items: [{ orderItemId: 'i1', quantity: 11 }] }, 'u1'))
+        .rejects.toThrow('1 ile 10 arasında')
+    })
+
+    it('rejects an item that does not belong to the order', async () => {
+      const { processReturn } = await import('../services/order.service.js')
+      await setupDb([delivered, []])
+
+      await expect(processReturn('o1', { items: [{ orderItemId: 'other', quantity: 1 }] }, 'u1'))
+        .rejects.toThrow('bu siparişe ait değil')
+    })
+
+    it('rejects an item that is not delivered (e.g. already exchanged)', async () => {
+      const { processReturn } = await import('../services/order.service.js')
+      await setupDb([delivered, [{ ...item, itemStatus: 'exchanged' }]])
+
+      await expect(processReturn('o1', { items: [{ orderItemId: 'i1', quantity: 1 }] }, 'u1'))
+        .rejects.toThrow('sadece teslim edilmiş kalemlerde iade')
+    })
+
+    it('splits the line on a partial return and recalculates totals', async () => {
+      const { processReturn } = await import('../services/order.service.js')
+      const { updates, inserts } = await setupDb([
+        delivered,
+        [item],
+        [{ total: 700 }],
+        [{ itemStatus: 'delivered' }, { itemStatus: 'returned' }],
+        [{ id: 'o1', status: 'delivered', customerId: 'c1' }], [], [], [{ id: 'c1' }],
+      ])
+
+      await processReturn('o1', { items: [{ orderItemId: 'i1', quantity: 3 }] }, 'u1')
+
+      const sets = updates.flatMap((u) => u.set.mock.calls.map((call: any[]) => call[0]))
+      expect(sets).toContainEqual({ quantity: 7, totalPrice: 700 })
+      expect(sets.some((d: any) => d.totalAmount === 700)).toBe(true)
+      expect(sets.some((d: any) => d.status === 'delivered')).toBe(true)
+
+      const values = inserts.flatMap((i) => i.values.mock.calls.map((call: any[]) => call[0]))
+      expect(values).toContainEqual(expect.objectContaining({ quantity: 3, totalPrice: 300, itemStatus: 'returned' }))
+      expect(values).toContainEqual(expect.objectContaining({ returnId: 1, orderItemId: 1, quantity: 3 }))
+    })
+  })
+
+  describe('updateItemStatus (iade/değişim)', () => {
+    const item = { id: 'i1', orderId: 'o1', productId: null, productName: 'Kordon', quantity: 4, unitPrice: 100, totalPrice: 400, specifications: null, itemStatus: 'delivered', isLocked: false }
+
+    it('creates a return record and recalculates the total for a whole-line return', async () => {
+      const { updateItemStatus } = await import('../services/order.service.js')
+      const { updates, inserts, transaction } = await setupDb([
+        [item],
+        [{ status: 'delivered' }],
+        [{ id: 'o1', status: 'delivered' }],
+        [item],
+        [item],
+        [{ total: 0 }],
+        [{ itemStatus: 'returned' }],
+        [{ id: 'o1', status: 'delivered', customerId: 'c1' }], [], [], [{ id: 'c1' }],
+      ])
+
+      await updateItemStatus('o1', 'i1', 'returned', 'u1')
+
+      expect(transaction).toHaveBeenCalledTimes(1)
+      const values = inserts.flatMap((i) => i.values.mock.calls.map((call: any[]) => call[0]))
+      expect(values).toContainEqual(expect.objectContaining({ orderId: 'o1', type: 'return' }))
+      expect(values).toContainEqual(expect.objectContaining({ returnId: 1, orderItemId: 'i1', quantity: 4 }))
+
+      const sets = updates.flatMap((u) => u.set.mock.calls.map((call: any[]) => call[0]))
+      expect(sets).toContainEqual({ itemStatus: 'returned' })
+      expect(sets.some((d: any) => 'totalAmount' in d && d.totalAmount === null)).toBe(true)
+    })
+
+    it('marks the line as exchanged with isExchanged set', async () => {
+      const { updateItemStatus } = await import('../services/order.service.js')
+      const { updates, inserts } = await setupDb([
+        [item],
+        [{ status: 'delivered' }],
+        [{ id: 'o1', status: 'delivered' }],
+        [item],
+        [item],
+        [{ total: 0 }],
+        [{ itemStatus: 'exchanged' }],
+        [{ id: 'o1', status: 'delivered', customerId: 'c1' }], [], [], [{ id: 'c1' }],
+      ])
+
+      await updateItemStatus('o1', 'i1', 'exchanged', 'u1')
+
+      const values = inserts.flatMap((i) => i.values.mock.calls.map((call: any[]) => call[0]))
+      expect(values).toContainEqual(expect.objectContaining({ orderId: 'o1', type: 'exchange' }))
+      const sets = updates.flatMap((u) => u.set.mock.calls.map((call: any[]) => call[0]))
+      expect(sets).toContainEqual(expect.objectContaining({ itemStatus: 'exchanged', isExchanged: true }))
     })
   })
 })

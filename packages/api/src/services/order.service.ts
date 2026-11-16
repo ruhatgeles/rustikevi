@@ -1,6 +1,6 @@
 import { db } from '../db/index.js'
 import { orders, orderItems, orderActivities, orderReturns, orderReturnItems, customers, products, users } from '../db/schema.js'
-import { eq, and, or, isNull, sql, desc, asc, ilike, inArray } from 'drizzle-orm'
+import { eq, and, ne, sql, desc, asc, inArray, notInArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
 // ── Types ───────────────────────────────────────────────
@@ -34,14 +34,43 @@ async function generateOrderNumber(): Promise<string> {
   return `RVE-${String(result.n).padStart(7, '0')}`
 }
 
+type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+// İade/değişim kalemleri nihai durumdadır: sipariş düzeyindeki geçişler onlara dokunmaz,
+// sipariş durumu ve toplamı hesaplanırken dikkate alınmaz.
+const TERMINAL_ITEM_STATUSES = ['returned', 'exchanged'] as const
+type TerminalItemStatus = (typeof TERMINAL_ITEM_STATUSES)[number]
+
+function isTerminalItemStatus(status: string): boolean {
+  return (TERMINAL_ITEM_STATUSES as readonly string[]).includes(status)
+}
+
+// Sipariş toplamı = iade/değişim dışındaki kalemlerin toplamı (kuruş)
+async function recalculateOrderTotal(orderId: string, executor: DbExecutor = db) {
+  const [row] = await executor
+    .select({ total: sql<number>`coalesce(sum(${orderItems.totalPrice}), 0)::int` })
+    .from(orderItems)
+    .where(and(
+      eq(orderItems.orderId, orderId),
+      notInArray(orderItems.itemStatus, [...TERMINAL_ITEM_STATUSES]),
+    ))
+
+  const totalAmount = row?.total ?? 0
+  await executor
+    .update(orders)
+    .set({ totalAmount: totalAmount > 0 ? totalAmount : null, updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+}
+
 async function addActivity(
   orderId: string,
   userId: string | null,
   type: string,
   description: string,
   metadata?: Record<string, unknown>,
+  executor: DbExecutor = db,
 ) {
-  await db.insert(orderActivities).values({
+  await executor.insert(orderActivities).values({
     orderId,
     userId,
     type,
@@ -301,11 +330,6 @@ export async function updateOrderStatus(
     )
   }
 
-  await db
-    .update(orders)
-    .set({ status: newStatus as any, updatedAt: new Date() })
-    .where(eq(orders.id, id))
-
   // Sipariş durumu değiştiğinde tüm kalemleri otomatik güncelle
   const ORDER_TO_ITEM_STATUS: Record<string, string> = {
     pending: 'pending',
@@ -316,25 +340,43 @@ export async function updateOrderStatus(
     shipped: 'shipped',
     delivered: 'delivered',
   }
-
   const newitemStatus = ORDER_TO_ITEM_STATUS[newStatus]
-  if (newitemStatus) {
-    const items = await db
-      .select({ id: orderItems.id, itemStatus: orderItems.itemStatus, productName: orderItems.productName })
-      .from(orderItems)
-      .where(eq(orderItems.orderId, id))
 
-    const newProgress = ITEM_STATUS_PROGRESS[newitemStatus] ?? 0
+  // İade/değişim kalemleri nihai; sipariş düzeyindeki geçiş onları değiştirmez
+  const activeItems = order.items.filter((i) => !isTerminalItemStatus(i.itemStatus))
 
-    for (const item of items) {
-      const currentProgress = ITEM_STATUS_PROGRESS[item.itemStatus] ?? 0
-      // İleriye adım: gerideki kalemleri ilerlet
-      // Geriye adım: ilerideki kalemleri geri al
-      const shouldUpdate =
-        currentProgress < newProgress || // ileriye
-        currentProgress > newProgress    // geriye
+  // Atölye kilidi: kilitli kalemi taşıyacak geçişler reddedilir (iptal hariç),
+  // updateItemStatus'taki kuralla aynı
+  if (newStatus !== 'cancelled') {
+    const lockedItems = activeItems.filter((i) => i.isLocked && i.itemStatus !== newitemStatus)
+    if (lockedItems.length > 0) {
+      throw new AppError(
+        409,
+        `Kilitli kalem var (${lockedItems.map((i) => i.productName).join(', ')}). Kilitli kalemler varken sipariş yalnızca iptal edilebilir. Önce kilidi açın veya atölye kullanıcısından "Atölyede Hazır" işaretlemesini isteyin.`,
+      )
+    }
+  }
 
-      if (shouldUpdate) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(orders)
+      .set({ status: newStatus as any, updatedAt: new Date() })
+      .where(eq(orders.id, id))
+
+    // İptalde atölye kuyruğundan çıkar: kilit ve "atölyede hazır" bayraklarını temizle
+    if (newStatus === 'cancelled') {
+      await tx
+        .update(orderItems)
+        .set({ isLocked: false, isReadyInWorkshop: false })
+        .where(eq(orderItems.orderId, id))
+    }
+
+    if (newitemStatus) {
+      for (const item of activeItems) {
+        // İleriye adım: gerideki kalemleri ilerlet
+        // Geriye adım: ilerideki kalemleri geri al
+        if (item.itemStatus === newitemStatus) continue
+
         // Atölyeden çıkıyorsa isReadyInWorkshop ve isLocked sıfırla
         const itemUpdateData: any = { itemStatus: newitemStatus }
         if (item.itemStatus === 'atelier' && newitemStatus !== 'atelier') {
@@ -342,7 +384,7 @@ export async function updateOrderStatus(
           itemUpdateData.isLocked = false
         }
 
-        await db
+        await tx
           .update(orderItems)
           .set(itemUpdateData)
           .where(eq(orderItems.id, item.id))
@@ -353,19 +395,21 @@ export async function updateOrderStatus(
           'item_status_change',
           `${item.productName}: ${ITEM_STATUS_LABELS[item.itemStatus]} → ${ITEM_STATUS_LABELS[newitemStatus]}`,
           { itemId: item.id, oldStatus: item.itemStatus, newStatus: newitemStatus },
+          tx,
         )
       }
     }
-  }
 
-  // Add status change activity
-  await addActivity(
-    id,
-    userId,
-    'status_change',
-    `Durum: ${STATUS_LABELS[oldStatus]} → ${STATUS_LABELS[newStatus]}`,
-    { oldStatus, newStatus },
-  )
+    // Add status change activity
+    await addActivity(
+      id,
+      userId,
+      'status_change',
+      `Durum: ${STATUS_LABELS[oldStatus]} → ${STATUS_LABELS[newStatus]}`,
+      { oldStatus, newStatus },
+      tx,
+    )
+  })
 
   // Add note as separate activity if provided
   if (note?.trim()) {
@@ -448,6 +492,16 @@ export async function updateItemStatus(
     return getOrderById(orderId)
   }
 
+  // İptal edilmiş siparişin kalemi değişirse otomatik durum hesabı siparişi "diriltir"
+  const [parentOrder] = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+  if (parentOrder?.status === 'cancelled') {
+    throw new AppError(400, 'İptal edilmiş siparişin kalemleri değiştirilemez')
+  }
+
   // Validate item status transition
   if (!VALID_ITEM_TRANSITIONS[oldStatus]?.includes(newStatus)) {
     throw new AppError(
@@ -462,6 +516,13 @@ export async function updateItemStatus(
     if (!allowedForLocked.includes(newStatus)) {
       throw new AppError(403, 'Kilitli kalem sadece iptal, iade veya değişim yapılabilir. Önce kilidi açın veya atölye kullanıcısından "Atölyede Hazır" işaretlemesini isteyin.')
     }
+  }
+
+  // Kalem düzeyinde iade/değişim: tüm adet için iade/değişim kaydı oluşturulur,
+  // toplam ve sipariş durumu aynı işlemde yeniden hesaplanır (processReturn ile aynı kurallar)
+  if (isTerminalItemStatus(newStatus)) {
+    await markWholeItemTerminal(orderId, itemId, newStatus as TerminalItemStatus, userId)
+    return getOrderById(orderId)
   }
 
   // Atölyeden çıkıyorsa isReadyInWorkshop ve isLocked sıfırla
@@ -531,18 +592,8 @@ export async function addOrderItem(
     specifications: item.specifications,
   })
 
-  // Recalculate total
-  const items = await db
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.orderId, orderId))
-
-  const totalAmount = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0)
-
-  await db
-    .update(orders)
-    .set({ totalAmount: totalAmount > 0 ? totalAmount : null, updatedAt: new Date() })
-    .where(eq(orders.id, orderId))
+  // Sipariş toplamını yeniden hesapla (iade/değişim kalemleri hariç)
+  await recalculateOrderTotal(orderId)
 
   await addActivity(
     orderId,
@@ -578,7 +629,8 @@ export async function updateOrderItem(
   // Fiyat veya adet değiştiyse toplam fiyatı güncelle
   if (input.quantity !== undefined || input.unitPrice !== undefined) {
     const qty = input.quantity ?? item.quantity
-    const price = input.unitPrice ?? item.unitPrice
+    // null = fiyat temizlendi; ?? kullanılırsa eski fiyata geri düşerdi
+    const price = input.unitPrice !== undefined ? input.unitPrice : item.unitPrice
     updateData.totalPrice = price ? qty * price : null
   }
 
@@ -587,18 +639,8 @@ export async function updateOrderItem(
     .set(updateData)
     .where(eq(orderItems.id, itemId))
 
-  // Sipariş toplamını yeniden hesapla
-  const items = await db
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.orderId, orderId))
-
-  const totalAmount = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0)
-
-  await db
-    .update(orders)
-    .set({ totalAmount: totalAmount > 0 ? totalAmount : null, updatedAt: new Date() })
-    .where(eq(orders.id, orderId))
+  // Sipariş toplamını yeniden hesapla (iade/değişim kalemleri hariç)
+  await recalculateOrderTotal(orderId)
 
   await addActivity(
     orderId,
@@ -620,18 +662,8 @@ export async function removeOrderItem(orderId: string, itemId: string, userId: s
     throw new AppError(404, 'Order item not found')
   }
 
-  // Recalculate total
-  const items = await db
-    .select()
-    .from(orderItems)
-    .where(eq(orderItems.orderId, orderId))
-
-  const totalAmount = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0)
-
-  await db
-    .update(orders)
-    .set({ totalAmount: totalAmount > 0 ? totalAmount : null, updatedAt: new Date() })
-    .where(eq(orders.id, orderId))
+  // Sipariş toplamını yeniden hesapla (iade/değişim kalemleri hariç)
+  await recalculateOrderTotal(orderId)
 
   await addActivity(
     orderId,
@@ -810,15 +842,18 @@ const ITEM_TO_ORDER_STATUS: Record<string, string> = {
   exchanged: 'in_production',
 }
 
-export async function calculateOrderStatus(orderId: string): Promise<string> {
-  const items = await db
+export async function calculateOrderStatus(orderId: string, executor: DbExecutor = db): Promise<string> {
+  const items = await executor
     .select({ itemStatus: orderItems.itemStatus })
     .from(orderItems)
     .where(eq(orderItems.orderId, orderId))
 
   if (items.length === 0) return 'pending'
 
-  const statuses = items.map((i) => i.itemStatus)
+  // İade/değişim kalemleri nihai: en geride kalanı ararken sayılmaz.
+  // Tüm kalemler nihaiyse sipariş teslim edilmiş sayılır.
+  const statuses = items.map((i) => i.itemStatus).filter((st) => !isTerminalItemStatus(st))
+  if (statuses.length === 0) return 'delivered'
 
   // En gerideki kalem durumunu bul (en düşük progress değeri)
   let lowestStatus = statuses[0]
@@ -837,135 +872,268 @@ export async function calculateOrderStatus(orderId: string): Promise<string> {
 
 // ── Return & Exchange ───────────────────────────────────
 
+interface ReturnItemInput {
+  orderItemId: string
+  quantity: number
+  note?: string
+}
+
 interface ReturnInput {
-  items: Array<{ orderItemId: string; quantity: number; note?: string }>
+  items: ReturnItemInput[]
   returnShippingCost?: number
   note?: string
 }
 
-export async function processReturn(orderId: string, input: ReturnInput, userId: string) {
-  const order = await getOrderById(orderId)
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
+// Siparişi satır kilidiyle getirir; yalnızca teslim edilmiş siparişlerde iade/değişim yapılır
+async function lockDeliveredOrder(tx: Tx, orderId: string, errorMessage: string) {
+  const [order] = await tx
+    .select({ id: orders.id, status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .for('update')
+
+  if (!order) {
+    throw new AppError(404, 'Order not found')
+  }
   if (order.status !== 'delivered') {
-    throw new AppError(400, 'Sadece teslim edilmiş siparişlerde iade yapılabilir')
+    throw new AppError(400, errorMessage)
+  }
+}
+
+/**
+ * İade/değişim edilecek kalemleri doğrular ve nihai duruma taşır.
+ * - Kalem bu siparişe ait ve "teslim edildi" durumunda olmalı
+ * - Adet 1..kalem adedi arasında tam sayı olmalı
+ * - Kısmi adette satır bölünür: orijinal satırda kalan adet kalır, iade/değişim adedi
+ *   yeni bir satıra nihai durumla yazılır (fiyatlar adetle orantılı güncellenir)
+ * order_return_items kaydı nihai duruma geçen satırı gösterir.
+ */
+async function moveItemsToTerminal(
+  tx: Tx,
+  orderId: string,
+  returnId: number,
+  requested: ReturnItemInput[],
+  status: TerminalItemStatus,
+  exchangeNote?: string,
+) {
+  if (requested.length === 0) {
+    throw new AppError(400, 'En az bir kalem seçilmelidir')
   }
 
-  // İade kaydı oluştur
-  const [returnRecord] = await db
-    .insert(orderReturns)
-    .values({
-      orderId,
-      type: 'return',
-      returnShippingCost: input.returnShippingCost || null,
-      note: input.note,
-    })
-    .returning()
-
-  // İade kalemlerini kaydet
-  for (const item of input.items) {
-    await db.insert(orderReturnItems).values({
-      returnId: returnRecord.id,
-      orderItemId: item.orderItemId,
-      quantity: item.quantity,
-      note: item.note,
-    })
-
-    // Kalem durumunu güncelle
-    await db
-      .update(orderItems)
-      .set({ itemStatus: 'returned' })
-      .where(eq(orderItems.id, item.orderItemId))
+  const ids = requested.map((r) => r.orderItemId)
+  if (new Set(ids).size !== ids.length) {
+    throw new AppError(400, 'Aynı kalem birden fazla kez seçilemez')
   }
 
-  // Sipariş durumunu yeniden hesapla
-  const newStatus = await calculateOrderStatus(orderId)
-  await db
+  const rows = await tx
+    .select()
+    .from(orderItems)
+    .where(and(eq(orderItems.orderId, orderId), inArray(orderItems.id, ids)))
+    .for('update')
+  const byId = new Map(rows.map((r) => [r.id, r]))
+
+  const actionLabel = status === 'returned' ? 'iade' : 'değişim'
+
+  for (const req of requested) {
+    const row = byId.get(req.orderItemId)
+    if (!row) {
+      throw new AppError(400, 'Seçilen kalem bu siparişe ait değil')
+    }
+    if (row.itemStatus !== 'delivered') {
+      throw new AppError(400, `${row.productName}: sadece teslim edilmiş kalemlerde ${actionLabel} yapılabilir`)
+    }
+    if (!Number.isInteger(req.quantity) || req.quantity < 1 || req.quantity > row.quantity) {
+      throw new AppError(400, `${row.productName}: ${actionLabel} adedi 1 ile ${row.quantity} arasında olmalıdır`)
+    }
+  }
+
+  for (const req of requested) {
+    const row = byId.get(req.orderItemId)!
+    const terminalData = status === 'exchanged'
+      ? { itemStatus: status, isExchanged: true, exchangeNote: exchangeNote ?? null }
+      : { itemStatus: status }
+
+    let terminalItemId = row.id
+    if (req.quantity === row.quantity) {
+      await tx.update(orderItems).set(terminalData).where(eq(orderItems.id, row.id))
+    } else {
+      // Kısmi: satırı böl
+      const remaining = row.quantity - req.quantity
+      await tx
+        .update(orderItems)
+        .set({
+          quantity: remaining,
+          totalPrice: row.unitPrice ? row.unitPrice * remaining : null,
+        })
+        .where(eq(orderItems.id, row.id))
+
+      const [split] = await tx
+        .insert(orderItems)
+        .values({
+          orderId,
+          productId: row.productId,
+          productName: row.productName,
+          quantity: req.quantity,
+          unitPrice: row.unitPrice,
+          totalPrice: row.unitPrice ? row.unitPrice * req.quantity : null,
+          specifications: row.specifications,
+          ...terminalData,
+        })
+        .returning({ id: orderItems.id })
+      terminalItemId = split.id
+    }
+
+    await tx.insert(orderReturnItems).values({
+      returnId,
+      orderItemId: terminalItemId,
+      quantity: req.quantity,
+      note: req.note,
+    })
+  }
+}
+
+// Kalemler değiştikten sonra sipariş toplamını ve durumunu yeniden hesapla
+async function refreshOrderAfterReturn(tx: Tx, orderId: string) {
+  await recalculateOrderTotal(orderId, tx)
+  const newStatus = await calculateOrderStatus(orderId, tx)
+  await tx
     .update(orders)
     .set({ status: newStatus as any, updatedAt: new Date() })
     .where(eq(orders.id, orderId))
+}
 
-  // Aktivite ekle
-  await addActivity(
-    orderId,
-    userId,
-    'return',
-    `İade işlemi: ${input.items.length} ürün iade edildi${input.returnShippingCost ? `, kargo ücreti: ${input.returnShippingCost / 100} ₺` : ''}`,
-    { returnId: returnRecord.id, itemCount: input.items.length },
-  )
+// Durum açılır listesinden gelen iade/değişim: kalemin tamamını nihai duruma taşır
+async function markWholeItemTerminal(
+  orderId: string,
+  itemId: string,
+  status: TerminalItemStatus,
+  userId: string,
+) {
+  await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ id: orders.id, status: orders.status })
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .for('update')
+    if (!order) {
+      throw new AppError(404, 'Order not found')
+    }
+    if (order.status === 'cancelled') {
+      throw new AppError(400, 'İptal edilmiş siparişin kalemleri değiştirilemez')
+    }
+
+    // Kilit altında güncel adet okunur; durum ve aidiyet kontrolü moveItemsToTerminal'da tekrar yapılır
+    const [item] = await tx
+      .select({ quantity: orderItems.quantity, productName: orderItems.productName, itemStatus: orderItems.itemStatus })
+      .from(orderItems)
+      .where(and(eq(orderItems.id, itemId), eq(orderItems.orderId, orderId)))
+      .for('update')
+    if (!item) {
+      throw new AppError(404, 'Sipariş kalemi bulunamadı')
+    }
+
+    const [record] = await tx
+      .insert(orderReturns)
+      .values({ orderId, type: status === 'returned' ? 'return' : 'exchange' })
+      .returning()
+
+    await moveItemsToTerminal(tx, orderId, record.id, [{ orderItemId: itemId, quantity: item.quantity }], status)
+
+    await refreshOrderAfterReturn(tx, orderId)
+
+    await addActivity(
+      orderId,
+      userId,
+      'item_status_change',
+      `${item.productName}: ${ITEM_STATUS_LABELS[item.itemStatus]} → ${ITEM_STATUS_LABELS[status]}`,
+      { itemId, oldStatus: item.itemStatus, newStatus: status, productName: item.productName, returnId: record.id },
+      tx,
+    )
+  })
+}
+
+export async function processReturn(orderId: string, input: ReturnInput, userId: string) {
+  await db.transaction(async (tx) => {
+    await lockDeliveredOrder(tx, orderId, 'Sadece teslim edilmiş siparişlerde iade yapılabilir')
+
+    // İade kaydı oluştur
+    const [returnRecord] = await tx
+      .insert(orderReturns)
+      .values({
+        orderId,
+        type: 'return',
+        returnShippingCost: input.returnShippingCost || null,
+        note: input.note,
+      })
+      .returning()
+
+    // Kalemleri doğrula, gerekiyorsa böl ve "iade" olarak işaretle
+    await moveItemsToTerminal(tx, orderId, returnRecord.id, input.items, 'returned')
+
+    await refreshOrderAfterReturn(tx, orderId)
+
+    await addActivity(
+      orderId,
+      userId,
+      'return',
+      `İade işlemi: ${input.items.length} ürün iade edildi${input.returnShippingCost ? `, kargo ücreti: ${input.returnShippingCost / 100} ₺` : ''}`,
+      { returnId: returnRecord.id, itemCount: input.items.length },
+      tx,
+    )
+  })
 
   return getOrderById(orderId)
 }
 
 interface ExchangeInput {
-  oldItems: Array<{ orderItemId: string; quantity: number; note?: string }>
+  oldItems: ReturnItemInput[]
   newItems: Array<{ productName: string; quantity: number; unitPrice?: number; specifications?: string }>
   note?: string
 }
 
 export async function processExchange(orderId: string, input: ExchangeInput, userId: string) {
-  const order = await getOrderById(orderId)
+  await db.transaction(async (tx) => {
+    await lockDeliveredOrder(tx, orderId, 'Sadece teslim edilmiş siparişlerde değişim yapılabilir')
 
-  if (order.status !== 'delivered') {
-    throw new AppError(400, 'Sadece teslim edilmiş siparişlerde değişim yapılabilir')
-  }
-
-  // Değişim kaydı oluştur
-  const [exchangeRecord] = await db
-    .insert(orderReturns)
-    .values({
-      orderId,
-      type: 'exchange',
-      note: input.note,
-    })
-    .returning()
-
-  // Eski kalemleri işaretle
-  for (const item of input.oldItems) {
-    await db.insert(orderReturnItems).values({
-      returnId: exchangeRecord.id,
-      orderItemId: item.orderItemId,
-      quantity: item.quantity,
-      note: item.note,
-    })
-
-    await db
-      .update(orderItems)
-      .set({
-        itemStatus: 'exchanged',
-        isExchanged: true,
-        exchangeNote: input.note,
+    // Değişim kaydı oluştur
+    const [exchangeRecord] = await tx
+      .insert(orderReturns)
+      .values({
+        orderId,
+        type: 'exchange',
+        note: input.note,
       })
-      .where(eq(orderItems.id, item.orderItemId))
-  }
+      .returning()
 
-  // Yeni kalemleri ekle
-  for (const item of input.newItems) {
-    await db.insert(orderItems).values({
+    // Eski kalemleri doğrula, gerekiyorsa böl ve "değişim" olarak işaretle
+    await moveItemsToTerminal(tx, orderId, exchangeRecord.id, input.oldItems, 'exchanged', input.note)
+
+    // Yeni kalemleri ekle
+    for (const item of input.newItems) {
+      await tx.insert(orderItems).values({
+        orderId,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice || null,
+        totalPrice: item.unitPrice ? item.unitPrice * item.quantity : null,
+        itemStatus: 'in_production',
+        specifications: item.specifications,
+      })
+    }
+
+    await refreshOrderAfterReturn(tx, orderId)
+
+    await addActivity(
       orderId,
-      productName: item.productName,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice || null,
-      totalPrice: item.unitPrice ? item.unitPrice * item.quantity : null,
-      itemStatus: 'in_production',
-      specifications: item.specifications,
-    })
-  }
-
-  // Sipariş durumunu yeniden hesapla
-  const newStatus = await calculateOrderStatus(orderId)
-  await db
-    .update(orders)
-    .set({ status: newStatus as any, updatedAt: new Date() })
-    .where(eq(orders.id, orderId))
-
-  // Aktivite ekle
-  await addActivity(
-    orderId,
-    userId,
-    'exchange',
-    `Değişim işlemi: ${input.oldItems.length} ürün değiştirildi, ${input.newItems.length} yeni ürün eklendi`,
-    { exchangeId: exchangeRecord.id },
-  )
+      userId,
+      'exchange',
+      `Değişim işlemi: ${input.oldItems.length} ürün değiştirildi, ${input.newItems.length} yeni ürün eklendi`,
+      { exchangeId: exchangeRecord.id },
+      tx,
+    )
+  })
 
   return getOrderById(orderId)
 }
@@ -1013,6 +1181,15 @@ export async function lockOrderItem(
 
   if (item.isLocked) {
     throw new AppError(400, 'Bu kalem zaten kilitli')
+  }
+
+  const [parentOrder] = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+  if (parentOrder?.status === 'cancelled') {
+    throw new AppError(400, 'İptal edilmiş siparişin kalemleri atölyeye gönderilemez')
   }
 
   // Sadece atelier durumundaki kalemler kilitlenebilir
@@ -1155,25 +1332,24 @@ export async function getAtelierItems() {
       orderCreatedAt: orders.createdAt,
       customerName: customers.businessName,
       customerPhone: customers.phone,
-      productCode: products.productCode,
-      productImages: products.images,
+      // productId yoksa ada göre eşleştir — yalnızca bu adda TEK ürün varsa.
+      // Renk varyantları aynı adı paylaştığından ad join'i satırları çoğaltıyordu.
+      productCode: sql<string | null>`case when ${orderItems.productId} is not null then ${products.productCode} else (
+        select min(p.product_code) from products p where p.name = ${orderItems.productName} having count(*) = 1
+      ) end`,
+      productImages: sql<string[] | null>`case when ${orderItems.productId} is not null then ${products.images} else (
+        select (array_agg(p.images))[1] from products p where p.name = ${orderItems.productName} having count(*) = 1
+      ) end`,
     })
     .from(orderItems)
-    .leftJoin(orders, eq(orderItems.orderId, orders.id))
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
     .leftJoin(customers, eq(orders.customerId, customers.id))
-    .leftJoin(products,
-      or(
-        eq(orderItems.productId, products.id),
-        and(
-          isNull(orderItems.productId),
-          eq(products.name, orderItems.productName)
-        )
-      )
-    )
+    .leftJoin(products, eq(orderItems.productId, products.id))
     .where(
       and(
         eq(orderItems.itemStatus, 'atelier'),
         eq(orders.isArchived, false),
+        ne(orders.status, 'cancelled'),
       ),
     )
     .orderBy(asc(orderItems.createdAt))

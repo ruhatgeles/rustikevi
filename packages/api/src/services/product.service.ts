@@ -1,6 +1,6 @@
 import { db } from '../db/index.js'
 import { products, productCategories } from '../db/schema.js'
-import { eq, and, sql, desc, asc, ilike, or, inArray } from 'drizzle-orm'
+import { eq, and, asc, ilike, like, or, inArray } from 'drizzle-orm'
 import { AppError } from '../lib/errors.js'
 
 interface CreateProductInput {
@@ -51,30 +51,49 @@ export const CATEGORY_CODES: Record<string, number> = {
   'Diğer': 9,
 }
 
-export async function generateProductCode(category: string, color: string): Promise<string> {
+type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+// Postgres unique violation (23505) — drizzle hatayı DrizzleQueryError.cause içinde sarabilir
+export function isUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string } } | null
+  return e?.code === '23505' || e?.cause?.code === '23505'
+}
+
+const DUPLICATE_CODE_MESSAGE = 'Bu ürün kodu zaten kullanılıyor'
+
+/**
+ * Aynı kategori önekiyle (A) başlayan 5 haneli kodlardan bir sonraki sıra numarasını (BCD) hesaplar.
+ * Sıra, kategori adına göre değil kod önekine göre tutulur: CATEGORY_CODES'ta olmayan
+ * kategoriler 9 önekini "Diğer" ile paylaştığından aksi halde kodlar çakışır.
+ */
+export function nextSequenceFromCodes(codes: Array<string | null | undefined>, catCode: number): number {
+  const prefix = String(catCode)
+  let max = 0
+  for (const code of codes) {
+    if (!code || !/^\d{5}$/.test(code) || !code.startsWith(prefix)) continue
+    const seq = Math.floor((parseInt(code, 10) % 10000) / 10) // binler+yüzler+onlar = sıra
+    if (seq > max) max = seq
+  }
+  return max + 1
+}
+
+export async function generateProductCode(
+  category: string,
+  color: string,
+  executor: DbExecutor = db,
+): Promise<string> {
   const catCode = CATEGORY_CODES[category] || 9
   const colorCode = COLOR_CODES[color] ?? 9
 
-  // Bu kategorideki mevcut ürünleri bul
-  const existing = await db
+  // Aynı kategori önekine sahip mevcut kodlar (kategori adından bağımsız)
+  const existing = await executor
     .select({ productCode: products.productCode })
     .from(products)
-    .where(eq(products.category, category))
+    .where(like(products.productCode, `${catCode}%`))
 
-  // Mevcut kodları parse et, alt kodu bul (binler+yüzler+onlar basamağı)
-  let seqCode = 1
-  if (existing.length > 0) {
-    const seqCodes = existing
-      .map((p) => p.productCode)
-      .filter(Boolean)
-      .map((code) => {
-        const num = parseInt(code!, 10)
-        return Math.floor((num % 100) / 10) // onlar basamağı = sıra
-      })
-      .filter((n) => !isNaN(n))
-    if (seqCodes.length > 0) {
-      seqCode = Math.max(...seqCodes) + 1
-    }
+  const seqCode = nextSequenceFromCodes(existing.map((p) => p.productCode), catCode)
+  if (seqCode > 999) {
+    throw new AppError(409, 'Bu kategori için ürün kodu kapasitesi doldu (999). Kodu elle girin.')
   }
 
   // 5 haneli kod: ABCDE
@@ -167,32 +186,40 @@ export async function getProductById(id: number) {
 }
 
 export async function createProduct(input: CreateProductInput) {
-  // Ürün kodu belirlenmemişse otomatik üret
-  let productCode = input.productCode
-  if (!productCode && input.category && input.color) {
-    productCode = await generateProductCode(input.category, input.color)
+  const values = {
+    name: input.name,
+    category: input.category,
+    color: input.color,
+    description: input.description || '',
+    shortDescription: input.shortDescription || '',
+    moq: input.moq || '',
+    price: input.price,
+    swatches: input.swatches || [],
+    images: input.images || [],
+    featured: input.featured || false,
+    isActive: input.isActive !== false,
+    sortOrder: input.sortOrder || 0,
   }
 
-  const [product] = await db
-    .insert(products)
-    .values({
-      productCode,
-      name: input.name,
-      category: input.category,
-      color: input.color,
-      description: input.description || '',
-      shortDescription: input.shortDescription || '',
-      moq: input.moq || '',
-      price: input.price,
-      swatches: input.swatches || [],
-      images: input.images || [],
-      featured: input.featured || false,
-      isActive: input.isActive !== false,
-      sortOrder: input.sortOrder || 0,
-    })
-    .returning()
+  // Ürün kodu belirlenmemişse otomatik üret; eşzamanlı oluşturmada çakışırsa yeniden dene
+  const autoCode = !input.productCode && !!input.category && !!input.color
+  const maxAttempts = autoCode ? 3 : 1
 
-  return product
+  for (let attempt = 1; ; attempt++) {
+    const productCode = autoCode
+      ? await generateProductCode(input.category, input.color!)
+      : input.productCode
+    try {
+      const [product] = await db
+        .insert(products)
+        .values({ ...values, productCode })
+        .returning()
+      return product
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err
+      if (attempt >= maxAttempts) throw new AppError(409, DUPLICATE_CODE_MESSAGE)
+    }
+  }
 }
 
 export async function updateProduct(id: number, input: UpdateProductInput) {
@@ -201,6 +228,10 @@ export async function updateProduct(id: number, input: UpdateProductInput) {
     .set({ ...input, updatedAt: new Date() })
     .where(eq(products.id, id))
     .returning()
+    .catch((err) => {
+      if (isUniqueViolation(err)) throw new AppError(409, DUPLICATE_CODE_MESSAGE)
+      throw err
+    })
 
   if (!product) {
     throw new AppError(404, 'Product not found')
@@ -290,34 +321,42 @@ interface BulkCreateProductInput {
 }
 
 export async function bulkCreateProducts(input: BulkCreateProductInput) {
-  const created = []
+  // Hepsi ya da hiçbiri: bir renk başarısız olursa yarım ürün grubu kalmasın
+  try {
+    return await db.transaction(async (tx) => {
+      const created = []
 
-  for (const color of input.colors) {
-    const productCode = await generateProductCode(input.category, color)
+      for (const color of input.colors) {
+        const productCode = await generateProductCode(input.category, color, tx)
 
-    const [product] = await db
-      .insert(products)
-      .values({
-        productCode,
-        name: input.name,
-        category: input.category,
-        color,
-        description: input.description || '',
-        shortDescription: input.shortDescription || '',
-        moq: input.moq || '',
-        price: input.price,
-        swatches: [],
-        images: [],
-        featured: input.featured || false,
-        isActive: input.isActive !== false,
-        sortOrder: 0,
-      })
-      .returning()
+        const [product] = await tx
+          .insert(products)
+          .values({
+            productCode,
+            name: input.name,
+            category: input.category,
+            color,
+            description: input.description || '',
+            shortDescription: input.shortDescription || '',
+            moq: input.moq || '',
+            price: input.price,
+            swatches: [],
+            images: [],
+            featured: input.featured || false,
+            isActive: input.isActive !== false,
+            sortOrder: 0,
+          })
+          .returning()
 
-    created.push(product)
+        created.push(product)
+      }
+
+      return created
+    })
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new AppError(409, DUPLICATE_CODE_MESSAGE + '. Lütfen tekrar deneyin.')
+    throw err
   }
-
-  return created
 }
 
 // ── Category Management ──────────────────────────────────
