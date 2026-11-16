@@ -122,7 +122,7 @@ export default function Dashboard() {
               className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-3 sm:p-5"
             >
               <div className="mb-2 flex items-center justify-between sm:mb-3">
-                <span className="text-xs text-[var(--color-ink)]/50 sm:text-sm">{card.label}</span>
+                <span className="text-xs text-[var(--color-ink)]/65 sm:text-sm">{card.label}</span>
                 <div className={`rounded-lg p-1.5 sm:p-2 ${card.color}`}>
                   <Icon size={16} className="sm:hidden" />
                   <Icon size={18} className="hidden sm:block" />
@@ -171,7 +171,7 @@ export default function Dashboard() {
                         {STATUS_LABELS[order.status] || order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[var(--color-ink)]/50">
+                    <td className="px-4 py-3 text-[var(--color-ink)]/65">
                       {new Date(order.createdAt).toLocaleDateString('tr-TR')}
                     </td>
                   </tr>
@@ -199,7 +199,7 @@ export default function Dashboard() {
                     {STATUS_LABELS[order.status] || order.status}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-[var(--color-ink)]/50">
+                <div className="mt-1 flex items-center justify-between text-xs text-[var(--color-ink)]/65">
                   <span>{order.customerName}</span>
                   <span>{new Date(order.createdAt).toLocaleDateString('tr-TR')}</span>
                 </div>

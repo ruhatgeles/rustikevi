@@ -8,7 +8,7 @@ export function WhatsAppFloatingButton() {
       target="_blank"
       rel="noreferrer"
       aria-label="WhatsApp üzerinden hızlı sipariş oluştur"
-      className="group fixed bottom-6 right-5 z-50 flex items-center gap-3 rounded-full bg-[#25D366] py-3 pl-4 pr-4 text-white shadow-[0_8px_24px_rgba(37,211,102,0.45)] transition-all duration-300 hover:pr-5 sm:bottom-8 sm:right-8"
+      className="group fixed bottom-6 right-5 z-50 flex items-center gap-3 rounded-full bg-[var(--color-whatsapp)] hover:bg-[var(--color-whatsapp-hover)] py-3 pl-4 pr-4 text-white shadow-[0_8px_24px_rgba(21,128,61,0.4)] transition-all duration-300 hover:pr-5 sm:bottom-8 sm:right-8"
     >
       <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#25D366]/50 [animation-duration:2.5s] motion-reduce:hidden" />
       <WhatsAppIcon size={26} />

@@ -156,9 +156,9 @@ export default function ExchangeModal({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-[var(--color-espresso)]">Değişim İşlemi</h2>
-            <p className="mt-1 text-sm text-[var(--color-ink)]/50">Sipariş: {orderNumber}</p>
+            <p className="mt-1 text-sm text-[var(--color-ink)]/65">Sipariş: {orderNumber}</p>
           </div>
-          <button onClick={onCancel} className="text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]">
+          <button onClick={onCancel} className="text-[var(--color-ink)]/60 hover:text-[var(--color-ink)]">
             <X size={20} />
           </button>
         </div>
@@ -206,7 +206,7 @@ export default function ExchangeModal({
                         </div>
                         <div className="flex-1">
                           <div className="text-sm font-medium">{item.productName}</div>
-                          <div className="mt-1 text-xs text-[var(--color-ink)]/50">
+                          <div className="mt-1 text-xs text-[var(--color-ink)]/65">
                             {item.quantity} adet
                             {item.unitPrice && ` · ${formatPrice(item.unitPrice)}`}
                           </div>
@@ -275,7 +275,7 @@ export default function ExchangeModal({
                         />
                         <div className="flex gap-2">
                           <div className="flex-1">
-                            <label className="text-[10px] text-[var(--color-ink)]/50">Adet</label>
+                            <label className="text-[10px] text-[var(--color-ink)]/65">Adet</label>
                             <input
                               type="number"
                               min={1}
@@ -287,7 +287,7 @@ export default function ExchangeModal({
                             />
                           </div>
                           <div className="flex-1">
-                            <label className="text-[10px] text-[var(--color-ink)]/50">Birim Fiyat (₺)</label>
+                            <label className="text-[10px] text-[var(--color-ink)]/65">Birim Fiyat (₺)</label>
                             <input
                               type="number"
                               min={0}
@@ -314,7 +314,7 @@ export default function ExchangeModal({
                       </div>
                       <button
                         onClick={() => removeNewItem(index)}
-                        className="text-[var(--color-ink)]/30 hover:text-red-500"
+                        className="text-[var(--color-ink)]/55 hover:text-red-500"
                       >
                         <Trash2 size={14} />
                       </button>

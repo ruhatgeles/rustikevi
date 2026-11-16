@@ -67,7 +67,7 @@ function ContactPage() {
               rel="noreferrer"
               className="flex items-center gap-4 rounded-2xl border border-[#25D366]/30 bg-[#25D366]/10 p-5 transition-colors hover:bg-[#25D366]/15"
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-whatsapp)] hover:bg-[var(--color-whatsapp-hover)] text-white">
                 <WhatsAppIcon size={24} />
               </span>
               <div>
@@ -135,7 +135,7 @@ function ContactPage() {
                   target="_blank"
                   rel="noreferrer"
                   aria-label="WhatsApp"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-[#25D366]/40 text-[#1f9c53] transition-colors hover:bg-[#25D366]/10"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-[#25D366]/40 text-[var(--color-whatsapp)] transition-colors hover:bg-[#25D366]/10"
                 >
                   <WhatsAppIcon size={19} />
                 </a>

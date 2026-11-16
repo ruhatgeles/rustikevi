@@ -53,7 +53,7 @@ export default function ConfirmModal({
         {/* Close button */}
         <button
           onClick={onCancel}
-          className="absolute right-4 top-4 rounded p-1 text-[var(--color-ink)]/30 transition-colors hover:text-[var(--color-ink)]"
+          className="absolute right-4 top-4 rounded p-1 text-[var(--color-ink)]/55 transition-colors hover:text-[var(--color-ink)]"
         >
           <X size={18} />
         </button>

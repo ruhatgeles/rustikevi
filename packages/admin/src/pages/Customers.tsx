@@ -563,21 +563,21 @@ export default function Customers() {
                   )}
                   <button
                     onClick={() => handleArchive(selectedCustomer.id, !selectedCustomer.isArchived)}
-                    className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                    className="rounded p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                     title={selectedCustomer.isArchived ? 'Arşivden çıkar' : 'Arşivle'}
                   >
                     {selectedCustomer.isArchived ? <ArchiveRestore size={16} /> : <Archive size={16} />}
                   </button>
                   <button
                     onClick={startEdit}
-                    className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                    className="rounded p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                     title="Düzenle"
                   >
                     <Pencil size={16} />
                   </button>
                   <button
                     onClick={handleDeleteClick}
-                    className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="rounded p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-red-50 hover:text-red-600"
                     title="Sil"
                   >
                     <Trash2 size={16} />
@@ -602,7 +602,7 @@ export default function Customers() {
                     {selectedCustomer.city}
                   </div>
                 )}
-                <div className="text-xs text-[var(--color-ink)]/40">
+                <div className="text-xs text-[var(--color-ink)]/60">
                   Kayıt: {new Date(selectedCustomer.createdAt).toLocaleDateString('tr-TR')}
                 </div>
               </div>
@@ -665,7 +665,7 @@ export default function Customers() {
                           <button
                             type="button"
                             onClick={() => updateOrderItem(index, 'productName', '')}
-                            className="text-[var(--color-ink)]/30 hover:text-red-500"
+                            className="text-[var(--color-ink)]/55 hover:text-red-500"
                           >
                             <X size={12} />
                           </button>
@@ -698,7 +698,7 @@ export default function Customers() {
                         type="button"
                         onClick={() => removeOrderItemRow(index)}
                         disabled={orderItems.length <= 1}
-                        className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30 sm:hidden"
+                        className="flex items-center justify-center rounded-lg text-[var(--color-ink)]/55 hover:text-red-500 disabled:opacity-30 sm:hidden"
                       >
                         <X size={16} />
                       </button>
@@ -713,7 +713,7 @@ export default function Customers() {
                       type="button"
                       onClick={() => removeOrderItemRow(index)}
                       disabled={orderItems.length <= 1}
-                      className="hidden items-center justify-center rounded-lg text-[var(--color-ink)]/30 hover:text-red-500 disabled:opacity-30 sm:flex"
+                      className="hidden items-center justify-center rounded-lg text-[var(--color-ink)]/55 hover:text-red-500 disabled:opacity-30 sm:flex"
                     >
                       <X size={16} />
                     </button>
@@ -773,7 +773,7 @@ export default function Customers() {
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="py-8 text-center text-[var(--color-ink)]/40">
+            <div className="py-8 text-center text-[var(--color-ink)]/60">
               {orderFilter ? 'Bu durumda sipariş yok' : 'Henüz sipariş yok'}
             </div>
           ) : (
@@ -793,7 +793,7 @@ export default function Customers() {
                         {STATUS_LABELS[order.status] || order.status}
                       </span>
                     </div>
-                    <div className="mt-1 text-xs text-[var(--color-ink)]/50">
+                    <div className="mt-1 text-xs text-[var(--color-ink)]/65">
                       {new Date(order.createdAt).toLocaleDateString('tr-TR')}
                     </div>
                   </div>
@@ -803,7 +803,7 @@ export default function Customers() {
                         {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(order.totalAmount / 100)}
                       </div>
                     )}
-                    <ChevronRight size={16} className="text-[var(--color-ink)]/30" />
+                    <ChevronRight size={16} className="text-[var(--color-ink)]/55" />
                   </div>
                 </button>
               ))}
@@ -834,7 +834,7 @@ export default function Customers() {
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Müşteriler</h1>
-          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
+          <p className="mt-1 text-xs text-[var(--color-ink)]/65 sm:text-sm">
             {showArchived ? 'Arşivlenmiş müşteriler' : 'Müşteri listesi'}
           </p>
         </div>
@@ -854,7 +854,7 @@ export default function Customers() {
       {/* Search + Filters */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/60" />
           <input
             type="text"
             placeholder="İşletme adı, yetkili veya telefon ile ara..."
@@ -929,7 +929,7 @@ export default function Customers() {
           )}
           <button
             onClick={() => setSelectedCustomers(new Set())}
-            className="rounded p-1 text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
+            className="rounded p-1 text-[var(--color-ink)]/60 hover:text-[var(--color-ink)]"
           >
             <X size={16} />
           </button>
@@ -1005,13 +1005,13 @@ export default function Customers() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/60">
                   Yükleniyor...
                 </td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink)]/60">
                   Müşteri bulunamadı
                 </td>
               </tr>
@@ -1049,7 +1049,7 @@ export default function Customers() {
                     <td className="px-4 py-3">{c.contactName}</td>
                     <td className="px-4 py-3 text-[var(--color-ink)]/60">{c.phone}</td>
                     <td className="px-4 py-3 text-[var(--color-ink)]/60">{c.city || '-'}</td>
-                    <td className="px-4 py-3 text-[var(--color-ink)]/50">
+                    <td className="px-4 py-3 text-[var(--color-ink)]/65">
                       {new Date(c.createdAt).toLocaleDateString('tr-TR')}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -1062,7 +1062,7 @@ export default function Customers() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <ChevronRight size={16} className="text-[var(--color-ink)]/30" />
+                      <ChevronRight size={16} className="text-[var(--color-ink)]/55" />
                     </td>
                   </tr>
                 )
@@ -1079,7 +1079,7 @@ export default function Customers() {
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
           </div>
         ) : customers.length === 0 ? (
-          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/40">
+          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/60">
             Müşteri bulunamadı
           </div>
         ) : (
@@ -1114,7 +1114,7 @@ export default function Customers() {
                       )}
                     </div>
                     <div className="mt-1 text-xs text-[var(--color-ink)]/60">{c.contactName}</div>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-[var(--color-ink)]/50">
+                    <div className="mt-1 flex items-center gap-3 text-xs text-[var(--color-ink)]/65">
                       <span>{c.phone}</span>
                       {c.city && <span>{c.city}</span>}
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
@@ -1126,7 +1126,7 @@ export default function Customers() {
                       </span>
                     </div>
                   </div>
-                  <ChevronRight size={16} className="mt-1 shrink-0 text-[var(--color-ink)]/30" />
+                  <ChevronRight size={16} className="mt-1 shrink-0 text-[var(--color-ink)]/55" />
                 </div>
               </button>
             )

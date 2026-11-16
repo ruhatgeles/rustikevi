@@ -33,7 +33,7 @@ export default function Login() {
             RE
           </div>
           <h1 className="font-serif text-2xl text-[var(--color-espresso)]">Rustik Evi</h1>
-          <p className="mt-1 text-sm text-[var(--color-ink)]/50">Admin Panel Girişi</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]/65">Admin Panel Girişi</p>
         </div>
 
         {error && (

@@ -53,12 +53,12 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-[var(--color-espresso)]">Rustik Evi</p>
-          <p className="text-xs text-[var(--color-ink)]/50">Admin Panel</p>
+          <p className="text-xs text-[var(--color-ink)]/65">Admin Panel</p>
         </div>
         {/* Close button - mobile only */}
         <button
           onClick={() => setSidebarOpen(false)}
-          className="rounded-lg p-1.5 text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)] lg:hidden"
+          className="rounded-lg p-1.5 text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)] lg:hidden"
         >
           <X size={20} />
         </button>
@@ -93,7 +93,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             className={`mb-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
               debugMode
                 ? 'bg-orange-50 text-orange-700'
-                : 'text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)]'
+                : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)]'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -120,7 +120,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{user?.name}</p>
-            <p className="truncate text-xs text-[var(--color-ink)]/50">{user?.role}</p>
+            <p className="truncate text-xs text-[var(--color-ink)]/65">{user?.role}</p>
           </div>
         </div>
         <button

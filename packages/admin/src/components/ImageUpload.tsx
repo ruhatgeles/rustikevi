@@ -163,12 +163,12 @@ export default function ImageUpload({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Upload size={32} className="text-[var(--color-ink)]/30" />
+            <Upload size={32} className="text-[var(--color-ink)]/55" />
             <div>
               <p className="text-sm font-medium text-[var(--color-ink)]/70">
                 Görselleri sürükle bırak veya tıkla
               </p>
-              <p className="mt-1 text-xs text-[var(--color-ink)]/40">
+              <p className="mt-1 text-xs text-[var(--color-ink)]/60">
                 JPEG, PNG, WebP, GIF • Maks 20MB • En fazla {maxImages} görsel
               </p>
             </div>

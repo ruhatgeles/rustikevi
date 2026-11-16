@@ -96,7 +96,7 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
   return (
     <div ref={wrapperRef} className="relative">
       <div className="relative">
-        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/30" />
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/55" />
         <input
           type="text"
           value={query}
@@ -111,7 +111,7 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
         {query && (
           <button
             onClick={() => { setQuery(''); onChange?.(''); setResults([]); setOpen(false) }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/30 hover:text-[var(--color-ink)]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/55 hover:text-[var(--color-ink)]"
           >
             <X size={14} />
           </button>
@@ -138,11 +138,11 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
                 </span>
               )}
               <span className="flex-1 truncate font-medium">{product.name}</span>
-              <span className="shrink-0 text-xs text-[var(--color-ink)]/40">
+              <span className="shrink-0 text-xs text-[var(--color-ink)]/60">
                 {product.category}
               </span>
               {product.color && (
-                <span className="shrink-0 text-xs text-[var(--color-ink)]/40">
+                <span className="shrink-0 text-xs text-[var(--color-ink)]/60">
                   {product.color}
                 </span>
               )}
@@ -158,7 +158,7 @@ export default function ProductSearch({ onSelect, placeholder = 'Ürün ara (kod
 
       {/* Sonuç yok */}
       {open && query.length >= 2 && !loading && results.length === 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-cream-deep)] bg-white p-3 text-center text-sm text-[var(--color-ink)]/40 shadow-lg">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-cream-deep)] bg-white p-3 text-center text-sm text-[var(--color-ink)]/60 shadow-lg">
           Ürün bulunamadı
         </div>
       )}

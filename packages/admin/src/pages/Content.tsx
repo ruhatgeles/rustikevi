@@ -131,7 +131,7 @@ export default function Content() {
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">İçerik Yönetimi</h1>
-          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
+          <p className="mt-1 text-xs text-[var(--color-ink)]/65 sm:text-sm">
             Site içerik bloklarını buradan düzenleyebilirsiniz.
           </p>
         </div>
@@ -274,7 +274,7 @@ export default function Content() {
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/40">
+          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/60">
             Henüz içerik bloku yok
           </div>
         ) : (
@@ -297,9 +297,9 @@ export default function Content() {
                     {item.type}
                   </span>
                   <span className="font-medium">{item.title}</span>
-                  <span className="text-xs text-[var(--color-ink)]/40">/{item.slug}</span>
+                  <span className="text-xs text-[var(--color-ink)]/60">/{item.slug}</span>
                 </div>
-                <p className="mt-1 truncate text-sm text-[var(--color-ink)]/50">
+                <p className="mt-1 truncate text-sm text-[var(--color-ink)]/65">
                   {item.type === 'json'
                     ? JSON.stringify(item.metadata || {}).slice(0, 80)
                     : item.body.slice(0, 80)}
@@ -308,14 +308,14 @@ export default function Content() {
               <div className="flex gap-1">
                 <button
                   onClick={() => openEdit(item)}
-                  className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                  className="rounded p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                   title="Düzenle"
                 >
                   <Pencil size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(item.slug)}
-                  className="rounded p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="rounded p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-red-50 hover:text-red-600"
                   title="Sil"
                 >
                   <Trash2 size={16} />

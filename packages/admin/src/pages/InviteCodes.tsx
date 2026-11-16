@@ -76,7 +76,7 @@ export default function InviteCodes() {
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Davet Kodları</h1>
-          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
+          <p className="mt-1 text-xs text-[var(--color-ink)]/65 sm:text-sm">
             Yeni kullanıcı kaydı için davet kodları oluşturun.
           </p>
         </div>
@@ -142,7 +142,7 @@ export default function InviteCodes() {
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
           </div>
         ) : codes.length === 0 ? (
-          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/40">
+          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/60">
             Henüz davet kodu yok
           </div>
         ) : (
@@ -164,10 +164,10 @@ export default function InviteCodes() {
                     {code.role}
                   </span>
                 </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--color-ink)]/50">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--color-ink)]/65">
                   <span>{code.useCount}/{code.maxUses ?? '∞'} kullanım</span>
                   {code.expiresAt && (
-                    <span className="text-[var(--color-ink)]/40">
+                    <span className="text-[var(--color-ink)]/60">
                       Son: {new Date(code.expiresAt).toLocaleDateString('tr-TR')}
                     </span>
                   )}

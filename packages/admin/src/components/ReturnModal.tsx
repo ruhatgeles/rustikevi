@@ -108,9 +108,9 @@ export default function ReturnModal({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-[var(--color-espresso)]">İade İşlemi</h2>
-            <p className="mt-1 text-sm text-[var(--color-ink)]/50">Sipariş: {orderNumber}</p>
+            <p className="mt-1 text-sm text-[var(--color-ink)]/65">Sipariş: {orderNumber}</p>
           </div>
-          <button onClick={onCancel} className="text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]">
+          <button onClick={onCancel} className="text-[var(--color-ink)]/60 hover:text-[var(--color-ink)]">
             <X size={20} />
           </button>
         </div>
@@ -151,7 +151,7 @@ export default function ReturnModal({
                     />
                     <div className="flex-1">
                       <div className="text-sm font-medium">{item.productName}</div>
-                      <div className="mt-1 text-xs text-[var(--color-ink)]/50">
+                      <div className="mt-1 text-xs text-[var(--color-ink)]/65">
                         {item.quantity} adet
                         {item.unitPrice && ` · ${formatPrice(item.unitPrice)}`}
                       </div>
@@ -169,7 +169,7 @@ export default function ReturnModal({
                               }
                               className="w-20 rounded border border-[var(--color-cream-deep)] px-2 py-1 text-xs"
                             />
-                            <span className="text-xs text-[var(--color-ink)]/40">/ {item.quantity}</span>
+                            <span className="text-xs text-[var(--color-ink)]/60">/ {item.quantity}</span>
                           </div>
                           <input
                             type="text"

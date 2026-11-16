@@ -11,6 +11,9 @@
   --color-brass: #b68a4e;
   --color-brass-bright: #d1a463;
   --color-ink: #2b2118;
+  /* WhatsApp yeşilinin beyaz metinle WCAG AA (5:1) sağlayan koyu tonu; #25D366 beyazla 2:1 kalıyordu */
+  --color-whatsapp: #15803d;
+  --color-whatsapp-hover: #166534;
 }
 
 * {

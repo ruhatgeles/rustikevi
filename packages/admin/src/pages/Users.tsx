@@ -341,7 +341,7 @@ export default function Users() {
           </div>
           <form onSubmit={handleUpdate} className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink)]/50">Ad Soyad</label>
+              <label className="mb-1 block text-xs text-[var(--color-ink)]/65">Ad Soyad</label>
               <input
                 required
                 value={editForm.name}
@@ -350,7 +350,7 @@ export default function Users() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink)]/50">E-posta</label>
+              <label className="mb-1 block text-xs text-[var(--color-ink)]/65">E-posta</label>
               <input
                 required
                 type="email"
@@ -360,7 +360,7 @@ export default function Users() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink)]/50">Yeni Şifre (boş bırakın değiştirmemek için)</label>
+              <label className="mb-1 block text-xs text-[var(--color-ink)]/65">Yeni Şifre (boş bırakın değiştirmemek için)</label>
               <input
                 type="password"
                 minLength={6}
@@ -371,7 +371,7 @@ export default function Users() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink)]/50">Rol</label>
+              <label className="mb-1 block text-xs text-[var(--color-ink)]/65">Rol</label>
               <select
                 value={editForm.role}
                 onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
@@ -454,18 +454,18 @@ export default function Users() {
                       </span>
                     )}
                     {!user.isLoginBlocked && !user.isViewOnly && (
-                      <span className="text-xs text-[var(--color-ink)]/30">—</span>
+                      <span className="text-xs text-[var(--color-ink)]/55">—</span>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-[var(--color-ink)]/50">
+                <td className="px-4 py-3 text-[var(--color-ink)]/65">
                   {new Date(user.createdAt).toLocaleDateString('tr-TR')}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleEdit(user)}
-                      className="rounded p-1 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                      className="rounded p-1 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                     >
                       <Pencil size={16} />
                     </button>
@@ -477,7 +477,7 @@ export default function Users() {
                           className={`rounded p-1 transition-colors ${
                             user.isLoginBlocked || user.isViewOnly
                               ? 'text-amber-600 hover:bg-amber-50'
-                              : 'text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]'
+                              : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]'
                           }`}
                         >
                           <ShieldBan size={16} />
@@ -485,7 +485,7 @@ export default function Users() {
                         <button
                           onClick={() => handleGenerateLink(user)}
                           title="Otomatik giriş linki"
-                          className="rounded p-1 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                          className="rounded p-1 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                         >
                           <Link size={16} />
                         </button>
@@ -540,7 +540,7 @@ export default function Users() {
                       Sadece Görüntü
                     </span>
                   )}
-                  <span className="text-[10px] text-[var(--color-ink)]/40">
+                  <span className="text-[10px] text-[var(--color-ink)]/60">
                     {new Date(user.createdAt).toLocaleDateString('tr-TR')}
                   </span>
                 </div>
@@ -548,7 +548,7 @@ export default function Users() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handleEdit(user)}
-                  className="rounded p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                  className="rounded p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                 >
                   <Pencil size={14} />
                 </button>
@@ -560,7 +560,7 @@ export default function Users() {
                       className={`rounded p-1.5 transition-colors ${
                         user.isLoginBlocked || user.isViewOnly
                           ? 'text-amber-600 hover:bg-amber-50'
-                          : 'text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]'
+                          : 'text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]'
                       }`}
                     >
                       <ShieldBan size={14} />
@@ -601,7 +601,7 @@ export default function Users() {
               </h3>
               <button
                 onClick={() => setGeneratedLink(null)}
-                className="rounded-lg p-1 text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)]"
+                className="rounded-lg p-1 text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)]"
               >
                 <X size={20} />
               </button>
@@ -638,7 +638,7 @@ export default function Users() {
             </div>
 
             {/* Bilgi */}
-            <p className="mb-4 text-xs text-[var(--color-ink)]/50">
+            <p className="mb-4 text-xs text-[var(--color-ink)]/65">
               Bu link {generatedLink.maxUses} kez kullanılabilir. "Linki Yenile" ile sıfırlayıp yeni link oluşturabilirsiniz.
             </p>
 

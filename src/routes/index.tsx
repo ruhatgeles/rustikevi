@@ -84,7 +84,7 @@ function HomePage() {
                 href={buildWhatsAppLink(defaultWhatsAppMessage)}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2.5 rounded-full bg-[#25D366] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#25D366]/20 transition-transform hover:-translate-y-0.5"
+                className="flex items-center gap-2.5 rounded-full bg-[var(--color-whatsapp)] hover:bg-[var(--color-whatsapp-hover)] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#25D366]/20 transition-transform hover:-translate-y-0.5"
               >
                 <WhatsAppIcon size={20} />
                 WhatsApp'tan Sipariş Ver

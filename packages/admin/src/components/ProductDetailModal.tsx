@@ -64,7 +64,7 @@ export default function ProductDetailModal({
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
+              className="rounded-lg p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
             >
               <X size={18} />
             </button>
@@ -141,7 +141,7 @@ export default function ProductDetailModal({
                 {formatPrice(product.price)}
               </div>
               {product.moq && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink)]/50">
+                <div className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink)]/65">
                   <Package size={12} />
                   Min. Sipariş: {product.moq}
                 </div>
@@ -163,7 +163,7 @@ export default function ProductDetailModal({
             )}
 
             {/* Meta */}
-            <div className="mt-4 border-t border-[var(--color-cream-deep)] pt-3 text-xs text-[var(--color-ink)]/40">
+            <div className="mt-4 border-t border-[var(--color-cream-deep)] pt-3 text-xs text-[var(--color-ink)]/60">
               <div>Oluşturulma: {new Date(product.createdAt).toLocaleDateString('tr-TR')}</div>
               <div>Güncelleme: {new Date(product.updatedAt).toLocaleDateString('tr-TR')}</div>
             </div>

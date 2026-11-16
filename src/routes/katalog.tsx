@@ -137,7 +137,7 @@ function CatalogPage() {
             )}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2.5 rounded-full bg-[#25D366] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
+            className="flex items-center gap-2.5 rounded-full bg-[var(--color-whatsapp)] hover:bg-[var(--color-whatsapp-hover)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
           >
             <WhatsAppIcon size={19} />
             WhatsApp'tan Fiyat Sor

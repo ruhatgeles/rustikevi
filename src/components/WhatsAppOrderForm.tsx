@@ -84,7 +84,7 @@ export function WhatsAppOrderForm() {
   return (
     <div className="rounded-3xl border border-[var(--color-cream-deep)] bg-[var(--color-linen)] p-6 shadow-sm sm:p-8">
       <div className="mb-6 flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#25D366]/15 text-[#1f9c53]">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#25D366]/15 text-[var(--color-whatsapp)]">
           <WhatsAppIcon size={22} />
         </span>
         <div>
@@ -235,7 +235,7 @@ export function WhatsAppOrderForm() {
           <button
             type="submit"
             disabled={sending}
-            className="mt-2 flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#1fb355] disabled:opacity-60 sm:col-span-2"
+            className="mt-2 flex items-center justify-center gap-2 rounded-full bg-[var(--color-whatsapp)] hover:bg-[var(--color-whatsapp-hover)] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-60 sm:col-span-2"
           >
             <WhatsAppIcon size={18} />
             {sending ? 'Hazırlanıyor…' : "WhatsApp'ta Siparişi Gönder"}

@@ -279,7 +279,7 @@ export default function Status() {
     <div>
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Durum</h1>
-        <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
+        <p className="mt-1 text-xs text-[var(--color-ink)]/65 sm:text-sm">
           Ürünleri sürükle-bırak ile durumlandırın
         </p>
       </div>
@@ -324,7 +324,7 @@ export default function Status() {
                 {/* Ürün kartları */}
                 <div className="min-h-[120px] space-y-2 p-2 sm:min-h-[150px]">
                   {columnItems.length === 0 ? (
-                    <div className="flex h-16 items-center justify-center text-[10px] text-[var(--color-ink)]/30">
+                    <div className="flex h-16 items-center justify-center text-[10px] text-[var(--color-ink)]/55">
                       Ürün yok
                     </div>
                   ) : (
@@ -369,7 +369,7 @@ export default function Status() {
                           <span className="font-mono text-[10px] text-[var(--color-wood-dark)]">
                             {item.orderNumber}
                           </span>
-                          <span className="text-[10px] text-[var(--color-ink)]/40 truncate max-w-[70px] sm:max-w-[80px]">
+                          <span className="text-[10px] text-[var(--color-ink)]/60 truncate max-w-[70px] sm:max-w-[80px]">
                             {item.customerName}
                           </span>
                         </div>
@@ -409,13 +409,13 @@ export default function Status() {
                     <div className="font-mono text-lg font-bold text-[var(--color-wood-dark)]">
                       {selectedOrder.orderNumber}
                     </div>
-                    <div className="mt-1 text-xs text-[var(--color-ink)]/50">
+                    <div className="mt-1 text-xs text-[var(--color-ink)]/65">
                       {new Date(selectedOrder.createdAt).toLocaleString('tr-TR')}
                     </div>
                   </div>
                   <button
                     onClick={closeDetail}
-                    className="text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]"
+                    className="text-[var(--color-ink)]/60 hover:text-[var(--color-ink)]"
                   >
                     <X size={20} />
                   </button>
@@ -512,7 +512,7 @@ export default function Status() {
                                 </span>
                               )}
                             </div>
-                            <div className="mt-1 text-xs text-[var(--color-ink)]/50">
+                            <div className="mt-1 text-xs text-[var(--color-ink)]/65">
                               {item.quantity} adet
                               {item.unitPrice && ` · ${formatPrice(item.unitPrice)}`}
                             </div>

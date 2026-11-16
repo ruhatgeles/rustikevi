@@ -515,7 +515,7 @@ export default function Products() {
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-[var(--color-espresso)] sm:text-2xl">Ürünler</h1>
-          <p className="mt-1 text-xs text-[var(--color-ink)]/50 sm:text-sm">
+          <p className="mt-1 text-xs text-[var(--color-ink)]/65 sm:text-sm">
             {showArchived ? 'Arşivlenmiş ürünler' : 'Ürün listesi'}
           </p>
         </div>
@@ -544,7 +544,7 @@ export default function Products() {
       {/* Filters */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/40" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink)]/60" />
           <input
             type="text"
             placeholder="Kod, ürün adı, kategori veya renk ara..."
@@ -610,14 +610,14 @@ export default function Products() {
               <Tags size={16} />
               Kategori & Renk Yönetimi
             </h3>
-            <button onClick={() => setShowCategoryManager(false)} className="text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]">
+            <button onClick={() => setShowCategoryManager(false)} className="text-[var(--color-ink)]/60 hover:text-[var(--color-ink)]">
               <X size={16} />
             </button>
           </div>
 
           {/* Categories Section */}
           <div className="mb-4">
-            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink)]/50">Kategoriler</h4>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink)]/65">Kategoriler</h4>
             <div className="mb-2 flex gap-2">
               <input
                 type="text"
@@ -637,7 +637,7 @@ export default function Products() {
               </button>
             </div>
             {managedCategories.length === 0 ? (
-              <p className="text-xs text-[var(--color-ink)]/40">Henüz kategori eklenmemiş</p>
+              <p className="text-xs text-[var(--color-ink)]/60">Henüz kategori eklenmemiş</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {managedCategories.map((cat) => (
@@ -649,7 +649,7 @@ export default function Products() {
                     <button
                       onClick={() => handleDeleteCategory(cat.id)}
                       disabled={categoryLoading}
-                      className="rounded p-0.5 text-[var(--color-ink)]/30 transition-colors hover:bg-red-50 hover:text-red-600"
+                      className="rounded p-0.5 text-[var(--color-ink)]/55 transition-colors hover:bg-red-50 hover:text-red-600"
                       title="Sil"
                     >
                       <X size={12} />
@@ -665,7 +665,7 @@ export default function Products() {
 
           {/* Colors Section */}
           <div>
-            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink)]/50">Renkler</h4>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink)]/65">Renkler</h4>
             <div className="mb-2 flex gap-2">
               <input
                 type="text"
@@ -693,7 +693,7 @@ export default function Products() {
                   <span className="font-medium text-[var(--color-wood-dark)]">{color}</span>
                   <button
                     onClick={() => handleDeleteColor(color)}
-                    className="rounded p-0.5 text-[var(--color-ink)]/30 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="rounded p-0.5 text-[var(--color-ink)]/55 transition-colors hover:bg-red-50 hover:text-red-600"
                     title="Sil"
                   >
                     <X size={12} />
@@ -733,7 +733,7 @@ export default function Products() {
             </>
           )}
           <button onClick={() => setSelectedProducts(new Set())}
-            className="rounded p-1 text-[var(--color-ink)]/40 hover:text-[var(--color-ink)]">
+            className="rounded p-1 text-[var(--color-ink)]/60 hover:text-[var(--color-ink)]">
             <X size={16} />
           </button>
         </div>
@@ -854,7 +854,7 @@ export default function Products() {
             <h2 className="font-semibold">Toplu Ürün Oluştur</h2>
             <button onClick={() => setShowBulkForm(false)}><X size={18} /></button>
           </div>
-          <p className="mb-4 text-xs text-[var(--color-ink)]/50">
+          <p className="mb-4 text-xs text-[var(--color-ink)]/65">
             Aynı ürünün farklı renk varyasyonlarını tek seferde oluşturun. Örn: "Dekorink" için 8 farklı renk seçin, 8 ayrı ürün oluşsun.
           </p>
           <form onSubmit={handleBulkSubmit} className="grid gap-3 sm:grid-cols-2">
@@ -883,7 +883,7 @@ export default function Products() {
             {/* Color Selection */}
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-medium text-[var(--color-ink)]/70">
-                Renkler <span className="text-[var(--color-ink)]/40">({bulkForm.selectedColors.length} seçili)</span>
+                Renkler <span className="text-[var(--color-ink)]/60">({bulkForm.selectedColors.length} seçili)</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {colors.map((color) => {
@@ -933,13 +933,13 @@ export default function Products() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink)]/60">
                   Yükleniyor...
                 </td>
               </tr>
             ) : displayProducts.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink)]/40">
+                <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink)]/60">
                   Ürün bulunamadı
                 </td>
               </tr>
@@ -982,7 +982,7 @@ export default function Products() {
                           <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">Arşiv</span>
                         )}
                       </div>
-                      <div className="mt-0.5 max-w-xs truncate text-xs text-[var(--color-ink)]/50">
+                      <div className="mt-0.5 max-w-xs truncate text-xs text-[var(--color-ink)]/65">
                         {product.shortDescription}
                       </div>
                     </td>
@@ -997,7 +997,7 @@ export default function Products() {
                         <span className="font-medium">{formatPrice(product.price)}</span>
                         <button
                           onClick={() => { setGalleryProduct(product); setShowGalleryModal(true) }}
-                          className="rounded p-1 text-[var(--color-ink)]/30 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                          className="rounded p-1 text-[var(--color-ink)]/55 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                           title="Görselleri Gör"
                         >
                           <ImageIcon size={14} />
@@ -1019,17 +1019,17 @@ export default function Products() {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         <button onClick={() => handleArchive(product.id, !product.isArchived)}
-                          className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                          className="rounded-lg p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                           title={product.isArchived ? 'Arşivden çıkar' : 'Arşivle'}>
                           {product.isArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
                         </button>
                         <button onClick={() => openEdit(product)}
-                          className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                          className="rounded-lg p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                           title="Düzenle">
                           <Pencil size={15} />
                         </button>
                         <button onClick={() => handleDeleteClick(product.id)}
-                          className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-red-50 hover:text-red-600"
+                          className="rounded-lg p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-red-50 hover:text-red-600"
                           title="Sil">
                           <Trash2 size={15} />
                         </button>
@@ -1050,7 +1050,7 @@ export default function Products() {
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-wood)] border-t-transparent" />
           </div>
         ) : displayProducts.length === 0 ? (
-          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/40">
+          <div className="rounded-xl border border-[var(--color-cream-deep)] bg-white p-8 text-center text-[var(--color-ink)]/60">
             Ürün bulunamadı
           </div>
         ) : (
@@ -1097,17 +1097,17 @@ export default function Products() {
                       {product.name}
                     </button>
                     {product.shortDescription && (
-                      <div className="mt-0.5 truncate text-xs text-[var(--color-ink)]/50">{product.shortDescription}</div>
+                      <div className="mt-0.5 truncate text-xs text-[var(--color-ink)]/65">{product.shortDescription}</div>
                     )}
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(product)}
-                      className="rounded-lg p-1.5 text-[var(--color-ink)]/40 hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                      className="rounded-lg p-1.5 text-[var(--color-ink)]/60 hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                       title="Düzenle">
                       <Pencil size={14} />
                     </button>
                     <button onClick={() => handleDeleteClick(product.id)}
-                      className="rounded-lg p-1.5 text-[var(--color-ink)]/40 hover:bg-red-50 hover:text-red-600"
+                      className="rounded-lg p-1.5 text-[var(--color-ink)]/60 hover:bg-red-50 hover:text-red-600"
                       title="Sil">
                       <Trash2 size={14} />
                     </button>
@@ -1117,11 +1117,11 @@ export default function Products() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
                     {product.color && (
-                      <span className="text-xs text-[var(--color-ink)]/50">{product.color}</span>
+                      <span className="text-xs text-[var(--color-ink)]/65">{product.color}</span>
                     )}
                     <button
                       onClick={() => { setGalleryProduct(product); setShowGalleryModal(true) }}
-                      className="rounded p-1 text-[var(--color-ink)]/30 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
+                      className="rounded p-1 text-[var(--color-ink)]/55 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-wood-dark)]"
                       title="Görselleri Gör"
                     >
                       <ImageIcon size={14} />
@@ -1146,7 +1146,7 @@ export default function Products() {
         )}
       </div>
 
-      <p className="mt-3 text-xs text-[var(--color-ink)]/40">
+      <p className="mt-3 text-xs text-[var(--color-ink)]/60">
         {displayProducts.length} / {products.length} ürün
       </p>
 

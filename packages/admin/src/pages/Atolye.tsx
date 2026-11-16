@@ -149,11 +149,11 @@ export default function Atolye() {
       {items.length === 0 && !loading && (
         <div className="flex h-64 items-center justify-center rounded-xl border-2 border-dashed border-[var(--color-cream-deep)]">
           <div className="text-center">
-            <Package className="mx-auto mb-4 text-[var(--color-ink)]/30" size={48} />
-            <p className="text-lg font-medium text-[var(--color-ink)]/50">
+            <Package className="mx-auto mb-4 text-[var(--color-ink)]/55" size={48} />
+            <p className="text-lg font-medium text-[var(--color-ink)]/65">
               Atölyede ürün yok
             </p>
-            <p className="mt-1 text-sm text-[var(--color-ink)]/40">
+            <p className="mt-1 text-sm text-[var(--color-ink)]/60">
               Sipariş kalemleri atölyeye gönderildiğinde burada görünecek
             </p>
           </div>
@@ -203,7 +203,7 @@ export default function Atolye() {
                       <Package size={14} />
                       {item.quantity} adet
                     </span>
-                    <span className="text-[var(--color-ink)]/50">
+                    <span className="text-[var(--color-ink)]/65">
                       Sipariş: {item.orderNumber}
                     </span>
                   </div>
@@ -297,17 +297,17 @@ export default function Atolye() {
         <div className="mt-6 rounded-lg border border-[var(--color-cream-deep)] bg-white p-4">
           <div className="flex flex-wrap gap-6 text-sm">
             <div>
-              <span className="text-[var(--color-ink)]/50">Toplam:</span>{' '}
+              <span className="text-[var(--color-ink)]/65">Toplam:</span>{' '}
               <span className="font-semibold text-[var(--color-espresso)]">{items.length}</span>
             </div>
             <div>
-              <span className="text-[var(--color-ink)]/50">Kilitli:</span>{' '}
+              <span className="text-[var(--color-ink)]/65">Kilitli:</span>{' '}
               <span className="font-semibold text-orange-600">
                 {items.filter((i) => i.isLocked).length}
               </span>
             </div>
             <div>
-              <span className="text-[var(--color-ink)]/50">Hazır (Transfer):</span>{' '}
+              <span className="text-[var(--color-ink)]/65">Hazır (Transfer):</span>{' '}
               <span className="font-semibold text-green-600">
                 {items.filter((i) => i.isReadyInWorkshop).length}
               </span>
@@ -327,7 +327,7 @@ export default function Atolye() {
               </h3>
               <button
                 onClick={() => setSelectedImages(null)}
-                className="rounded-lg p-2 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
+                className="rounded-lg p-2 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
               >
                 <X size={20} />
               </button>
@@ -336,7 +336,7 @@ export default function Atolye() {
             {/* Images Grid */}
             <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(90vh - 80px)' }}>
               {selectedImages.images.length === 0 ? (
-                <div className="flex h-32 items-center justify-center text-[var(--color-ink)]/40">
+                <div className="flex h-32 items-center justify-center text-[var(--color-ink)]/60">
                   Fotoğraf bulunamadı
                 </div>
               ) : (

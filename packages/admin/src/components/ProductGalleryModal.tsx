@@ -42,14 +42,14 @@ export default function ProductGalleryModal({
           <div>
             <h3 className="text-base font-semibold text-[var(--color-espresso)]">{productName}</h3>
             {hasImages && (
-              <p className="text-xs text-[var(--color-ink)]/50">
+              <p className="text-xs text-[var(--color-ink)]/65">
                 {currentIndex + 1} / {images.length} görsel
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-[var(--color-ink)]/40 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
+            className="rounded-lg p-1.5 text-[var(--color-ink)]/60 transition-colors hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
           >
             <X size={18} />
           </button>
@@ -60,7 +60,7 @@ export default function ProductGalleryModal({
           {!hasImages ? (
             <div className="flex flex-col items-center justify-center py-12">
               <ImageIcon size={48} className="mb-3 text-[var(--color-ink)]/20" />
-              <p className="text-sm text-[var(--color-ink)]/40">Bu ürün için henüz görsel eklenmemiş</p>
+              <p className="text-sm text-[var(--color-ink)]/60">Bu ürün için henüz görsel eklenmemiş</p>
             </div>
           ) : (
             <div className="relative">
